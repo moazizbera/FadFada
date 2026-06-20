@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { FormEvent, useMemo, useRef, useState } from "react";
 import { personas, type Persona, type PersonaId } from "../lib/personas";
 import { selectableWorlds, worlds, type WorldId } from "../lib/worlds";
@@ -39,6 +40,12 @@ const worldLabels: Record<WorldId, string> = {
 
 const userId = "local-demo-user";
 
+const personaAvatarPaths: Record<PersonaId, string> = {
+  omar: "/avatars/omar.png",
+  sami: "/avatars/sami.png",
+  nora: "/avatars/nora.png",
+};
+
 export function ChatWindow() {
   const [world, setWorld] = useState<WorldId>("calm");
   const [language, setLanguage] = useState<Language>("ar");
@@ -61,6 +68,7 @@ export function ChatWindow() {
 
   const activeWorld = worlds[world];
   const activePersona = useMemo(() => personas.find((persona) => persona.id === personaId) ?? personas[0], [personaId]);
+  const activePersonaAvatarPath = personaAvatarPaths[personaId];
 
   async function submitMessage(event?: FormEvent<HTMLFormElement>, overrideText?: string) {
     event?.preventDefault();
@@ -176,8 +184,33 @@ export function ChatWindow() {
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_8%,rgba(247,243,236,0.08),transparent_22rem)]" />
 
-      <header className="relative z-10 flex items-center justify-between">
+      <header className="relative z-10 flex min-h-16 items-center justify-between">
         <span className="font-enserif text-2xl italic text-[#F7F3EC]/40">Fadfada</span>
+        <button
+          type="button"
+          onClick={() => setPersonaOpen(true)}
+          className="absolute left-1/2 top-0 flex -translate-x-1/2 flex-col items-center gap-1.5 text-center outline-none"
+          aria-label={`Open persona drawer for ${activePersona.name}`}
+        >
+          <span
+            className={`relative h-12 w-12 overflow-hidden rounded-2xl border bg-slate-950 shadow-[0_18px_44px_rgba(0,0,0,0.34)] transition-all duration-500 ${
+              isThinking ? "animate-pulse border-[#C9A86A] shadow-[0_0_28px_rgba(201,168,106,0.32)]" : "animate-breathe border-white/10 duration-[4000ms]"
+            }`}
+          >
+            <Image
+              src={activePersonaAvatarPath}
+              alt={`${activePersona.name} avatar`}
+              fill
+              sizes="48px"
+              priority
+              className="object-cover"
+            />
+          </span>
+          <span className="flex items-center gap-1.5 text-xs text-bone/40">
+            <span className="font-arsans">{activePersona.nameAr}</span>
+            <span className="font-ensans">{activePersona.name}</span>
+          </span>
+        </button>
         <div className="flex items-center gap-4">
           <button
             type="button"
