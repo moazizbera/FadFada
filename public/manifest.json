@@ -1,0 +1,21 @@
+{
+  "name": "Fadfada | فضفضة",
+  "short_name": "Fadfada",
+  "description": "A bilingual AI wellbeing companion.",
+  "display": "standalone",
+  "background_color": "#0E0D10",
+  "theme_color": "#0E0D10",
+  "dir": "rtl",
+  "lang": "ar",
+  "orientation": "portrait-primary",
+  "start_url": "/",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

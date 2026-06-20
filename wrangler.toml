@@ -1,0 +1,8 @@
+name = "fadfada-pwa"
+compatibility_date = "2024-04-03"
+compatibility_flags = ["nextjs_package_json"]
+pages_build_output_dir = ".next"
+
+[vars]
+NEXT_PUBLIC_APP_URL = "https://fadfada-pwa.pages.dev"
+GEMINI_MODEL = "gemini-1.5-pro"
