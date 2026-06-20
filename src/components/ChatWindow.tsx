@@ -41,14 +41,8 @@ const worldLabels: Record<WorldId, string> = {
 
 const userId = "local-demo-user";
 
-const personaAvatarPaths: Record<PersonaId, string> = {
-  omar: "/avatars/omar.png",
-  sami: "/avatars/sami.png",
-  nora: "/avatars/nora.png",
-};
-
-function getPersonaDisplayName(persona: { name: string; nameAr: string }, activeLanguage: Language) {
-  return activeLanguage === "ar" ? persona.nameAr : persona.name;
+function getPersonaDisplayName(persona: { nameEn: string; nameAr: string }, activeLanguage: Language) {
+  return activeLanguage === "ar" ? persona.nameAr : persona.nameEn;
 }
 
 export function ChatWindow() {
@@ -69,11 +63,11 @@ export function ChatWindow() {
   const [isThinking, setIsThinking] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [unlockedPersonaIds] = useState<PersonaId[]>(["omar", "sami", "nora", "kareem"]);
   const recorderRef = useRef<MediaRecorder | null>(null);
 
   const activeWorld = worlds[world];
   const activePersona = useMemo(() => personas.find((persona) => persona.id === personaId) ?? personas[0], [personaId]);
-  const activePersonaAvatarPath = personaAvatarPaths[personaId];
   const activePersonaDisplayName = getPersonaDisplayName(activePersona, language);
 
   async function submitMessage(event?: FormEvent<HTMLFormElement>, overrideText?: string) {
@@ -183,6 +177,25 @@ export function ChatWindow() {
     window.location.assign("/api/checkout");
   }
 
+  async function startPersonaUnlockCheckout(personaIdToUnlock: PersonaId) {
+    const response = await fetch("/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        priceId: process.env.NEXT_PUBLIC_PERSONA_UNLOCK_PRICE_ID || "stripe_prod_id_here",
+        currentLanguage: language,
+        product: "persona_unlock",
+        personaId: personaIdToUnlock,
+      }),
+    });
+    const data = (await response.json()) as { url?: string };
+
+    if (data.url) {
+      window.location.assign(data.url);
+    }
+  }
+
   return (
     <main
       className="relative mx-auto flex min-h-screen max-w-2xl flex-col overflow-hidden bg-[#0E0D10] px-4 pb-24 pt-6 text-[#F7F3EC]/90 transition-[background] duration-1000"
@@ -196,16 +209,17 @@ export function ChatWindow() {
           type="button"
           onClick={() => setPersonaOpen(true)}
           className="absolute left-1/2 top-0 flex -translate-x-1/2 flex-col items-center gap-1.5 text-center outline-none"
-          aria-label={`Open persona drawer for ${activePersona.name}`}
+          aria-label={`Open persona drawer for ${activePersona.nameEn}`}
         >
           <span
-            className={`relative h-12 w-12 overflow-hidden rounded-3xl border bg-slate-950 shadow-xl transition-all duration-500 ${
-              isThinking ? "animate-pulse border-[#C9A86A] shadow-[0_0_28px_rgba(201,168,106,0.32)]" : "animate-breathe border-white/10 duration-[4000ms]"
+            className={`relative aspect-square h-12 w-12 overflow-hidden rounded-[2rem] border border-white/10 bg-[#0E0D10] shadow-2xl transition-all duration-500 ${
+              isThinking ? "animate-pulse scale-105" : "animate-breathe scale-105 duration-[4000ms]"
             }`}
+            style={{ boxShadow: `0 0 0 1px rgba(255,255,255,0.1), 0 18px 42px ${activePersona.glowColorHex}42` }}
           >
             <Image
-              src={activePersonaAvatarPath}
-              alt={`${activePersona.name} avatar`}
+              src={activePersona.avatarPath}
+              alt={`${activePersona.nameEn} avatar`}
               fill
               sizes="48px"
               priority
@@ -254,7 +268,7 @@ export function ChatWindow() {
             )}
           </article>
         ))}
-        {isThinking ? <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#F7F3EC]/30">{activePersona.name} is listening...</p> : null}
+        {isThinking ? <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#F7F3EC]/30">{activePersona.nameEn} is listening...</p> : null}
       </section>
 
       {paywallOpen ? <PaywallCard onCheckout={startCheckout} /> : null}
@@ -284,7 +298,15 @@ export function ChatWindow() {
         </button>
       </form>
 
-      <PersonaDrawer open={personaOpen} activePersona={personaId} language={language} onClose={() => setPersonaOpen(false)} onSelect={setPersonaId} />
+      <PersonaDrawer
+        open={personaOpen}
+        activePersona={personaId}
+        language={language}
+        unlockedPersonaIds={unlockedPersonaIds}
+        onClose={() => setPersonaOpen(false)}
+        onSelect={setPersonaId}
+        onLockedPersonaSelect={startPersonaUnlockCheckout}
+      />
     </main>
   );
 }
