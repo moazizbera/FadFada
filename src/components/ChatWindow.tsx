@@ -63,7 +63,7 @@ export function ChatWindow() {
   const [isThinking, setIsThinking] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
-  const [unlockedPersonaIds] = useState<PersonaId[]>(["omar", "sami", "nora", "kareem"]);
+  const [unlockedPersonaIds] = useState<PersonaId[]>(["omar", "sami", "nora", "kareem", "malik"]);
   const recorderRef = useRef<MediaRecorder | null>(null);
 
   const activeWorld = worlds[world];
