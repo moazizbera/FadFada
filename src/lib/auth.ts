@@ -93,9 +93,6 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "database",
   },
-  pages: {
-    signIn: "/api/auth/signin",
-  },
   providers: getConfiguredProviders(),
   callbacks: {
     async signIn({ user }) {
