@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import { FormEvent, useMemo, useRef, useState } from "react";
-import { personas, type Persona, type PersonaId } from "../lib/personas";
+import { personas, type PersonaId } from "../lib/personas";
 import { selectableWorlds, worlds, type WorldId } from "../lib/worlds";
+import { PersonaDrawer } from "./PersonaDrawer";
 import { TypewriterSync, type EmotionalCadence } from "./TypewriterSync";
 
 type Language = "ar" | "en";
@@ -46,6 +47,10 @@ const personaAvatarPaths: Record<PersonaId, string> = {
   nora: "/avatars/nora.png",
 };
 
+function getPersonaDisplayName(persona: { name: string; nameAr: string }, activeLanguage: Language) {
+  return activeLanguage === "ar" ? persona.nameAr : persona.name;
+}
+
 export function ChatWindow() {
   const [world, setWorld] = useState<WorldId>("calm");
   const [language, setLanguage] = useState<Language>("ar");
@@ -69,6 +74,7 @@ export function ChatWindow() {
   const activeWorld = worlds[world];
   const activePersona = useMemo(() => personas.find((persona) => persona.id === personaId) ?? personas[0], [personaId]);
   const activePersonaAvatarPath = personaAvatarPaths[personaId];
+  const activePersonaDisplayName = getPersonaDisplayName(activePersona, language);
 
   async function submitMessage(event?: FormEvent<HTMLFormElement>, overrideText?: string) {
     event?.preventDefault();
@@ -193,7 +199,7 @@ export function ChatWindow() {
           aria-label={`Open persona drawer for ${activePersona.name}`}
         >
           <span
-            className={`relative h-12 w-12 overflow-hidden rounded-2xl border bg-slate-950 shadow-[0_18px_44px_rgba(0,0,0,0.34)] transition-all duration-500 ${
+            className={`relative h-12 w-12 overflow-hidden rounded-3xl border bg-slate-950 shadow-xl transition-all duration-500 ${
               isThinking ? "animate-pulse border-[#C9A86A] shadow-[0_0_28px_rgba(201,168,106,0.32)]" : "animate-breathe border-white/10 duration-[4000ms]"
             }`}
           >
@@ -205,10 +211,12 @@ export function ChatWindow() {
               priority
               className="object-cover"
             />
+            <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/95 to-transparent px-1 pb-1 pt-4">
+              <span className={`block truncate text-center text-[10px] leading-none text-bone/90 ${language === "ar" ? "font-arsans" : "font-ensans"}`}>{activePersonaDisplayName}</span>
+            </span>
           </span>
-          <span className="flex items-center gap-1.5 text-xs text-bone/40">
-            <span className="font-arsans">{activePersona.nameAr}</span>
-            <span className="font-ensans">{activePersona.name}</span>
+          <span className="flex items-center gap-1.5 text-xs text-bone/90">
+            <span className={language === "ar" ? "font-arsans" : "font-ensans"}>{activePersonaDisplayName}</span>
           </span>
         </button>
         <div className="flex items-center gap-4">
@@ -276,7 +284,7 @@ export function ChatWindow() {
         </button>
       </form>
 
-      <PersonaDrawer open={personaOpen} activePersona={personaId} onClose={() => setPersonaOpen(false)} onSelect={setPersonaId} />
+      <PersonaDrawer open={personaOpen} activePersona={personaId} language={language} onClose={() => setPersonaOpen(false)} onSelect={setPersonaId} />
     </main>
   );
 }
@@ -350,58 +358,6 @@ function WorldShiftRow({ world, onWorldChange }: { world: WorldId; onWorldChange
           </button>
         );
       })}
-    </div>
-  );
-}
-
-function PersonaDrawer({
-  open,
-  activePersona,
-  onClose,
-  onSelect,
-}: {
-  open: boolean;
-  activePersona: PersonaId;
-  onClose: () => void;
-  onSelect: (personaId: PersonaId) => void;
-}) {
-  return (
-    <div className={`fixed inset-0 z-40 transition ${open ? "pointer-events-auto" : "pointer-events-none"}`}>
-      <button type="button" aria-label="Close persona drawer" onClick={onClose} className={`absolute inset-0 bg-black/50 transition-opacity ${open ? "opacity-100" : "opacity-0"}`} />
-      <section
-        className={`absolute inset-x-0 bottom-0 mx-auto max-w-2xl rounded-t-[2rem] border-t border-white/10 bg-[#0E0D10]/95 p-5 shadow-2xl backdrop-blur-2xl transition-transform duration-500 ${
-          open ? "translate-y-0" : "translate-y-full"
-        }`}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#F7F3EC]/35">choose companion</p>
-          <button type="button" onClick={onClose} className="font-mono text-xs text-[#F7F3EC]/45 hover:text-[#C9A86A]">
-            close
-          </button>
-        </div>
-        <div className="space-y-3">
-          {personas.map((persona: Persona) => (
-            <button
-              key={persona.id}
-              type="button"
-              onClick={() => {
-                onSelect(persona.id);
-                onClose();
-              }}
-              className={`flex w-full items-center gap-4 py-3 text-start transition-opacity ${activePersona === persona.id ? "opacity-100" : "opacity-65 hover:opacity-95"}`}
-            >
-              <span className="h-14 w-14 shrink-0 rounded-full" style={{ background: persona.gradient }} />
-              <span className="min-w-0 flex-1">
-                <span className="block font-arsans text-base text-[#F7F3EC]/90">
-                  {persona.nameAr} · {persona.name}
-                </span>
-                <span className="block font-mono text-[10px] uppercase tracking-[0.08em] text-[#F7F3EC]/35">{persona.role}</span>
-                <span className="mt-1 block font-arsans text-sm text-[#F7F3EC]/55">{persona.voice}</span>
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
     </div>
   );
 }
