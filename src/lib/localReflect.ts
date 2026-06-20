@@ -30,6 +30,16 @@ export function reflectLocally(input: ReflectInput): ReflectOutput {
   const language = input.currentLanguage;
   const text = input.messageText;
 
+  if (isGreeting(text)) {
+    return {
+      world: "calm",
+      replyText:
+        language === "ar"
+          ? "أهلًا بيك. أنا هنا معاك بهدوء. احكيلي بجملة واحدة: اللي جواك دلوقتي أقرب لإرهاق، قلق، زعل، ولا مجرد رغبة إنك تفضفض؟"
+          : "Hey, I am here with you. Tell me in one sentence: is what you are carrying closer to stress, anxiety, sadness, or just a need to let something out?",
+    };
+  }
+
   if (world === "grief") {
     return {
       world,
@@ -87,6 +97,10 @@ export function reflectLocally(input: ReflectInput): ReflectOutput {
         ? "أنا سامعك. خلينا نبطئ اللحظة ونختار خطوة صغيرة واضحة بدل ما نحاول نحل كل شيء مرة واحدة."
         : "I hear you. Let's slow the moment down and choose one clear small step instead of trying to solve everything at once.",
   };
+}
+
+function isGreeting(text: string) {
+  return /^(hi|hey|hello|salam|salaam|السلام عليكم|سلام|اهلا|أهلا|هلا|مرحبا|ازيك|إزيك|عامل ايه|عاملة ايه)[\s!.؟،]*$/i.test(text.trim());
 }
 
 function extractTopic(text: string) {
