@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 
 import { GoogleGenAI } from "@google/genai";
 import { NextRequest, NextResponse } from "next/server";
-import { reflectLocally } from "../../../lib/localReflect";
+import { reflectLocally, type ReflectInput } from "../../../lib/localReflect";
 import { prisma } from "../../../lib/prisma";
 import { worlds, type WorldId } from "../../../lib/worlds";
 
@@ -11,6 +11,12 @@ type ReflectRequestBody = {
   messageText?: string;
   currentWorld?: WorldId;
   currentLanguage?: "ar" | "en";
+  recentMessages?: Array<{
+    role?: "user" | "assistant";
+    text?: string;
+    world?: WorldId;
+    language?: "ar" | "en";
+  }>;
 };
 
 type EmotionalCadenceSpeed = "slow_reflective" | "steady_calm" | "rapid_energetic";
@@ -47,7 +53,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "MESSAGE_TEXT_REQUIRED", message: "messageText is required." }, { status: 400 });
   }
 
-  const fallback = reflectLocally({ messageText, currentWorld, currentLanguage });
+  const recentMessages = normalizeRecentMessages(body.recentMessages);
+  const fallback = reflectLocally({ messageText, currentWorld, currentLanguage, recentMessages });
   const effectiveWorld = fallback.world;
   let responseText = fallback.replyText;
   let cadence = buildCadence(effectiveWorld);
@@ -104,7 +111,10 @@ export async function POST(request: NextRequest) {
 
     const result = await ai.models.generateContent({
       model: "gemini-1.5-pro",
-      contents: messageText,
+      contents: JSON.stringify({
+        currentMessage: messageText,
+        recentMessages,
+      }),
       config: {
         systemInstruction: [
           "You are FadFada | فضفضة, a premium bilingual wellbeing companion and learning support agent.",
@@ -158,6 +168,20 @@ function inferRequestedLanguage(messageText: string | undefined, requestedLangua
   if (/[\u0600-\u06FF]/.test(text)) return "ar";
   if (/\b(arabic|arabiyyah|عربي|العربية|بالعربي|arabic story|arabic poem)\b/i.test(text)) return "ar";
   return requestedLanguage === "ar" ? "ar" : "en";
+}
+
+function normalizeRecentMessages(messages: ReflectRequestBody["recentMessages"]): NonNullable<ReflectInput["recentMessages"]> {
+  if (!Array.isArray(messages)) return [];
+
+  return messages
+    .map((message): NonNullable<ReflectInput["recentMessages"]>[number] => ({
+      role: message.role === "assistant" ? "assistant" : "user",
+      text: typeof message.text === "string" ? message.text.trim().slice(0, 1200) : "",
+      world: normalizeWorld(message.world),
+      language: message.language === "ar" ? "ar" : "en",
+    }))
+    .filter((message) => message.text.length > 0)
+    .slice(-8);
 }
 
 function ensureDirectionFriendlyText(text: string, language: "ar" | "en") {

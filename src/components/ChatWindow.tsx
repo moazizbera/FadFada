@@ -12,6 +12,7 @@ type ChatMessage = {
   role: "user" | "assistant";
   text: string;
   world: WorldId;
+  language?: Language;
   cadence?: EmotionalCadence;
 };
 
@@ -50,6 +51,7 @@ export function ChatWindow() {
       role: "assistant",
       text: "اكتب اللي جواك بأي لغة. أنا هنا أسمعك بهدوء، وبعدها نطلع بخطوة صغيرة واضحة.",
       world: "calm",
+      language: "ar",
     },
   ]);
   const [isThinking, setIsThinking] = useState(false);
@@ -76,6 +78,7 @@ export function ChatWindow() {
       role: "user",
       text,
       world,
+      language: nextLanguage,
     };
     setMessages((current) => [...current, userMessage]);
 
@@ -83,7 +86,7 @@ export function ChatWindow() {
       const response = await fetch("/api/reflect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, messageText: text, currentWorld: world, currentLanguage: nextLanguage }),
+        body: JSON.stringify({ userId, messageText: text, currentWorld: world, currentLanguage: nextLanguage, recentMessages: buildRecentMessages(messages) }),
       });
       const data = (await response.json()) as ReflectResponse;
 
@@ -102,6 +105,7 @@ export function ChatWindow() {
           role: "assistant",
           text: data.text || (nextLanguage === "ar" ? "أنا معاك. خلينا نكمل بخطوة صغيرة." : "I am with you. Let's continue with one small step."),
           world: responseWorld,
+          language: nextLanguage,
           cadence,
         },
       ]);
@@ -113,6 +117,7 @@ export function ChatWindow() {
           role: "assistant",
           text: nextLanguage === "ar" ? "حصل انقطاع بسيط. جرّب تكتبها تاني بهدوء." : "Something briefly disconnected. Try writing it again calmly.",
           world,
+          language: nextLanguage,
           cadence: normalizeCadence(undefined, world),
         },
       ]);
@@ -204,7 +209,7 @@ export function ChatWindow() {
                 <span className="mt-3 block h-px w-7 bg-[#C9A86A]/70" />
               </div>
             ) : (
-              <TypewriterSync text={message.text} language={language} cadence={message.cadence || normalizeCadence(undefined, message.world)} />
+              <TypewriterSync text={message.text} language={message.language || language} cadence={message.cadence || normalizeCadence(undefined, message.world)} />
             )}
           </article>
         ))}
@@ -223,7 +228,7 @@ export function ChatWindow() {
           aria-label="Capture voice reflection"
         >
           <span className={isRecording ? "absolute inset-0 rounded-full border border-[#C9A86A]/60 animate-ping" : "hidden"} />
-          mic
+          <span className="h-2.5 w-2.5 rounded-full bg-[#C9A86A]" aria-hidden="true" />
         </button>
         <textarea
           value={input}
@@ -241,6 +246,15 @@ export function ChatWindow() {
       <PersonaDrawer open={personaOpen} activePersona={personaId} onClose={() => setPersonaOpen(false)} onSelect={setPersonaId} />
     </main>
   );
+}
+
+function buildRecentMessages(messages: ChatMessage[]) {
+  return messages.slice(-8).map((message) => ({
+    role: message.role,
+    text: message.text,
+    world: message.world,
+    language: message.language,
+  }));
 }
 
 function normalizeCadence(value: EmotionalCadence | undefined, world: WorldId): EmotionalCadence {

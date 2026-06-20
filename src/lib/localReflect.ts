@@ -4,6 +4,12 @@ export type ReflectInput = {
   messageText: string;
   currentWorld: WorldId;
   currentLanguage: "ar" | "en";
+  recentMessages?: Array<{
+    role: "user" | "assistant";
+    text: string;
+    world: WorldId;
+    language: "ar" | "en";
+  }>;
 };
 
 export type ReflectOutput = {
@@ -30,6 +36,26 @@ export function reflectLocally(input: ReflectInput): ReflectOutput {
   const language = input.currentLanguage;
   const text = input.messageText;
 
+  if (isArabicFollowUp(text)) {
+    const previousTopic = inferPreviousTopic(input.recentMessages);
+
+    if (previousTopic === "mohamed-ali") {
+      return {
+        world: "story",
+        replyText: mohamedAliStory("ar"),
+        resources: buildResources("Mohamed Ali Basha"),
+      };
+    }
+
+    const previousAssistant = findPreviousAssistantText(input.recentMessages);
+    if (previousAssistant) {
+      return {
+        world,
+        replyText: `أكيد. خليني أعيدها لك بالعربي بشكل واضح ودافئ: ${previousAssistant}`,
+      };
+    }
+  }
+
   if (isGreeting(text)) {
     return {
       world: "calm",
@@ -51,10 +77,7 @@ export function reflectLocally(input: ReflectInput): ReflectOutput {
   }
 
   if (/mohamed ali|muhammad ali|mohammad ali|محمد علي|محمد على/i.test(text)) {
-    const story =
-      language === "ar"
-        ? "في أوائل القرن التاسع عشر، ظهر محمد علي باشا في مصر وسط بلد مرهق من صراع العثمانيين والمماليك والفرنسيين. بدأ كضابط، لكنه فهم أن السلطة لا تعيش بالسيف وحده. بنى جيشًا، أرسل بعثات، فتح مدارس ومصانع، وربط الزراعة والقطن بمشروع دولة حديثة. لكن الحكاية ليست ذهبية بالكامل؛ صعوده كان قاسيًا ومركزيًا. لذلك تبقى قصته سؤالًا قديمًا: كيف نبني قوة حقيقية من غير أن تسحق الإنسان؟"
-        : "In the early 1800s, Mohamed Ali Basha rose in Egypt after years of conflict between Ottoman forces, Mamluks, and the French. He began as an officer, then built a state project: an army, schools, factories, student missions abroad, and an economy pushed by cotton. Many call him the founder of modern Egypt, but the story has a hard edge. His power was forceful and centralized. His life asks an old question: how much does a nation pay when one man builds strength from the top down?";
+    const story = mohamedAliStory(language);
     return { world: /video|resource|material|فيديو|مصادر/i.test(text) ? "learning" : "story", replyText: story, resources: buildResources("Mohamed Ali Basha") };
   }
 
@@ -101,6 +124,35 @@ export function reflectLocally(input: ReflectInput): ReflectOutput {
 
 function isGreeting(text: string) {
   return /^(hi|hey|hello|salam|salaam|السلام عليكم|سلام|اهلا|أهلا|هلا|مرحبا|ازيك|إزيك|عامل ايه|عاملة ايه)[\s!.؟،]*$/i.test(text.trim());
+}
+
+function isArabicFollowUp(text: string) {
+  return /\b(can be in arabic|in arabic|arabic version|translate.*arabic|make it arabic)\b|بالعربي|عربي|ترجم/i.test(text.trim());
+}
+
+function inferPreviousTopic(messages: ReflectInput["recentMessages"]) {
+  if (!messages) return undefined;
+
+  for (const message of [...messages].reverse()) {
+    if (/mohamed ali|muhammad ali|mohammad ali|محمد علي|محمد على/i.test(message.text)) {
+      return "mohamed-ali";
+    }
+  }
+
+  return undefined;
+}
+
+function findPreviousAssistantText(messages: ReflectInput["recentMessages"]) {
+  return [...(messages || [])]
+    .reverse()
+    .find((message) => message.role === "assistant" && !isGreeting(message.text))
+    ?.text;
+}
+
+function mohamedAliStory(language: "ar" | "en") {
+  return language === "ar"
+    ? "في أوائل القرن التاسع عشر، كانت مصر خارجة من دوامة طويلة: مماليك يتنازعون، عثمانيون يحاولون استعادة السيطرة، وذاكرة الحملة الفرنسية لا تزال قريبة. وسط هذا الارتباك ظهر محمد علي باشا، ضابط ألباني جاء مع الجيش العثماني، لكنه قرأ اللحظة بذكاء نادر. لم يكتف بأن يكون رجل حرب؛ بنى جيشًا حديثًا، أرسل بعثات للتعلم، فتح مدارس ومصانع، وربط الزراعة والقطن بمشروع دولة يريد أن يقف على قدميه. لذلك يسميه كثيرون مؤسس مصر الحديثة. لكن القصة ليست بطولة صافية؛ صعوده كان شديد المركزية، وقوته صنعت دولة قوية لكنها ضغطت على الناس من أعلى. حكاية محمد علي تترك لنا سؤالًا لا يزال حيًا: كيف نبني نهضة حقيقية من غير أن ننسى الإنسان الذي نحاول النهوض باسمه؟"
+    : "In the early 1800s, Mohamed Ali Basha rose in Egypt after years of conflict between Ottoman forces, Mamluks, and the French. He began as an officer, then built a state project: an army, schools, factories, student missions abroad, and an economy pushed by cotton. Many call him the founder of modern Egypt, but the story has a hard edge. His power was forceful and centralized. His life asks an old question: how much does a nation pay when one man builds strength from the top down?";
 }
 
 function extractTopic(text: string) {
