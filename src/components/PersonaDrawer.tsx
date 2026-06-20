@@ -96,11 +96,9 @@ export function PersonaDrawer({ open, activePersona, language, unlockedPersonaId
                       <LockIcon />
                     </span>
                   ) : null}
-                  <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950 via-slate-950/72 to-transparent px-3 pb-3 pt-8">
-                    <span className={`block truncate text-center text-sm text-bone/90 ${language === "ar" ? "font-arsans" : "font-ensans"}`}>{displayName}</span>
-                  </span>
                 </span>
-                <span className={`mt-2 block truncate text-center text-[10px] uppercase tracking-[0.08em] text-bone/40 ${language === "ar" ? "font-arsans" : "font-ensans"}`}>{role}</span>
+                <span className={`mt-2 block truncate text-center text-sm text-bone/90 ${language === "ar" ? "font-arsans" : "font-ensans"}`}>{displayName}</span>
+                <span className={`mt-1 block truncate text-center text-[10px] uppercase tracking-[0.08em] text-bone/40 ${language === "ar" ? "font-arsans" : "font-ensans"}`}>{role}</span>
               </button>
             );
           })}

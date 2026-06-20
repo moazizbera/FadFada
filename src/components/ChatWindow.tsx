@@ -4,6 +4,7 @@ import Image from "next/image";
 import { FormEvent, useMemo, useRef, useState } from "react";
 import { personas, type PersonaId } from "../lib/personas";
 import { selectableWorlds, worlds, type WorldId } from "../lib/worlds";
+import { useAppLocale } from "./AppShell";
 import { PersonaDrawer } from "./PersonaDrawer";
 import { TypewriterSync, type EmotionalCadence } from "./TypewriterSync";
 
@@ -47,7 +48,7 @@ function getPersonaDisplayName(persona: { nameEn: string; nameAr: string }, acti
 
 export function ChatWindow() {
   const [world, setWorld] = useState<WorldId>("calm");
-  const [language, setLanguage] = useState<Language>("ar");
+  const { language, setLanguage } = useAppLocale();
   const [personaId, setPersonaId] = useState<PersonaId>("omar");
   const [personaOpen, setPersonaOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -225,9 +226,6 @@ export function ChatWindow() {
               priority
               className="object-cover"
             />
-            <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/95 to-transparent px-1 pb-1 pt-4">
-              <span className={`block truncate text-center text-[10px] leading-none text-bone/90 ${language === "ar" ? "font-arsans" : "font-ensans"}`}>{activePersonaDisplayName}</span>
-            </span>
           </span>
           <span className="flex items-center gap-1.5 text-xs text-bone/90">
             <span className={language === "ar" ? "font-arsans" : "font-ensans"}>{activePersonaDisplayName}</span>
