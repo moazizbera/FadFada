@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
 
   await prisma.user.upsert({
     where: { id: userId },
-    create: { id: userId, premiumTokens: 3 },
+    create: { id: userId, tokenBalance: 3 },
     update: {},
   });
 

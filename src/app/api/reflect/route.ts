@@ -65,11 +65,11 @@ export async function POST(request: NextRequest) {
       (await prisma.user.create({
         data: {
           id: userId,
-          premiumTokens: 3,
+          tokenBalance: 3,
         },
       }));
 
-    if (user.premiumTokens === 0) {
+    if (user.tokenBalance === 0) {
       return NextResponse.json(
         {
           error: "PAYWALL_TRIGGERED",
@@ -80,12 +80,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (user.premiumTokens > 0) {
+    if (user.tokenBalance > 0) {
       await prisma.$transaction(async (transaction) => {
         await transaction.user.update({
           where: { id: userId },
           data: {
-            premiumTokens: {
+            tokenBalance: {
               decrement: 1,
             },
           },

@@ -33,12 +33,14 @@ export async function POST(request: NextRequest) {
             where: { id: userId },
             create: {
               id: userId,
-              premiumTokens: 10,
+              tokenBalance: 10,
+              activeTier: "PLUS",
             },
             update: {
-              premiumTokens: {
+              tokenBalance: {
                 increment: 10,
               },
+              activeTier: "PLUS",
             },
           });
 

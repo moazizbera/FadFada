@@ -149,11 +149,11 @@ async function chargeVideoCredits(userId: string): Promise<{ ok: true } | { ok: 
       (await prisma.user.create({
         data: {
           id: userId,
-          premiumTokens: 3,
+             tokenBalance: 3,
         },
       }));
 
-    if (user.premiumTokens < VIDEO_REFLECTION_CREDIT_COST) {
+      if (user.tokenBalance < VIDEO_REFLECTION_CREDIT_COST) {
       return {
         ok: false,
         response: {
@@ -168,7 +168,7 @@ async function chargeVideoCredits(userId: string): Promise<{ ok: true } | { ok: 
     await prisma.user.update({
       where: { id: userId },
       data: {
-        premiumTokens: {
+          tokenBalance: {
           decrement: VIDEO_REFLECTION_CREDIT_COST,
         },
       },
