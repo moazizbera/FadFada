@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { GoogleGenAI, type Part } from "@google/genai";
 import { NextRequest, NextResponse } from "next/server";
+import { getGeminiModel } from "../../../../lib/gemini";
 import { prisma } from "../../../../lib/prisma";
 import { worlds, type WorldId } from "../../../../lib/worlds";
 
@@ -213,7 +214,7 @@ async function analyzeVideoMoment({
     };
 
     const result = await ai.models.generateContent({
-      model: "gemini-1.5-pro",
+      model: getGeminiModel(),
       contents: [
         {
           role: "user",

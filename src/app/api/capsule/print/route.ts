@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { getGeminiModel } from "../../../../lib/gemini";
 import { prisma } from "../../../../lib/prisma";
 import { worlds, type WorldId } from "../../../../lib/worlds";
 
@@ -198,7 +199,7 @@ async function compileMomentCapsuleTemplate({
     const ai = new GoogleGenAI({ apiKey });
     const historyText = serializeHistoryForLongContext(chatHistory);
     const result = await ai.models.generateContent({
-      model: "gemini-1.5-pro",
+      model: getGeminiModel(),
       contents: [
         {
           role: "user",

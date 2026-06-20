@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { GoogleGenAI } from "@google/genai";
 import { NextRequest, NextResponse } from "next/server";
+import { getGeminiModel } from "../../../lib/gemini";
 import { reflectLocally, type ReflectInput } from "../../../lib/localReflect";
 import { prisma } from "../../../lib/prisma";
 import { worlds, type WorldId } from "../../../lib/worlds";
@@ -110,7 +111,7 @@ export async function POST(request: NextRequest) {
         : "Respond in English with clean left-to-right phrasing unless the user explicitly requests another language.";
 
     const result = await ai.models.generateContent({
-      model: "gemini-1.5-pro",
+      model: getGeminiModel(),
       contents: JSON.stringify({
         currentMessage: messageText,
         recentMessages,
