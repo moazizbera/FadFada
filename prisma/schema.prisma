@@ -21,9 +21,15 @@ enum UserRole {
 model User {
   id                String           @id @default(cuid())
   name              String?
+  nickname          String?
   email             String?          @unique
   emailVerified     DateTime?
   image             String?
+  socialLinksJson   String?
+  lemonCustomerId   String?
+  lemonSubscriptionId String?
+  lemonSubscriptionStatus String?
+  lemonCustomerPortalUrl String? @db.Text
   currentLanguage   String           @default("ar")
   activeTier        SubscriptionTier @default(FREE)
   tokenBalance      Int              @default(3)
@@ -38,6 +44,7 @@ model User {
   transactions      Transaction[]
   capsules          MomentCapsule[]
   visitorLogs       VisitorLog[]
+  interactionEvents InteractionEvent[]
 }
 
 model Account {
@@ -88,6 +95,20 @@ model VisitorLog {
 
   @@index([geographicRegion, timestamp])
   @@index([userId, timestamp])
+}
+
+model InteractionEvent {
+  id               String   @id @default(cuid())
+  userId           String?
+  eventType        String
+  metadataJson     String?
+  geographicRegion String
+  createdAt        DateTime @default(now())
+  user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([eventType, createdAt])
+  @@index([geographicRegion, createdAt])
+  @@index([userId, createdAt])
 }
 
 model Transaction {

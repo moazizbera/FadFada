@@ -34,11 +34,17 @@ const replies: Record<WorldId, { ar: string[]; en: string[] }> = {
       "كان فيه ولد بيمشي كل يوم شايل شنطة تقيلة، وكل ما حد يسأله يقول: عادي، دي حاجات بسيطة. في يوم قعد تحت شباك قديم، وطلع من الشنطة حجر صغير مكتوب عليه خوف، وحجر تاني مكتوب عليه لازم أكون قوي. لما ساب حجر واحد على الأرض، الطريق ما اتحلش كله، بس رجله عرفت تتحرك. أحيانًا البداية مش إننا نفهم الحكاية كلها، البداية إننا ننزل حمل واحد بس.",
       "في قرية صغيرة كان فيه نجار عجوز بيصلح الأبواب اللي الناس افتكرتها انتهت. كل باب كان يوصله مكسور من ناحية مختلفة. لما سألوه إزاي بتعرف تصلحهم، قال: أنا ما ببدأش بالقفل. ببدأ بأن الباب لسه عايز يفتح. وفي يوم، فهم شاب كان واقف جنبه إن قلبه هو كمان مش محتاج يتغير كله مرة واحدة، محتاج مفصلة صغيرة ترجع تتحرك.",
       "كانت بنت صغيرة بتجمع الضوء في علبة زجاج، وكل ما الدنيا تضيق تفتح العلبة شوية. في ليلة طويلة، لقت العلبة فاضية. زعلت، وبعدين اكتشفت إن الضوء ماكانش جوه العلبة أصلًا؛ كان في الطريق اللي مشيته وهي بتدور عليه. من يومها بطلت تخاف من الليالي الفاضية، لأنها عرفت إن الخطوة نفسها ممكن تنور.",
+      "في بلد بعيدة كانت فيه بحيرة بتتكلم. اللي يوقف عند ضفتها يسمع صدى كلامه بس بعد ثلاث ثواني. في يوم جه رجل زعلان صرخ: 'أنا مش قادر كمان.' سمع صوته يرجعله بعد ثلاث ثواني يقول: 'أنا مش قادر كمان.' ضحك رغم نفسه، لأنه لأول مرة حس إن حد سمعه بالظبط من غير ما يغير الكلام.",
+      "كان فيه شاعر بيكتب قصائد بس ما بيكملهاش أبدًا. لما سألوه ليه، قال: 'لأن اللحظة اللي بتكتمل فيها بتبقى ملك الورقة مش ملكي أنا.' في يوم واحد كتب جملة واحدة بس وأضاف نقطة في الآخر: لما توقف الريح، الشجر هو اللي بيفضل قاعد. حسّ إنه وصّل كل حاجة.",
+      "كانت امرأة قديمة بتزرع بذور في أرض ما حد اتوقع منها حاجة. جيرانها قالوا لها الأرض دي ما بتنبتش. ردت: 'أنا مش بزرع عشان الأرض، أنا بزرع عشان أنا.' في الموسم الجاي، حاجة صغيرة أخضر طلعت. الجيران سألوا: 'إزاي؟' قالت: 'الأرض فهمت إني جادة.'",
     ],
     en: [
       "There was a boy who walked everywhere with a heavy bag. Whenever someone asked, he said, 'It's nothing, just small things.' One evening he sat under an old window and took out one stone labeled fear, then another labeled I must be strong. When he left just one stone on the ground, the road did not become easy, but his feet remembered how to move. Sometimes the beginning is not understanding the whole story. It is putting down one weight.",
       "In a small village, an old carpenter repaired doors everyone thought were finished. Some had broken hinges, some had cracked wood, some had stubborn locks. When someone asked how he knew where to start, he said, 'I do not start with the lock. I start with the fact that the door still wants to open.' A young person nearby understood: a heart does not always need to be rebuilt. Sometimes one hinge needs to move again.",
       "A girl used to collect light in a glass jar. Whenever the world felt narrow, she opened it a little. One long night, the jar was empty. She cried, then noticed the light had never really lived inside the jar. It had been gathering on the path she walked while searching for it. After that, empty nights scared her less, because she knew a step could also shine.",
+      "There was a lake in a distant country that would speak back. Anyone who stood at its edge heard their own words return after exactly three seconds. One day an angry man came and shouted: 'I cannot go on.' The lake replied three seconds later: 'I cannot go on.' He laughed despite himself, because for the first time something had heard him exactly, without editing a single word.",
+      "A poet wrote verses but never finished any of them. When asked why, he said: 'Because the moment it is complete it belongs to the page, not to me.' One day he wrote a single sentence and added a period: When the wind stops, the trees are the ones that stay. He felt he had said everything.",
+      "An old woman planted seeds in land no one expected anything from. Her neighbors said the soil was too tired. She replied: 'I do not plant for the soil. I plant for myself.' The following season, something small and green appeared. The neighbors asked how. She said: 'The earth understood I was serious.'",
     ],
   },
   poetry: {
@@ -160,9 +166,8 @@ function getTranslationLanguage(text: string): "ar" | "en" | undefined {
 function getHistoricalStory(text: string, language: "ar" | "en") {
   const normalized = text.toLowerCase();
   const asksForMohamedAli = /mohamed ali|muhammad ali|mohammad ali|محمد علي|محمد على/.test(normalized);
-  const asksForBasha = /basha|pasha|باشا/.test(normalized);
 
-  if (!asksForMohamedAli || !asksForBasha) return undefined;
+  if (!asksForMohamedAli) return undefined;
 
   if (language === "ar") {
     return "في أوائل القرن التاسع عشر، وصل محمد علي باشا إلى مصر كضابط عثماني، لكن القصة لم تقف عند رتبة عسكرية. بعد سنوات من الاضطراب بين المماليك والعثمانيين والفرنسيين، بدأ يبني سلطة جديدة من القاهرة. لم يكن مشروعه مجرد حكم؛ كان يحاول أن يصنع دولة أقوى: جيش منظم، مدارس، مصانع، وزراعة قطن تغيّر اقتصاد البلد. وفي الحكاية جانب مظلم أيضًا: صعوده كان قاسيًا، وقراراته لم تكن رحيمة دائمًا. لذلك تُروى قصة محمد علي باشا كقصة رجل بنى مصر الحديثة من ناحية، وفتح سؤالًا صعبًا من ناحية أخرى: كم ثمن بناء القوة عندما تأتي من يد واحدة؟";

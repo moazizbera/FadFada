@@ -1,8 +1,7 @@
 export const runtime = "nodejs";
 
-import { GoogleGenAI } from "@google/genai";
 import { NextRequest, NextResponse } from "next/server";
-import { getGeminiModel } from "../../../lib/gemini";
+import { createGeminiClient, getGeminiModel, getGeminiProvider, isGeminiConfigured } from "../../../lib/gemini";
 import { reflectLocally, type ReflectInput } from "../../../lib/localReflect";
 import { prisma } from "../../../lib/prisma";
 import { worlds, type WorldId } from "../../../lib/worlds";
@@ -12,6 +11,9 @@ type ReflectRequestBody = {
   messageText?: string;
   currentWorld?: WorldId;
   currentLanguage?: "ar" | "en";
+  personaSystemPrompt?: string;
+  behaviorStyle?: "signature" | "deep" | "coach" | "quick";
+  softerMode?: boolean;
   recentMessages?: Array<{
     role?: "user" | "assistant";
     text?: string;
@@ -32,6 +34,13 @@ type ReflectGeminiPayload = {
   };
 };
 
+type ReflectResource = {
+  title: string;
+  type: "video" | "article" | "document";
+  url: string;
+  summary: string;
+};
+
 export async function POST(request: NextRequest) {
   let body: ReflectRequestBody;
 
@@ -45,6 +54,11 @@ export async function POST(request: NextRequest) {
   const messageText = body.messageText?.trim();
   const currentWorld = normalizeWorld(body.currentWorld);
   const currentLanguage = inferRequestedLanguage(messageText, body.currentLanguage);
+  const behaviorStyle = normalizeBehaviorStyle(body.behaviorStyle);
+  const softerMode = body.softerMode === true;
+  const personaSystemPrompt = typeof body.personaSystemPrompt === "string" && body.personaSystemPrompt.trim().length > 0
+    ? body.personaSystemPrompt.trim()
+    : null;
 
   if (!userId) {
     return NextResponse.json({ error: "USER_ID_REQUIRED", message: "userId is required." }, { status: 400 });
@@ -54,11 +68,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "MESSAGE_TEXT_REQUIRED", message: "messageText is required." }, { status: 400 });
   }
 
+  const isDailyPulseRequest = /^(Daily check-in:|تسجيل يومي:)/i.test(messageText);
   const recentMessages = normalizeRecentMessages(body.recentMessages);
-  const fallback = reflectLocally({ messageText, currentWorld, currentLanguage, recentMessages });
-  const effectiveWorld = fallback.world;
+  const fallback = reflectLocally({ messageText, currentWorld, currentLanguage, recentMessages, behaviorStyle, softerMode });
+  const effectiveWorld = isDailyPulseRequest ? currentWorld : fallback.world;
   let responseText = fallback.replyText;
   let cadence = buildCadence(effectiveWorld);
+  let responseSource: "gemini" | "fallback" = "fallback";
+  let aiStatus = "not_attempted";
+  const geminiDisabled = process.env.GEMINI_DISABLED === "true";
+
+  if (geminiDisabled) {
+    return NextResponse.json(
+      {
+        text: ensureDirectionFriendlyText(responseText, currentLanguage),
+        world: effectiveWorld,
+        emotionalCadence: cadence,
+        source: responseSource,
+        aiStatus: "gemini_disabled",
+      },
+      { status: 200 }
+    );
+  }
 
   try {
     const user =
@@ -66,11 +97,13 @@ export async function POST(request: NextRequest) {
       (await prisma.user.create({
         data: {
           id: userId,
-          tokenBalance: 3,
+          tokenBalance: userId.startsWith("visitor:") ? 5 : 15,
         },
       }));
 
-    if (user.tokenBalance === 0) {
+    const reflectionMeteringEnabled = process.env.FADFADA_ENABLE_REFLECTION_METERING === "true";
+
+    if (reflectionMeteringEnabled && user.tokenBalance === 0) {
       return NextResponse.json(
         {
           error: "PAYWALL_TRIGGERED",
@@ -81,7 +114,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (user.tokenBalance > 0) {
+    if (reflectionMeteringEnabled && user.tokenBalance > 0) {
       await prisma.$transaction(async (transaction) => {
         await transaction.user.update({
           where: { id: userId },
@@ -98,17 +131,18 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-    if (!apiKey) {
-      throw new Error("Gemini API key is missing.");
+    if (!isGeminiConfigured()) {
+      aiStatus = getGeminiProvider() === "vertex" ? "missing_vertex_config" : "missing_api_key";
+      throw new Error("Gemini provider is not configured.");
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    aiStatus = "requesting_gemini";
+    const ai = createGeminiClient(request.headers.get("x-vercel-oidc-token"));
     const world = worlds[effectiveWorld];
     const languageInstruction =
       currentLanguage === "ar"
-        ? "Respond in Arabic with natural right-to-left phrasing unless the user explicitly requests another language."
-        : "Respond in English with clean left-to-right phrasing unless the user explicitly requests another language.";
+        ? "Respond only in Arabic with natural right-to-left phrasing unless the user explicitly requests translation. Do not include English greetings, labels, fillers, or transliterated English words."
+        : "Respond only in English with clean left-to-right phrasing unless the user explicitly requests translation. Do not include Arabic greetings, labels, fillers, or transliterated Arabic words.";
 
     const result = await ai.models.generateContent({
       model: getGeminiModel(),
@@ -118,12 +152,16 @@ export async function POST(request: NextRequest) {
       }),
       config: {
         systemInstruction: [
-          "You are FadFada | فضفضة, a premium bilingual wellbeing companion and learning support agent.",
+          personaSystemPrompt
+            ? `COMPANION PERSONA IDENTITY (follow this above all else):\n${personaSystemPrompt}`
+            : "You are FadFada | فضفضة, a premium bilingual wellbeing companion and learning support agent.",
           "You are not therapy, diagnosis, legal advice, financial advice, or emergency care.",
           languageInstruction,
           `Current world: ${world.nameEn} / ${world.nameAr}.`,
           `World tone target: ${world.tone}.`,
-          "Adapt persona tone, vocabulary density, rhythm, and literary structure to the current world.",
+          buildBehaviorInstruction(behaviorStyle, softerMode),
+          "Respect the active language above every persona accent. A screen must not mix Arabic and English unless the user explicitly asks to translate or compare languages.",
+          "Adapt your persona tone, vocabulary, rhythm, and literary style to both the active companion identity and the current world.",
           "For calm: use soft, grounded reflection and one small next step.",
           "For story: answer in short literary narrative form with concrete imagery and historically specific details when requested.",
           "For faith: use gentle Arabic Naskh-inspired cadence and spiritual reassurance without claiming religious authority.",
@@ -131,6 +169,7 @@ export async function POST(request: NextRequest) {
           "For build: use short action-oriented project tasks, numbered steps, and no decorative language.",
           "For learning: teach as a concise coach, include a micro-plan, and suggest resource types without fabricating inaccessible links.",
           "For grief/stillness: slow down, validate, and recommend nearby trusted people or emergency resources if risk appears.",
+          "If the current message starts with 'Daily check-in:' or 'تسجيل يومي:', preserve the current world unless the user expresses urgent safety risk. Treat mood and energy as reflection context, not as a request to switch topics.",
           "If the user asks to translate, convert, continue, or reframe the previous message, preserve the subject and world instead of resetting context.",
           "Return strict JSON only. No markdown fences. No prose outside JSON.",
           "JSON shape: { text: string, world: calm|story|faith|build|learning|celebration|grief, emotionalCadence: { speed: slow_reflective|steady_calm|rapid_energetic, typewriterIntervalMs: number, particleVelocity: number } }.",
@@ -140,13 +179,26 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const parsed = parseGeminiJson<ReflectGeminiPayload>(result.text || "");
+    const generatedText = result.text?.trim() || "";
+    const parsed = parseGeminiJson<ReflectGeminiPayload>(generatedText);
     if (parsed?.text) {
+      const responseWorld = isDailyPulseRequest ? effectiveWorld : normalizeWorld(parsed.world) || effectiveWorld;
       responseText = ensureDirectionFriendlyText(parsed.text, currentLanguage);
-      cadence = normalizeCadence(parsed.emotionalCadence, normalizeWorld(parsed.world) || effectiveWorld);
+      cadence = normalizeCadence(parsed.emotionalCadence, responseWorld);
+      responseSource = "gemini";
+      aiStatus = "gemini_json";
+    } else if (generatedText) {
+      console.warn("Reflect route Gemini returned non-JSON text", generatedText.slice(0, 240));
+      responseText = ensureDirectionFriendlyText(generatedText, currentLanguage);
+      responseSource = "gemini";
+      aiStatus = "gemini_text";
+    } else {
+      console.warn("Reflect route Gemini returned empty text");
+      aiStatus = "empty_gemini_text";
     }
   } catch (error) {
     console.error("Reflect route Gemini fallback", error);
+    aiStatus = getGeminiErrorStatus(error);
     responseText = ensureDirectionFriendlyText(fallback.replyText, currentLanguage);
   }
 
@@ -155,6 +207,9 @@ export async function POST(request: NextRequest) {
       text: responseText,
       world: effectiveWorld,
       emotionalCadence: cadence,
+      resources: normalizeResources(fallback.resources),
+      source: responseSource,
+      aiStatus,
     },
     { status: 200 }
   );
@@ -162,6 +217,34 @@ export async function POST(request: NextRequest) {
 
 function normalizeWorld(world: WorldId | undefined): WorldId {
   return world && world in worlds ? world : "calm";
+}
+
+function normalizeBehaviorStyle(style: ReflectRequestBody["behaviorStyle"]) {
+  return style === "deep" || style === "coach" || style === "quick" ? style : "signature";
+}
+
+function buildBehaviorInstruction(style: ReturnType<typeof normalizeBehaviorStyle>, softerMode: boolean) {
+  const styleInstruction = {
+    signature: "Behavior style: original FadFada. Warm, Arabic-first when appropriate, emotionally precise, and ends with one small next step.",
+    deep: "Behavior style: deeper reflective AI. Name the emotional layers, meaning, and hidden pressure gently before offering one small step.",
+    coach: "Behavior style: action-oriented AI. Be decisive, structured, low-fluff, and turn the feeling into a short practical sequence.",
+    quick: "Behavior style: fast concise AI. Use the fewest warm words possible, then one concrete next step.",
+  }[style];
+
+  return softerMode
+    ? `${styleInstruction}\nThe user asked for a softer next response. Make this reply gentler, shorter, less intense, and slower-paced.`
+    : styleInstruction;
+}
+
+function normalizeResources(resources: ReflectResource[] | undefined) {
+  if (!resources?.length) return undefined;
+
+  return resources.slice(0, 3).map((resource) => ({
+    title: resource.title.slice(0, 90),
+    type: resource.type,
+    url: resource.url,
+    summary: resource.summary.slice(0, 220),
+  }));
 }
 
 function inferRequestedLanguage(messageText: string | undefined, requestedLanguage: "ar" | "en" | undefined): "ar" | "en" {
@@ -229,4 +312,16 @@ function parseGeminiJson<T>(text: string): T | null {
 function clampNumber(value: number, fallback: number, min: number, max: number) {
   if (!Number.isFinite(value)) return fallback;
   return Math.min(max, Math.max(min, value));
+}
+
+function getGeminiErrorStatus(error: unknown) {
+  if (typeof error === "object" && error && "status" in error && typeof error.status === "number") {
+    return `gemini_error_${error.status}`;
+  }
+
+  if (error instanceof Error && error.message === "Gemini API key is missing.") {
+    return "missing_api_key";
+  }
+
+  return "gemini_error";
 }

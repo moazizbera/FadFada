@@ -1,8 +1,9 @@
 import crypto from "crypto";
-import Image from "next/image";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
+import { AdminDashboardClient, type AdminDashboardData } from "./admin-dashboard-client";
 import { authOptions } from "../../../lib/auth";
+import { personas } from "../../../lib/personas";
 import { prisma } from "../../../lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +17,8 @@ type AdminSessionUser = {
 type AuditSnapshot = {
   generatedAt: string;
   visitorsByRegion: Array<{ geographicRegion: string; count: number }>;
+  visitorComments: Array<{ comment: string; language: string; device: string; browser: string; createdAt: string; geographicRegion: string }>;
+  pwaInstalls: Array<{ device: string; browser: string; platform: string; createdAt: string; geographicRegion: string }>;
   registrationFunnel: Array<{
     id: string;
     name: string | null;
@@ -34,34 +37,68 @@ type AuditSnapshot = {
   }>;
 };
 
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
+function formatLocation(location: string | null | undefined) {
+  if (!location || location === "unknown") return "";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "2-digit",
-  year: "numeric",
-});
+  try {
+    return decodeURIComponent(location).trim();
+  } catch {
+    return location.trim();
+  }
+}
 
-const providerLogos: Record<string, string> = {
-  google: toDataImage('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.8-3.4-11.4-8.1L6 33c3.3 6.5 10.1 11 18 11z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>'),
-  apple: toDataImage('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#F7F3EC" d="M31.9 25.3c0-4.2 3.4-6.2 3.6-6.3-2-2.9-5-3.3-6-3.4-2.6-.3-5 1.5-6.3 1.5s-3.3-1.5-5.4-1.4c-2.8 0-5.4 1.6-6.8 4.1-2.9 5-0.8 12.4 2.1 16.4 1.4 2 3 4.3 5.2 4.2 2.1-.1 2.9-1.3 5.4-1.3s3.2 1.3 5.4 1.3c2.2 0 3.7-2 5-4 1.6-2.3 2.2-4.5 2.2-4.6-.1 0-4.4-1.7-4.4-6.5zM27.8 12.9c1.1-1.3 1.8-3.1 1.6-4.9-1.5.1-3.3 1-4.4 2.3-1 1.1-1.9 3-1.6 4.7 1.6.1 3.3-.8 4.4-2.1z"/></svg>'),
-  email: toDataImage('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="36" height="28" x="6" y="10" fill="none" stroke="#F7F3EC" stroke-width="4" rx="5"/><path fill="none" stroke="#C9A86A" stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="m9 15 15 12 15-12"/></svg>'),
+function fallbackLocationLabel(location: string | null | undefined) {
+  return formatLocation(location) || "unknown";
+}
+
+function combineLocationCounts(entries: Array<{ location: string; count: number }>) {
+  return Object.values(
+    entries.reduce<Record<string, { location: string; count: number }>>((accumulator, entry) => {
+      const location = entry.location || "unknown";
+      const key = location.toLowerCase();
+      accumulator[key] = accumulator[key] || { location, count: 0 };
+      accumulator[key].count += entry.count;
+      return accumulator;
+    }, {})
+  ).sort((a, b) => b.count - a.count);
+}
+
+function parseEventMetadata(metadataJson: string | null) {
+  if (!metadataJson) return {} as Record<string, unknown>;
+
+  try {
+    return JSON.parse(metadataJson) as Record<string, unknown>;
+  } catch {
+    return {} as Record<string, unknown>;
+  }
+}
+
+function metadataString(metadata: Record<string, unknown>, key: string, fallback = "unknown") {
+  const value = metadata[key];
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
+}
+
+function metadataNumber(metadata: Record<string, unknown>, key: string) {
+  const value = metadata[key];
+  const numberValue = typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+const registeredUserWhere = { email: { not: null } };
+const visibleVisitorCommentWhere = {
+  eventType: "visitor_comment",
+  NOT: [
+    { metadataJson: { contains: "Smoke test visitor comment" } },
+    { metadataJson: { contains: "\"browser\":\"PowerShell\"" } },
+  ],
 };
-
-function toDataImage(svg: string) {
-  return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
-}
-
-function formatCurrencyFromMinorUnits(amount: number) {
-  return currencyFormatter.format(amount / 100);
-}
-
-function getProviderLogo(provider: string) {
-  return providerLogos[provider] || providerLogos.email;
-}
+const visiblePwaInstallWhere = {
+  eventType: "pwa_install",
+  NOT: [
+    { metadataJson: { contains: "\"source\":\"test\"" } },
+    { metadataJson: { contains: "\"browser\":\"PowerShell\"" } },
+  ],
+};
 
 function getAuditEncryptionKey() {
   return crypto.createHash("sha256").update(process.env.AUDIT_EXPORT_KEY || process.env.NEXTAUTH_SECRET || "fadfada-local-audit-key").digest();
@@ -87,16 +124,31 @@ async function buildDashboardData() {
   monthStart.setUTCDate(1);
   monthStart.setUTCHours(0, 0, 0, 0);
 
-  const [visitorsByRegion, recentUsers, tierCounts, monthlyTransactions] = await Promise.all([
+  const [totalVisitors, registeredUsers, interactionCounts, visitorsByRegion, registrationsByRegionRaw, recentUsers, tierCounts, monthlyTransactions, visibleVisitorCommentCount, visiblePwaInstallCount, recentCommentEvents, pwaInstallEvents, avatarRatingEvents, adminNotifications, adminConfigEvents, adminGiftEvents, adminDiscountEvents] = await Promise.all([
+    prisma.visitorLog.count(),
+    prisma.user.count({ where: registeredUserWhere }),
+    prisma.interactionEvent.groupBy({
+      by: ["eventType"],
+      _count: { _all: true },
+    }),
     prisma.visitorLog.groupBy({
       by: ["geographicRegion"],
+      where: { geographicRegion: { not: "unknown" } },
       _count: { _all: true },
       orderBy: { _count: { geographicRegion: "desc" } },
       take: 8,
     }),
+    prisma.user.groupBy({
+      by: ["registrationRegion"],
+      where: registeredUserWhere,
+      _count: { _all: true },
+      orderBy: { _count: { registrationRegion: "desc" } },
+      take: 8,
+    }),
     prisma.user.findMany({
+      where: registeredUserWhere,
       orderBy: { createdAt: "desc" },
-      take: 24,
+      take: 200,
       include: {
         accounts: {
           select: {
@@ -104,10 +156,17 @@ async function buildDashboardData() {
           },
           take: 1,
         },
+        visitorLogs: {
+          where: { geographicRegion: { not: "unknown" } },
+          orderBy: { timestamp: "desc" },
+          select: { geographicRegion: true },
+          take: 1,
+        },
       },
     }),
     prisma.user.groupBy({
       by: ["activeTier"],
+      where: registeredUserWhere,
       _count: { _all: true },
     }),
     prisma.transaction.findMany({
@@ -126,6 +185,43 @@ async function buildDashboardData() {
           },
         },
       },
+    }),
+    prisma.interactionEvent.count({ where: visibleVisitorCommentWhere }),
+    prisma.interactionEvent.count({ where: visiblePwaInstallWhere }),
+    prisma.interactionEvent.findMany({
+      where: visibleVisitorCommentWhere,
+      orderBy: { createdAt: "desc" },
+      take: 30,
+    }),
+    prisma.interactionEvent.findMany({
+      where: visiblePwaInstallWhere,
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    prisma.interactionEvent.findMany({
+      where: { eventType: "avatar_rating" },
+      orderBy: { createdAt: "desc" },
+      take: 1000,
+    }),
+    prisma.interactionEvent.findMany({
+      where: { eventType: "admin_notification" },
+      orderBy: { createdAt: "desc" },
+      take: 12,
+    }),
+    prisma.interactionEvent.findMany({
+      where: { eventType: "admin_app_config" },
+      orderBy: { createdAt: "desc" },
+      take: 1,
+    }),
+    prisma.interactionEvent.findMany({
+      where: { eventType: "admin_user_gift" },
+      orderBy: { createdAt: "desc" },
+      take: 1000,
+    }),
+    prisma.interactionEvent.findMany({
+      where: { eventType: "admin_discount_offer" },
+      orderBy: { createdAt: "desc" },
+      take: 100,
     }),
   ]);
 
@@ -149,12 +245,163 @@ async function buildDashboardData() {
       currency: monthlyRevenue.currency,
     };
   });
+  const interactionTotals = {
+    starterTaps: interactionCounts.find((entry) => entry.eventType === "starter_tap")?._count._all ?? 0,
+    savedMoments: interactionCounts.find((entry) => entry.eventType === "moment_save")?._count._all ?? 0,
+    capsules: interactionCounts.find((entry) => entry.eventType === "capsule_download")?._count._all ?? 0,
+    helpful: interactionCounts.find((entry) => entry.eventType === "helpful_feedback")?._count._all ?? 0,
+    softer: interactionCounts.find((entry) => entry.eventType === "softer_feedback")?._count._all ?? 0,
+    shares:
+      (interactionCounts.find((entry) => entry.eventType === "app_share")?._count._all ?? 0) +
+      (interactionCounts.find((entry) => entry.eventType === "moment_share")?._count._all ?? 0),
+    visitorComments: visibleVisitorCommentCount,
+    pwaInstalls: visiblePwaInstallCount,
+  };
+  const visitorComments = recentCommentEvents.map((event) => {
+    const metadata = parseEventMetadata(event.metadataJson);
+    return {
+      id: event.id,
+      comment: metadataString(metadata, "comment", ""),
+      language: metadataString(metadata, "language", "unknown"),
+      device: metadataString(metadata, "device", "unknown"),
+      browser: metadataString(metadata, "browser", "unknown"),
+      viewport: metadataString(metadata, "viewport", "unknown"),
+      location: fallbackLocationLabel(event.geographicRegion),
+      createdAt: event.createdAt.toISOString(),
+    };
+  }).filter((comment) => comment.comment.length > 0);
+  const pwaInstalls = pwaInstallEvents.map((event) => {
+    const metadata = parseEventMetadata(event.metadataJson);
+    return {
+      id: event.id,
+      device: metadataString(metadata, "device", "unknown"),
+      browser: metadataString(metadata, "browser", "unknown"),
+      platform: metadataString(metadata, "platform", "unknown"),
+      viewport: metadataString(metadata, "viewport", "unknown"),
+      source: metadataString(metadata, "source", "unknown"),
+      location: fallbackLocationLabel(event.geographicRegion),
+      createdAt: event.createdAt.toISOString(),
+    };
+  });
+  const pwaDeviceBreakdown = Object.values(
+    pwaInstalls.reduce<Record<string, { label: string; count: number }>>((accumulator, install) => {
+      const key = `${install.device} / ${install.browser}`;
+      accumulator[key] = accumulator[key] || { label: key, count: 0 };
+      accumulator[key].count += 1;
+      return accumulator;
+    }, {})
+  ).sort((a, b) => b.count - a.count);
+  const registrationsByRegion = registrationsByRegionRaw
+    .map((entry) => ({
+      location: formatLocation(entry.registrationRegion),
+      count: entry._count._all,
+    }))
+    .filter((entry) => entry.location.length > 0);
+  const personaNameById = Object.fromEntries(personas.map((persona) => [persona.id, { ar: persona.nameAr, en: persona.nameEn }]));
+  const avatarRatings = Object.values(
+    avatarRatingEvents.reduce<Record<string, { personaId: string; personaNameAr: string; personaNameEn: string; ratingCount: number; ratingTotal: number; latestRating: number; latestAt: string; location: string }>>((accumulator, event) => {
+      const metadata = parseEventMetadata(event.metadataJson);
+      const personaId = metadataString(metadata, "personaId", "unknown");
+      const rating = metadataNumber(metadata, "rating");
+      if (!rating || rating < 1 || rating > 5) return accumulator;
+
+      const personaName = personaNameById[personaId as keyof typeof personaNameById];
+      const current = accumulator[personaId] || {
+        personaId,
+        personaNameAr: metadataString(metadata, "personaNameAr", personaName?.ar || personaId),
+        personaNameEn: metadataString(metadata, "personaNameEn", personaName?.en || personaId),
+        ratingCount: 0,
+        ratingTotal: 0,
+        latestRating: rating,
+        latestAt: event.createdAt.toISOString(),
+        location: fallbackLocationLabel(event.geographicRegion),
+      };
+      accumulator[personaId] = {
+        ...current,
+        ratingCount: current.ratingCount + 1,
+        ratingTotal: current.ratingTotal + rating,
+      };
+      return accumulator;
+    }, {})
+  )
+    .map((entry) => ({
+      personaId: entry.personaId,
+      personaNameAr: entry.personaNameAr,
+      personaNameEn: entry.personaNameEn,
+      ratingCount: entry.ratingCount,
+      averageRating: Number((entry.ratingTotal / entry.ratingCount).toFixed(2)),
+      latestRating: entry.latestRating,
+      latestAt: entry.latestAt,
+      location: entry.location,
+    }))
+    .sort((a, b) => b.averageRating - a.averageRating || b.ratingCount - a.ratingCount);
+  const recentNotifications = adminNotifications.map((notification) => {
+    const metadata = parseEventMetadata(notification.metadataJson);
+    return {
+      id: notification.id,
+      type: metadataString(metadata, "type", "GENERAL"),
+      titleAr: metadataString(metadata, "titleAr", "تنبيه من فضفضة"),
+      titleEn: metadataString(metadata, "titleEn", "FadFada update"),
+      bodyAr: metadataString(metadata, "bodyAr", ""),
+      bodyEn: metadataString(metadata, "bodyEn", ""),
+      priority: Math.max(1, Math.min(5, Math.round(metadataNumber(metadata, "priority") || 2))),
+      isActive: metadata.isActive !== false,
+      startsAt: metadataString(metadata, "startsAt", notification.createdAt.toISOString()),
+      endsAt: metadataString(metadata, "endsAt", "") || null,
+      createdAt: notification.createdAt.toISOString(),
+    };
+  });
+  const latestConfig = parseEventMetadata(adminConfigEvents[0]?.metadataJson || null);
+  const configuration = {
+    anonymousReflectionLimit: metadataNumber(latestConfig, "anonymousReflectionLimit") || 5,
+    signedGiftReflectionLimit: metadataNumber(latestConfig, "signedGiftReflectionLimit") || 15,
+    anonymousPersonaLimit: metadataNumber(latestConfig, "anonymousPersonaLimit") || 4,
+    signedPersonaLimit: metadataNumber(latestConfig, "signedPersonaLimit") || 10,
+  };
+  const giftTotalsByUser = adminGiftEvents.reduce<Record<string, { giftCount: number; giftedTokens: number }>>((accumulator, event) => {
+    const metadata = parseEventMetadata(event.metadataJson);
+    const targetUserId = metadataString(metadata, "targetUserId", "");
+    const amount = metadataNumber(metadata, "amount") || 0;
+    if (!targetUserId) return accumulator;
+    const current = accumulator[targetUserId] || { giftCount: 0, giftedTokens: 0 };
+    accumulator[targetUserId] = { giftCount: current.giftCount + 1, giftedTokens: current.giftedTokens + amount };
+    return accumulator;
+  }, {});
+  const discountOffers = adminDiscountEvents.map((event) => {
+    const metadata = parseEventMetadata(event.metadataJson);
+    return {
+      id: event.id,
+      code: metadataString(metadata, "code", "OFFER"),
+      label: metadataString(metadata, "label", "Admin offer"),
+      percentOff: Math.max(1, Math.min(90, Math.round(metadataNumber(metadata, "percentOff") || 1))),
+      appliesTo: metadataString(metadata, "appliesTo", "PLUS"),
+      maxRedemptions: metadataNumber(metadata, "maxRedemptions"),
+      expiresAt: metadataString(metadata, "expiresAt", "") || null,
+      isActive: metadata.isActive !== false,
+      createdAt: event.createdAt.toISOString(),
+    };
+  });
 
   const auditSnapshot: AuditSnapshot = {
     generatedAt: new Date().toISOString(),
     visitorsByRegion: visitorsByRegion.map((entry) => ({
       geographicRegion: entry.geographicRegion,
       count: entry._count._all,
+    })),
+    visitorComments: visitorComments.map((comment) => ({
+      comment: comment.comment,
+      language: comment.language,
+      device: comment.device,
+      browser: comment.browser,
+      createdAt: comment.createdAt,
+      geographicRegion: comment.location,
+    })),
+    pwaInstalls: pwaInstalls.map((install) => ({
+      device: install.device,
+      browser: install.browser,
+      platform: install.platform,
+      createdAt: install.createdAt,
+      geographicRegion: install.location,
     })),
     registrationFunnel: recentUsers.map((user) => ({
       id: user.id,
@@ -170,9 +417,21 @@ async function buildDashboardData() {
   };
 
   return {
+    totalVisitors,
+    registeredUsers,
+    interactionTotals,
     visitorsByRegion,
+    registrationsByRegion,
     recentUsers,
     distribution,
+    visitorComments,
+    pwaInstalls,
+    pwaDeviceBreakdown,
+    avatarRatings,
+    recentNotifications,
+    configuration,
+    giftTotalsByUser,
+    discountOffers,
     auditSnapshot,
     encryptedAuditSnapshot: encryptAuditSnapshot(auditSnapshot),
   };
@@ -183,96 +442,46 @@ export default async function AdminDashboardPage() {
   const sessionUser = session?.user as AdminSessionUser | undefined;
 
   if (!sessionUser) {
-    redirect("/api/auth/signin?callbackUrl=/admin/dashboard");
+    redirect("/admin/login");
   }
 
   if (sessionUser.role !== "ADMIN") {
-    notFound();
+    redirect("/admin/login");
   }
 
-  const { visitorsByRegion, recentUsers, distribution, encryptedAuditSnapshot } = await buildDashboardData();
+  const { totalVisitors, registeredUsers, interactionTotals, visitorsByRegion, registrationsByRegion, recentUsers, distribution, visitorComments, pwaInstalls, pwaDeviceBreakdown, avatarRatings, recentNotifications, configuration, giftTotalsByUser, discountOffers, encryptedAuditSnapshot } = await buildDashboardData();
   const auditHref = `data:application/json;base64,${Buffer.from(JSON.stringify(encryptedAuditSnapshot, null, 2)).toString("base64")}`;
+  const dashboardData: AdminDashboardData = {
+    configuration,
+    totalVisitors,
+    registeredUsers,
+    interactionTotals,
+    visitorsByRegion: combineLocationCounts(visitorsByRegion.map((entry) => ({
+      location: formatLocation(entry.geographicRegion) || "unknown",
+      count: entry._count._all,
+    }))),
+    registrationsByRegion: combineLocationCounts(registrationsByRegion),
+    recentUsers: recentUsers.map((user) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      provider: user.accounts[0]?.provider || "email",
+      activeTier: user.activeTier,
+      tokenBalance: user.tokenBalance,
+      currentLanguage: user.currentLanguage,
+      createdAt: user.createdAt.toISOString(),
+      location: fallbackLocationLabel(user.registrationRegion || user.visitorLogs[0]?.geographicRegion),
+      giftCount: giftTotalsByUser[user.id]?.giftCount || 0,
+      giftedTokens: giftTotalsByUser[user.id]?.giftedTokens || 0,
+    })),
+    discountOffers,
+    distribution,
+    visitorComments,
+    pwaInstalls,
+    pwaDeviceBreakdown,
+    avatarRatings,
+    recentNotifications,
+  };
 
-  return (
-    <main className="min-h-screen bg-ink px-5 pb-14 pt-24 text-bone/90">
-      <section className="mx-auto max-w-5xl">
-        <div className="border-b border-white/10 pb-8">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-gold">Ad-op command center</p>
-          <h1 className="mt-3 font-enserif text-5xl italic text-bone/95">FadFada operations</h1>
-          <p className="mt-4 max-w-2xl font-ensans text-sm leading-7 text-bone/55">Private multi-tenant routing, visitor intelligence, registration quality, and commercial distribution metrics for the bilingual wellbeing workspace.</p>
-        </div>
-
-        <section className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.85fr_1.15fr]">
-          <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-bone/40">Total visitors ledger</p>
-            <h2 className="mt-3 font-enserif text-3xl italic text-bone/90">Geographic origins</h2>
-          </div>
-          <div className="space-y-4">
-            {visitorsByRegion.map((entry) => (
-              <div key={entry.geographicRegion} className="grid grid-cols-[4rem_1fr_4rem] items-center gap-4 font-ensans text-sm text-bone/80">
-                <span className="font-mono text-xs uppercase text-gold">{entry.geographicRegion}</span>
-                <span className="h-px bg-white/10">
-                  <span className="block h-px bg-gold/80" style={{ width: `${Math.min(100, entry._count._all * 12)}%` }} />
-                </span>
-                <span className="text-right font-mono text-bone/70">{entry._count._all}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.85fr_1.15fr]">
-          <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-bone/40">Registration funnel index</p>
-            <h2 className="mt-3 font-enserif text-3xl italic text-bone/90">Recent active profiles</h2>
-          </div>
-          <div className="max-h-[28rem] space-y-4 overflow-y-auto pr-2 [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
-            {recentUsers.map((user) => {
-              const provider = user.accounts[0]?.provider || "email";
-              return (
-                <div key={user.id} className="grid grid-cols-[2.25rem_1fr_auto] items-center gap-4 border-b border-white/10 pb-4">
-                  <span className="relative h-9 w-9 overflow-hidden rounded-2xl border border-white/10 bg-slate-950 shadow-xl">
-                    <Image src={getProviderLogo(provider)} alt={`${provider} provider`} fill sizes="36px" className="object-contain p-2" unoptimized />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate font-ensans text-sm text-bone/90">{user.name || user.email || "Unlabeled profile"}</span>
-                    <span className="mt-1 block font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35">{dateFormatter.format(user.createdAt)} · {user.currentLanguage.toUpperCase()}</span>
-                  </span>
-                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-gold">{user.activeTier}</span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.85fr_1.15fr]">
-          <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-bone/40">Commercial plan distribution matrix</p>
-            <h2 className="mt-3 font-enserif text-3xl italic text-bone/90">Plan mix and monthly inflow</h2>
-          </div>
-          <div className="space-y-6">
-            {distribution.map((entry) => (
-              <div key={entry.tier} className="grid grid-cols-[5.5rem_1fr_auto] items-baseline gap-4">
-                <span className="font-mono text-xs uppercase tracking-[0.12em] text-gold">{entry.tier}</span>
-                <span className="font-ensans text-3xl text-bone/90">{entry.userCount} users</span>
-                <span className="font-mono text-xs uppercase tracking-[0.08em] text-bone/50">{formatCurrencyFromMinorUnits(entry.monthlyRevenueMinor)} MRR</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="grid gap-10 py-10 md:grid-cols-[0.85fr_1.15fr]">
-          <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-bone/40">Global JSON auditor</p>
-            <h2 className="mt-3 font-enserif text-3xl italic text-bone/90">Encrypted XPRIZE snapshot</h2>
-          </div>
-          <div className="flex items-center justify-between gap-5 border-y border-white/10 py-5">
-            <p className="max-w-md font-ensans text-sm leading-7 text-bone/55">Exports visitor, registration, and commercial distribution metrics as an AES-256-GCM encrypted JSON package for competition audit review.</p>
-            <a href={auditHref} download="fadfada-audit-snapshot.encrypted.json" className="shrink-0 rounded-full border border-gold/40 px-4 py-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold transition-colors hover:bg-gold hover:text-ink">
-              Export JSON
-            </a>
-          </div>
-        </section>
-      </section>
-    </main>
-  );
+  return <AdminDashboardClient data={dashboardData} auditHref={auditHref} />;
 }

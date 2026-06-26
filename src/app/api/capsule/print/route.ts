@@ -1,7 +1,6 @@
-import { GoogleGenAI } from "@google/genai";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { getGeminiModel } from "../../../../lib/gemini";
+import { createGeminiClient, getGeminiModel, isGeminiConfigured } from "../../../../lib/gemini";
 import { prisma } from "../../../../lib/prisma";
 import { worlds, type WorldId } from "../../../../lib/worlds";
 
@@ -99,7 +98,12 @@ export async function POST(request: NextRequest) {
     update: {},
   });
 
-  const template = await compileMomentCapsuleTemplate({ chatHistory, currentLanguage, currentWorld });
+  const template = await compileMomentCapsuleTemplate({
+    chatHistory,
+    currentLanguage,
+    currentWorld,
+    oidcToken: request.headers.get("x-vercel-oidc-token"),
+  });
   const capsule = await prisma.momentCapsule.create({
     data: {
       userId,
@@ -183,20 +187,21 @@ async function compileMomentCapsuleTemplate({
   chatHistory,
   currentLanguage,
   currentWorld,
+  oidcToken,
 }: {
   chatHistory: ChatHistoryMessage[];
   currentLanguage: Language;
   currentWorld: WorldId;
+  oidcToken?: string | null;
 }): Promise<MomentCapsuleTemplate> {
   const fallback = buildFallbackCapsule(chatHistory, currentLanguage, currentWorld);
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
-  if (!apiKey) {
+  if (!isGeminiConfigured()) {
     return fallback;
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = createGeminiClient(oidcToken);
     const historyText = serializeHistoryForLongContext(chatHistory);
     const result = await ai.models.generateContent({
       model: getGeminiModel(),

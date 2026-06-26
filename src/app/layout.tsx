@@ -3,8 +3,8 @@ import { AppShell } from "../components/AppShell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "FadFada | فضفضة",
-  description: "A bilingual AI wellbeing companion built as a focused mobile PWA workspace.",
+  title: "FadFada",
+  description: "A focused mobile wellbeing companion for calm reflection.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

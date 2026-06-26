@@ -4,11 +4,11 @@ Target length: 3 minutes
 
 ## 0:00-0:15 Opening
 
-Show the FadFada landing page.
+Show the live FadFada app at `https://fad-fada.vercel.app`.
 
 Voiceover:
 
-"This is FadFada, a bilingual AI wellbeing companion for people who need a private space to talk freely, feel understood, and move forward. It works in English and Arabic, and it is built as a Progressive Web App for phones, laptops, tablets, and shared computers."
+"This is FadFada, a bilingual AI wellbeing companion for people who need a private space to talk freely, feel understood, and move forward. It works in English and Arabic, it avoids mixed-language screens, and it is built as a Progressive Web App for phones, laptops, tablets, and shared computers."
 
 Shot checklist:
 
@@ -33,7 +33,7 @@ Shot checklist:
 
 ## 0:35-1:05 Support Conversation
 
-Run the pressure/support demo scenario.
+Use the in-app Demo Runbook and tap the pressure/support scenario.
 
 Voiceover:
 
@@ -48,7 +48,7 @@ Shot checklist:
 
 ## 1:05-1:35 Learning Room
 
-Run the learning demo scenario and open/maximize a resource.
+Tap the Learning Sprint scenario from the Demo Runbook and open/maximize a resource if one appears.
 
 Voiceover:
 
@@ -63,11 +63,11 @@ Shot checklist:
 
 ## 1:35-2:00 Voice And Video Modes
 
-Show text/voice/video mode selector and recording controls. Do not need to record private content.
+Show text/voice/video mode selector and recording controls. Do not record private content.
 
 Voiceover:
 
-"FadFada is designed for text, voice, and video reflection. The current prototype includes microphone and camera permission flows, recording timers, cancel actions, and a shared reflection pipeline for recorded notes."
+"FadFada is designed for text, voice, and video reflection. The current prototype includes microphone and camera permission flows, recording timers, cancel actions, browser voice playback, and a shared reflection pipeline for recorded notes."
 
 Shot checklist:
 
@@ -78,7 +78,7 @@ Shot checklist:
 
 ## 2:00-2:25 Safety Flow
 
-Run the safety demo scenario.
+Tap the Safety Check scenario from the Demo Runbook.
 
 Voiceover:
 
@@ -96,12 +96,13 @@ Scroll to Evidence Room and click export evidence.
 
 Voiceover:
 
-"For the Build with Gemini XPRIZE, we also built an Evidence Room. It tracks sessions, feedback, safety events, beta interest, PWA readiness, Gemini readiness, and proof signals. The team can export a JSON evidence file for judges and Devpost review."
+"For the Build with Gemini XPRIZE, we also built an Evidence Room. It shows PWA readiness, live Vertex AI readiness, deployment version, business positioning, and proof signals. The team can export a JSON evidence file for judges and Devpost review."
 
 Shot checklist:
 
 - Evidence Room metrics
 - proof signals
+- Vertex AI readiness line
 - Export evidence button
 - downloaded JSON file name
 

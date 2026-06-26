@@ -1,20 +1,34 @@
 # Deployment Guide
 
-Goal: make FadFada available as a shareable HTTPS mobile PWA for judges, testers, and founding beta users.
+Goal: keep FadFada available as a shareable HTTPS mobile PWA for judges, testers, and founding beta users.
+
+Current production URL:
+
+```text
+https://fad-fada.vercel.app
+```
 
 ## Fastest Path: Vercel
 
-This is the fastest reliable path for a hackathon demo.
+This is the active production path for the hackathon demo.
 
 1. Push the latest code to GitHub.
 2. Open Vercel and import the repository.
 3. Select the Next.js preset.
-4. Add environment variables:
+4. Add environment variables. Current production uses Google Cloud Vertex AI through keyless Workload Identity Federation:
 
 ```env
-GEMINI_API_KEY=your_real_key
-GEMINI_MODEL=gemini-1.5-flash
+GOOGLE_GENAI_USE_VERTEXAI=true
+GOOGLE_CLOUD_PROJECT=fadfada-499619
+GOOGLE_CLOUD_LOCATION=us-central1
+GEMINI_MODEL=gemini-2.5-flash
+GCP_PROJECT_NUMBER=289939931604
+GCP_SERVICE_ACCOUNT_EMAIL=fadfada-vertex-ai@fadfada-499619.iam.gserviceaccount.com
+GCP_WORKLOAD_IDENTITY_POOL_ID=vercel-pool
+GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID=vercel
 ```
+
+Keep `GEMINI_API_KEY` only as a fallback while Vertex is being verified. Production should prefer Vertex AI so usage flows through Google Cloud billing and credits.
 
 5. Deploy.
 6. Open the deployed HTTPS URL on mobile.
@@ -22,7 +36,7 @@ GEMINI_MODEL=gemini-1.5-flash
 
 ## Google Cloud Path
 
-Use this if the submission needs stronger Google Cloud alignment.
+Use this later if the product moves from Vercel Functions to Cloud Run. The current app already has Google Cloud alignment through Vertex AI, Vercel OIDC, and Workload Identity Federation.
 
 Recommended option: Cloud Run.
 
@@ -37,8 +51,10 @@ npm run build
 4. Configure secrets in Google Secret Manager or Cloud Run environment variables:
 
 ```env
-GEMINI_API_KEY=your_real_key
-GEMINI_MODEL=gemini-1.5-flash
+GOOGLE_GENAI_USE_VERTEXAI=true
+GOOGLE_CLOUD_PROJECT=fadfada-499619
+GOOGLE_CLOUD_LOCATION=us-central1
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 5. Enable HTTPS through the Cloud Run URL or a custom domain.
@@ -71,7 +87,7 @@ The final submission should include:
 - 3-minute demo video
 - Evidence Room JSON export
 - screenshots of mobile UI, Learning Room, safety flow, and Evidence Room
-- note that Gemini is called server-side through `/api/reflect`
+- note that Gemini is called server-side through `/api/reflect` on Vertex AI
 
 ## Smoke Test Script
 
@@ -90,4 +106,4 @@ Use this manual sequence after deployment:
 
 ## Fallback Behavior
 
-If `GEMINI_API_KEY` is missing or Gemini fails, the app still responds using the local reflection engine. This is useful for demos, but the final judge demo should use a real Gemini key so the AI integration is visible and defensible.
+If Vertex AI is unavailable or Gemini fails, the app still responds using the local reflection engine. This keeps the demo resilient, but the final judge demo should show `source: gemini` from `/api/reflect` and the Evidence Room Vertex readiness line.

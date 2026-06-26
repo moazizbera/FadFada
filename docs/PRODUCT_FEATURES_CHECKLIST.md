@@ -32,12 +32,15 @@ FadFada is built as a **mobile-first PWA** with Gemini integration, local fallba
 - [x] Same-language response strategy
 - [x] Calm premium landing experience
 - [x] Real product UI, not just a landing page
+- [x] In-app demo runbook with one-tap support, learning, safety, and bilingual proof scenarios
 - [x] Visible user UI avoids hackathon/judge/internal wording
 - [x] Clear safety positioning: not therapy, not diagnosis, not emergency care
 
 ### Conversation Experience
 
 - [x] Professional chat UI with sender and recipient bubbles
+- [x] Daily Pulse check-in with mood, energy, need, local streak, and personalized Gemini reflection
+- [x] Tiny Plan action under assistant replies with saved plans visible in the profile
 - [x] Premium organic chat bubble styling for user and assistant messages
 - [x] Glassmorphism assistant/persona message treatment
 - [x] Floating mobile composer design with soft dark surface
@@ -61,7 +64,7 @@ FadFada is built as a **mobile-first PWA** with Gemini integration, local fallba
 - [x] Text reflection
 - [x] Voice recording flow
 - [x] Video recording flow
-- [x] Voice reply output in Arabic and English using Edge neural TTS with browser fallback
+- [x] Voice reply output in Arabic and English using browser speech synthesis with dialect-aware voice selection
 - [x] Premium integrated chat-bubble audio player component
 - [x] World-aware animated waveform playback UI
 - [x] Persona/world-aware voice tuning for rate and pitch
@@ -74,8 +77,9 @@ FadFada is built as a **mobile-first PWA** with Gemini integration, local fallba
 ### Gemini AI
 
 - [x] Server-side Gemini API route at `/api/reflect`
-- [x] Server-side Edge TTS API route at `/api/tts`
-- [x] Uses `GEMINI_API_KEY` securely on the server
+- [x] Server-side Vertex AI reflection route at `/api/reflect`
+- [x] Uses Google Cloud Workload Identity Federation and Vercel OIDC for keyless production auth
+- [x] Uses `GEMINI_API_KEY` securely on the server as a fallback path
 - [x] Optional `GEMINI_MODEL`
 - [x] JSON response parsing
 - [x] Expert routing prompt

@@ -1,8 +1,8 @@
 export const runtime = "nodejs";
 
-import { GoogleGenAI, type Part } from "@google/genai";
+import type { Part } from "@google/genai";
 import { NextRequest, NextResponse } from "next/server";
-import { getGeminiModel } from "../../../../lib/gemini";
+import { createGeminiClient, getGeminiModel, isGeminiConfigured } from "../../../../lib/gemini";
 import { prisma } from "../../../../lib/prisma";
 import { worlds, type WorldId } from "../../../../lib/worlds";
 
@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
     currentLanguage,
     currentWorld,
     mimeType,
+    oidcToken: request.headers.get("x-vercel-oidc-token"),
     transcriptHint,
     videoBase64,
   });
@@ -185,24 +186,25 @@ async function analyzeVideoMoment({
   currentLanguage,
   currentWorld,
   mimeType,
+  oidcToken,
   transcriptHint,
   videoBase64,
 }: {
   currentLanguage: Language;
   currentWorld: RecommendedWorld;
   mimeType: string;
+  oidcToken?: string | null;
   transcriptHint?: string;
   videoBase64: string;
 }): Promise<VideoOrchestrationPayload> {
   const fallback = buildFallbackPayload(currentWorld, currentLanguage, transcriptHint);
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
-  if (!apiKey) {
+  if (!isGeminiConfigured()) {
     return fallback;
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = createGeminiClient(oidcToken);
     const promptPart: Part = {
       text: buildAnalysisPrompt({ currentLanguage, currentWorld, transcriptHint }),
     };

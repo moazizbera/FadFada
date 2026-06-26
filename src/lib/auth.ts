@@ -1,12 +1,14 @@
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
+import crypto from "crypto";
 import { headers } from "next/headers";
 import type { NextAuthOptions } from "next-auth";
 import AppleProvider from "next-auth/providers/apple";
+import CredentialsProvider from "next-auth/providers/credentials";
 import EmailProvider from "next-auth/providers/email";
 import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "./prisma";
 
-const complimentaryTokenBalance = 3;
+const complimentaryTokenBalance = 15;
 
 type AuthUserWithFadFadaState = {
   id: string;
@@ -20,7 +22,51 @@ type AuthUserWithFadFadaState = {
 };
 
 function getConfiguredProviders(): NextAuthOptions["providers"] {
-  const providers: NextAuthOptions["providers"] = [];
+  const providers: NextAuthOptions["providers"] = [
+    CredentialsProvider({
+      id: "email-signup",
+      name: "Email sign up",
+      credentials: {
+        name: { label: "Name", type: "text", placeholder: "Mo Aziz" },
+        email: { label: "Email", type: "email", placeholder: "you@example.com" },
+      },
+      async authorize(credentials) {
+        const email = credentials?.email?.trim().toLowerCase();
+
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          return null;
+        }
+
+        return {
+          id: `email:${email}`,
+          name: credentials?.name?.trim() || email.split("@")[0],
+          email,
+        };
+      },
+    }),
+    CredentialsProvider({
+      id: "admin-login",
+      name: "Admin login",
+      credentials: {
+        email: { label: "Admin email", type: "email", placeholder: "admin@example.com" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        const email = credentials?.email?.trim().toLowerCase();
+        const password = credentials?.password || "";
+
+        if (!email || !normalizeAdminEmails().includes(email) || !verifyAdminPassword(password)) {
+          return null;
+        }
+
+        return {
+          id: `admin:${email}`,
+          name: email.split("@")[0],
+          email,
+        };
+      },
+    }),
+  ];
 
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     providers.push(
@@ -65,18 +111,86 @@ function inferEmailDomain(email: string) {
   return domain || null;
 }
 
+function timingSafeEqual(left: string, right: string) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function verifyAdminPassword(password: string) {
+  const configuredHash = process.env.ADMIN_PASSWORD_HASH?.trim();
+  const configuredPassword = process.env.ADMIN_PASSWORD?.trim();
+
+  if (configuredHash) {
+    const passwordHash = crypto.createHash("sha256").update(password).digest("hex");
+    return timingSafeEqual(passwordHash, configuredHash);
+  }
+
+  if (configuredPassword) {
+    return timingSafeEqual(password, configuredPassword);
+  }
+
+  return false;
+}
+
+async function determineUserRole(email: string): Promise<"USER" | "ADMIN"> {
+  const adminEmails = normalizeAdminEmails();
+
+  if (adminEmails.includes(email)) {
+    return "ADMIN";
+  }
+
+  if (adminEmails.length === 0) {
+    const adminCount = await prisma.user.count({ where: { role: "ADMIN" } });
+
+    if (adminCount === 0) {
+      return "ADMIN";
+    }
+  }
+
+  return "USER";
+}
+
+export function buildGeographicRegionFromHeaders(headerStore: Headers) {
+  const city = headerStore.get("x-vercel-ip-city") || headerStore.get("cf-ipcity") || headerStore.get("x-city") || "";
+  const region =
+    headerStore.get("x-vercel-ip-country-region") ||
+    headerStore.get("cf-region") ||
+    headerStore.get("cf-region-code") ||
+    headerStore.get("x-region") ||
+    "";
+  const country =
+    headerStore.get("x-vercel-ip-country") ||
+    headerStore.get("cf-ipcountry") ||
+    headerStore.get("cloudfront-viewer-country") ||
+    headerStore.get("x-country-code") ||
+    "";
+  const location = [city, region, country]
+    .map((value) => normalizeLocationPart(value))
+    .filter(Boolean)
+    .join(", ");
+
+  return location || "unknown";
+}
+
+function normalizeLocationPart(value: string) {
+  try {
+    return decodeURIComponent(value).trim();
+  } catch {
+    return value.trim();
+  }
+}
+
 async function readRegistrationRequestMetadata() {
   const headerStore = await headers();
   const forwardedFor = headerStore.get("x-forwarded-for") || "";
   const ipAddress = forwardedFor.split(",")[0]?.trim() || headerStore.get("x-real-ip") || headerStore.get("cf-connecting-ip") || "unknown";
-  const geographicRegion =
-    [
-      headerStore.get("x-vercel-ip-country-region"),
-      headerStore.get("x-vercel-ip-country"),
-      headerStore.get("cloudfront-viewer-country"),
-      headerStore.get("cf-ipcountry"),
-      headerStore.get("x-country-code"),
-    ].find((value) => value && value.trim().length > 0) || "unknown";
+  const geographicRegion = buildGeographicRegionFromHeaders(headerStore);
   const userAgent = headerStore.get("user-agent") || "unknown";
   const referralSource = headerStore.get("referer") || headerStore.get("referrer") || null;
 
@@ -91,7 +205,10 @@ async function readRegistrationRequestMetadata() {
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   session: {
-    strategy: "database",
+    strategy: "jwt",
+  },
+  pages: {
+    signIn: "/auth/signin",
   },
   providers: getConfiguredProviders(),
   callbacks: {
@@ -104,8 +221,7 @@ export const authOptions: NextAuthOptions = {
 
       const existingUser = await prisma.user.findUnique({ where: { email } });
       const metadata = await readRegistrationRequestMetadata();
-      const adminEmails = normalizeAdminEmails();
-      const role = adminEmails.includes(email) ? "ADMIN" : "USER";
+      const role = await determineUserRole(email);
       const firstEmailDomain = inferEmailDomain(email);
 
       if (!existingUser) {
@@ -158,20 +274,40 @@ export const authOptions: NextAuthOptions = {
 
       return true;
     },
-    async session({ session, user }) {
-      const fadfadaUser = user as AuthUserWithFadFadaState;
+    async jwt({ token, user }) {
+      const email = (user?.email || token.email)?.trim().toLowerCase();
+
+      if (email) {
+        const fadfadaUser = await prisma.user.findUnique({ where: { email } });
+
+        if (fadfadaUser) {
+          token.sub = fadfadaUser.id;
+          token.name = fadfadaUser.name;
+          token.email = fadfadaUser.email;
+          token.picture = fadfadaUser.image;
+          token.role = fadfadaUser.role;
+          token.activeTier = fadfadaUser.activeTier;
+          token.tokenBalance = fadfadaUser.tokenBalance;
+          token.currentLanguage = fadfadaUser.currentLanguage;
+        }
+      }
+
+      return token;
+    },
+    async session({ session, token }) {
+      const fadfadaUser = token as AuthUserWithFadFadaState;
 
       if (session.user) {
         session.user.name = fadfadaUser.name;
         session.user.email = fadfadaUser.email;
-        session.user.image = fadfadaUser.image;
+        session.user.image = fadfadaUser.image || null;
       }
 
       return {
         ...session,
         user: {
           ...session.user,
-          id: fadfadaUser.id,
+          id: fadfadaUser.id || token.sub,
           role: fadfadaUser.role ?? "USER",
           activeTier: fadfadaUser.activeTier ?? "FREE",
           tokenBalance: fadfadaUser.tokenBalance ?? complimentaryTokenBalance,

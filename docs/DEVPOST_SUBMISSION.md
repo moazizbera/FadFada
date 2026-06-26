@@ -23,26 +23,31 @@ The product is especially focused on Arabic and English users who move between c
 FadFada lets users choose a conversation style, write or record what is on their mind, and receive a warm same-language response with a small practical plan. The experience includes:
 
 - bilingual English and Arabic interface with RTL/LTR switching
+- no mixed Arabic/English screens: each visible surface follows the active language
 - professional full-screen chat with sender and companion bubbles
+- Daily Pulse check-in that turns mood, energy, and need into one useful next step
+- Tiny Plan action that turns any response into saved steps the user can revisit from profile
 - fictional personas with non-real stylized portraits
 - text, voice, and video reflection modes
-- Gemini-powered reflection route with local fallback
+- Gemini-powered reflection route on Google Cloud Vertex AI with local fallback
 - adaptive expert routing for wellbeing, learning, career, relationships, health, life organization, celebration, and safety
+- custom companion creation, avatar ratings, public notices, and saved profile moments
 - Learning Room with curated video, article, course, and document-style resources inside the chat
 - crisis keyword prototype with safety-first interruption and Find a Helpline routing
 - PWA manifest, service worker, app icon, and install prompt UI
-- Evidence Room showing sessions, feedback, safety events, PWA readiness, Gemini readiness, beta interest, and proof signals
+- admin analytics, visitor telemetry, notification composer, and avatar rating summaries
+- Evidence Room showing PWA readiness, Vertex AI readiness, deployment version, business positioning, and proof signals
 - downloadable Evidence Room JSON export for judges and Devpost evidence
 
 ## How We Built It
 
-The app is built with Next.js App Router, React, TypeScript, Tailwind CSS, lucide-react, a web app manifest, and a service worker. The Gemini integration lives behind a server-side `/api/reflect` route so the API key is kept out of the browser. If Gemini is not configured or fails during a demo, the app falls back to a local reflection engine so the core experience remains demonstrable.
+The app is built with Next.js App Router, React, TypeScript, Tailwind CSS, Prisma, NextAuth, Neon Postgres, a web app manifest, and a service worker. The Gemini integration lives behind a server-side `/api/reflect` route and now runs through Google Cloud Vertex AI using Vercel OIDC and Google Workload Identity Federation, so production can use Google Cloud credits without storing service-account JSON keys. If Gemini is not configured or fails during a demo, the app falls back to a local reflection engine so the core experience remains demonstrable.
 
-The product shell was designed around hackathon evidence from day one. Instead of only building a beautiful chat surface, FadFada includes a judge-ready demo path and an internal Evidence Room that can export local proof as JSON.
+The product shell was designed around hackathon evidence from day one. Instead of only building a beautiful chat surface, FadFada includes a judge-ready demo path, admin analytics, public notices, avatar ratings, PWA readiness checks, and an internal Evidence Room that can export proof as JSON.
 
 ## Gemini Usage
 
-Gemini is used as the reflection and routing layer. The server prompt asks Gemini to:
+Gemini is used as the reflection and routing layer. The production app is deployed at `https://fad-fada.vercel.app` and currently uses Vertex AI with `gemini-2.5-flash` in `us-central1`. The server prompt asks Gemini to:
 
 - respond in the user's language
 - avoid therapy, diagnosis, or emergency-care claims
@@ -50,6 +55,8 @@ Gemini is used as the reflection and routing layer. The server prompt asks Gemin
 - identify the right expert mode
 - produce a concise response and a small next-step plan
 - behave as a learning coach when the user asks for study help
+
+Authentication to Google Cloud is keyless: Vercel sends an OIDC token to the serverless function, Google Workload Identity Federation exchanges that token, and the app impersonates a least-purpose service account for Vertex AI access.
 
 The UI also records Gemini readiness as part of the Evidence Room so judges can see where the AI route fits into the product.
 
@@ -88,11 +95,13 @@ The technical challenge was balancing a strong demo with a real product directio
 
 ## Accomplishments
 
-- built a polished bilingual PWA product shell
+- deployed a polished bilingual PWA at `https://fad-fada.vercel.app`
 - implemented professional full-screen chat
 - added persona selection with stylized non-real portraits
 - added text, voice, and video reflection flows
-- implemented Gemini server route with safe fallback
+- implemented Gemini server route on Vertex AI with safe fallback
+- configured keyless Google Cloud auth through Vercel OIDC and Workload Identity Federation
+- added admin analytics, public notifications, profile moments, and avatar ratings
 - added crisis interruption prototype
 - built an in-chat Learning Room and maximized viewer
 - added judge demo scenarios
@@ -105,13 +114,12 @@ A wellbeing product wins trust through restraint. The best response is not alway
 
 ## What's Next
 
-- deploy on Google Cloud or Vercel with HTTPS for reliable PWA install testing
-- configure live Gemini key and capture live smoke-test evidence
-- add authentication and database-backed sessions
-- connect a public waitlist and paid founding beta flow
-- add real voice transcription and secure media storage
+- expand localized crisis resources and human escalation workflows
+- add official cloud speech-to-text and cloud text-to-speech for stronger dialect quality
+- connect a Kuwait/GCC-friendly payment provider such as MyFatoorah, Tap, or Paddle
+- add secure media storage and longer-term memory controls
 - add production-grade safety classifier and localized crisis resources
-- record a 3-minute demo video using the Judge Demo Path and Evidence Room export
+- record a 3-minute demo video using the live site, admin dashboard, and Evidence Room export
 
 ## Suggested Demo Flow
 

@@ -8,8 +8,8 @@
   "dir": "rtl",
   "lang": "ar",
   "orientation": "portrait-primary",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "https://fad-fada.vercel.app/",
+  "scope": "https://fad-fada.vercel.app/",
   "icons": [
     {
       "src": "/icon.svg",

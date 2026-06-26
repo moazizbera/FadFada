@@ -9,6 +9,7 @@ type TypewriterSyncProps = {
   text: string;
   cadence?: EmotionalCadence;
   language?: TypewriterLanguage;
+  accentHex?: string;
   className?: string;
   onComplete?: () => void;
 };
@@ -20,7 +21,6 @@ type Particle = {
   velocityX: number;
   velocityY: number;
   alpha: number;
-  hue: number;
 };
 
 type CadenceProfile = {
@@ -55,16 +55,20 @@ const cadenceProfiles: Record<EmotionalCadence, CadenceProfile> = {
   },
 };
 
-export function TypewriterSync({ text, cadence = "steady_calm", language = "ar", className = "", onComplete }: TypewriterSyncProps) {
+export function TypewriterSync({ text, cadence = "steady_calm", language = "ar", accentHex = "#C9A86A", className = "", onComplete }: TypewriterSyncProps) {
   const [visibleText, setVisibleText] = useState("");
   const [isComplete, setIsComplete] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const particlesRef = useRef<Particle[]>([]);
   const animationFrameRef = useRef<number | null>(null);
   const completionRef = useRef(onComplete);
+  const accentRgbRef = useRef(hexToRgb(accentHex));
 
   completionRef.current = onComplete;
+  accentRgbRef.current = hexToRgb(accentHex);
   const direction = language === "ar" ? "rtl" : "ltr";
+  const alignment = language === "ar" ? "text-right" : "text-left";
+  const textSize = language === "ar" ? "text-[15px]" : "text-base";
   const profile = cadenceProfiles[cadence] || cadenceProfiles.steady_calm;
 
   useEffect(() => {
@@ -114,14 +118,17 @@ export function TypewriterSync({ text, cadence = "steady_calm", language = "ar",
       activeCanvas.width = Math.floor(width * pixelRatio);
       activeCanvas.height = Math.floor(height * pixelRatio);
       activeContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-      particlesRef.current = createParticles(profile, width, height, language);
+      if (particlesRef.current.length === 0) {
+        particlesRef.current = createParticles(profile, width, height, language);
+      }
     }
 
     function render() {
       activeContext.clearRect(0, 0, width, height);
       const gradient = activeContext.createLinearGradient(0, 0, width, height);
+      const accentRgb = accentRgbRef.current;
       gradient.addColorStop(0, "rgba(247, 243, 236, 0.02)");
-      gradient.addColorStop(1, profile.lineGlow);
+      gradient.addColorStop(1, `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, 0.22)`);
       activeContext.fillStyle = gradient;
       activeContext.fillRect(0, 0, width, height);
 
@@ -138,7 +145,7 @@ export function TypewriterSync({ text, cadence = "steady_calm", language = "ar",
 
         activeContext.beginPath();
         activeContext.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
-        activeContext.fillStyle = `hsla(${particle.hue}, 54%, 68%, ${particle.alpha * profile.alpha})`;
+        activeContext.fillStyle = `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, ${particle.alpha * profile.alpha})`;
         activeContext.fill();
       }
 
@@ -167,7 +174,7 @@ export function TypewriterSync({ text, cadence = "steady_calm", language = "ar",
   return (
     <div className={`relative overflow-hidden ${className}`} dir={direction} lang={language}>
       <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full opacity-80" aria-hidden="true" />
-      <p className="relative z-10 whitespace-pre-wrap font-arsans text-lg leading-[1.95] text-[#F7F3EC]/82" dir={direction}>
+      <p className={`relative z-10 whitespace-pre-wrap font-arsans leading-[1.85] text-[#F7F3EC]/82 ${alignment} ${textSize}`} dir={direction}>
         {visibleText}
         <span
           className={`ml-1 inline-block h-[1.1em] w-px translate-y-1 bg-[#C9A86A] align-baseline transition-opacity ${isComplete ? "opacity-0" : "opacity-100"}`}
@@ -181,7 +188,6 @@ export function TypewriterSync({ text, cadence = "steady_calm", language = "ar",
 function createParticles(profile: CadenceProfile, width: number, height: number, language: TypewriterLanguage): Particle[] {
   return Array.from({ length: profile.particleCount }, (_, index) => {
     const directionMultiplier = language === "ar" ? -1 : 1;
-    const phase = index / Math.max(1, profile.particleCount - 1);
     return {
       x: width * pseudoRandom(index, 11),
       y: height * pseudoRandom(index, 29),
@@ -189,9 +195,17 @@ function createParticles(profile: CadenceProfile, width: number, height: number,
       velocityX: directionMultiplier * (0.18 + pseudoRandom(index, 71) * 0.82),
       velocityY: -0.35 + pseudoRandom(index, 97) * 0.7,
       alpha: 0.42 + pseudoRandom(index, 131) * 0.58,
-      hue: 34 + phase * 42,
     };
   });
+}
+
+function hexToRgb(hex: string) {
+  const normalized = /^#[0-9a-f]{6}$/i.test(hex) ? hex.slice(1) : "C9A86A";
+  return {
+    r: parseInt(normalized.slice(0, 2), 16),
+    g: parseInt(normalized.slice(2, 4), 16),
+    b: parseInt(normalized.slice(4, 6), 16),
+  };
 }
 
 function pseudoRandom(index: number, salt: number) {
