@@ -43,10 +43,10 @@ interface SpeechRecognitionErrorEvent {
 }
 
 type Language = "ar" | "en";
-type HomeHeaderAction = "start" | "avatars" | "tools";
+type HomeHeaderAction = "start" | "avatars";
 
 type BehaviorStyle = "signature" | "deep" | "coach" | "quick";
-type HomeToolPanel = "checkin" | "progress" | "tone" | "prompts" | "plans" | "about";
+type HomeToolPanel = "checkin" | "sessions" | "progress" | "tone" | "prompts" | "plans" | "about";
 
 type PersonaEnvironmentProfile = {
   ambientClassName: string;
@@ -68,6 +68,16 @@ type ChatMessage = {
   personaId?: PersonaId;
   personaName?: string;
   avatarPath?: string;
+};
+
+type ChatSessionSummary = {
+  sessionId: string;
+  title: string;
+  activePersonaId: string;
+  activeWorld: string;
+  language: Language;
+  messages: ChatMessage[];
+  updatedAt?: string;
 };
 
 type LearningResource = {
@@ -186,6 +196,7 @@ const openingMessages: Record<Language, string> = {
 };
 
 const visitorUserIdKey = "fadfada-user-id";
+const chatSessionIdStorageKey = "fadfada-active-chat-session-id";
 const conversationStorageKey = "fadfada-chat-session-v1";
 const customPersonaStorageKey = "fadfada-custom-persona";
 const localCreditStorageKey = "fadfada-beta-credits-used";
@@ -440,6 +451,11 @@ function buildCustomPersona(draft: CustomPersonaDraft | null): Persona | null {
   };
 }
 
+function resolveMessagePersona(message: ChatMessage, customPersona: Persona | null): Persona {
+  if (message.personaId === "custom" && customPersona) return customPersona;
+  return personas.find((persona) => persona.id === message.personaId) ?? personas.find((persona) => persona.id === "omar") ?? personas[0];
+}
+
 function inferCustomAvatarPath(description: string) {
   const loweredDescription = description.toLowerCase();
   if (/spark|energy|fire|حماس|نار|طاقة|سريع|نشط/.test(loweredDescription)) return "/profile-logos/spark.svg";
@@ -570,6 +586,9 @@ export function ChatWindow() {
       text: openingMessages.ar,
       world: "calm",
       language: "ar",
+      personaId: "omar",
+      personaName: "عمر",
+      avatarPath: "/avatars/omar.png",
     },
   ]);
   const [isThinking, setIsThinking] = useState(false);
@@ -599,6 +618,9 @@ export function ChatWindow() {
   const [dailyPulseStats, setDailyPulseStats] = useState<DailyPulseStats>({ count: 0, streak: 0, lastDate: null });
   const [customPersonaDraft, setCustomPersonaDraft] = useState<CustomPersonaDraft | null>(null);
   const [trialCounter, setTrialCounter] = useState(0);
+  const [activeChatSessionId, setActiveChatSessionId] = useState("");
+  const [chatSessions, setChatSessions] = useState<ChatSessionSummary[]>([]);
+  const [sessionStatus, setSessionStatus] = useState<"idle" | "saving" | "saved" | "loading" | "error">("idle");
   const recorderRef = useRef<ISpeechRecognition | null>(null);
   const keepRecordingRef = useRef(false);
   const recordingRestartCountRef = useRef(0);
@@ -717,11 +739,93 @@ export function ChatWindow() {
   }, [conversationHydrated, messages, world]);
 
   useEffect(() => {
+    if (!activeChatSessionId) {
+      const storedSessionId = localStorage.getItem(chatSessionIdStorageKey);
+      const nextSessionId = storedSessionId || `session:${crypto.randomUUID()}`;
+      localStorage.setItem(chatSessionIdStorageKey, nextSessionId);
+      setActiveChatSessionId(nextSessionId);
+    }
+  }, [activeChatSessionId]);
+
+  useEffect(() => {
     if (sessionUser?.id) {
       setUserId(sessionUser.id);
     }
     setTrialCounter(getUsedCredits());
   }, [accessState, sessionUser?.id]);
+
+  useEffect(() => {
+    if (accessState === "anonymous") return;
+    void loadChatSessions();
+  }, [accessState, sessionUser?.id]);
+
+  useEffect(() => {
+    if (accessState === "anonymous" || !conversationHydrated || !activeChatSessionId || messages.length < 2) return;
+
+    const timeout = window.setTimeout(() => {
+      void saveCurrentChatSession("silent");
+    }, 900);
+
+    return () => window.clearTimeout(timeout);
+  }, [accessState, activeChatSessionId, conversationHydrated, messages, personaId, world, language]);
+
+  async function loadChatSessions() {
+    setSessionStatus("loading");
+    try {
+      const response = await fetch("/api/chat-sessions");
+      if (!response.ok) throw new Error("sessions failed");
+      const data = (await response.json()) as { sessions?: ChatSessionSummary[] };
+      setChatSessions(sanitizeChatSessions(data.sessions || []));
+      setSessionStatus("idle");
+    } catch {
+      setSessionStatus("error");
+    }
+  }
+
+  async function saveCurrentChatSession(mode: "silent" | "manual" = "manual") {
+    if (accessState === "anonymous" || !activeChatSessionId || messages.length < 2) return;
+    if (mode === "manual") setSessionStatus("saving");
+
+    const snapshot = buildChatSessionSnapshot(activeChatSessionId, messages, activePersona.id, world, language);
+
+    try {
+      const response = await fetch("/api/chat-sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(snapshot),
+      });
+      if (!response.ok) throw new Error("save failed");
+      setChatSessions((current) => [snapshot, ...current.filter((sessionItem) => sessionItem.sessionId !== snapshot.sessionId)].slice(0, 24));
+      setSessionStatus(mode === "manual" ? "saved" : "idle");
+    } catch {
+      if (mode === "manual") setSessionStatus("error");
+    }
+  }
+
+  function startNewChatSession() {
+    if (accessState !== "anonymous") {
+      void saveCurrentChatSession("silent");
+    }
+
+    const nextSessionId = `session:${crypto.randomUUID()}`;
+    localStorage.setItem(chatSessionIdStorageKey, nextSessionId);
+    setActiveChatSessionId(nextSessionId);
+    setMessages([{ id: "opening", role: "assistant", text: openingMessages[language], world: "calm", language }]);
+    setWorld("calm");
+    setToolsOpen(false);
+    window.setTimeout(focusInput, 120);
+  }
+
+  function openChatSession(sessionItem: ChatSessionSummary) {
+    localStorage.setItem(chatSessionIdStorageKey, sessionItem.sessionId);
+    setActiveChatSessionId(sessionItem.sessionId);
+    setMessages(sessionItem.messages.length > 0 ? sessionItem.messages : [{ id: "opening", role: "assistant", text: openingMessages[language], world: "calm", language }]);
+    if (sessionItem.activeWorld in worlds) setWorld(sessionItem.activeWorld as WorldId);
+    const nextPersona = personas.find((persona) => persona.id === sessionItem.activePersonaId);
+    if (nextPersona) setPersonaId(nextPersona.id);
+    setToolsOpen(false);
+    window.setTimeout(() => scrollToSection("chat"), 80);
+  }
 
   function scrollToSection(section: "home" | "chat") {
     const target = section === "home" ? homeRef.current : chatRef.current;
@@ -745,15 +849,12 @@ export function ChatWindow() {
       return;
     }
 
-    setPersonaOpen(false);
-    setToolsOpen(true);
-    void trackInteraction("starter_tap", { type: "top_menu_tools", language });
   }
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const initialAction = params.get("fadfadaAction");
-    if (initialAction === "start" || initialAction === "avatars" || initialAction === "tools") {
+    if (initialAction === "start" || initialAction === "avatars") {
       window.setTimeout(() => runHomeHeaderAction(initialAction), 180);
       params.delete("fadfadaAction");
       const nextSearch = params.toString();
@@ -763,7 +864,7 @@ export function ChatWindow() {
 
     const handleAction = (event: Event) => {
       const action = (event as CustomEvent<{ action?: HomeHeaderAction }>).detail?.action;
-      if (action === "start" || action === "avatars" || action === "tools") {
+      if (action === "start" || action === "avatars") {
         runHomeHeaderAction(action);
       }
     };
@@ -929,6 +1030,9 @@ export function ChatWindow() {
         world: message.world,
         language,
         cadence: normalizeCadence("steady_calm", message.world),
+        personaId: activePersona.id,
+        personaName: language === "ar" ? activePersona.nameAr : activePersona.nameEn,
+        avatarPath: activePersona.avatarPath,
       },
     ]);
   }
@@ -1211,6 +1315,8 @@ export function ChatWindow() {
       text,
       world: requestWorld,
       language: nextLanguage,
+      personaName: accountName,
+      avatarPath: accountImage || undefined,
     };
     setMessages((current) => [...current, userMessage]);
 
@@ -1611,12 +1717,9 @@ export function ChatWindow() {
             ? "مساحة عربية/إنجليزية هادئة: اكتب ما بداخلك، واختر من القائمة عندما تحتاج رفيقًا أو خطوة أو حفظ لحظة."
             : "A calm Arabic/English space: write what is inside, then open the menu when you need a companion, a step, or a saved moment."}
         </p>
-        <div className="mt-5 grid w-full max-w-sm grid-cols-[1fr_auto] gap-2" dir={language === "ar" ? "rtl" : "ltr"}>
-          <button type="button" onClick={focusInput} className="ui-action rounded-xl bg-[#C9A86A] px-4 py-3 text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
+        <div className="mt-5 w-full max-w-sm" dir={language === "ar" ? "rtl" : "ltr"}>
+          <button type="button" onClick={focusInput} className="ui-action w-full rounded-xl bg-[#C9A86A] px-4 py-3 text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
             {language === "ar" ? "ابدأ الفضفضة" : "Start venting"}
-          </button>
-          <button type="button" onClick={() => setToolsOpen(true)} className="ui-action rounded-xl border border-white/10 px-4 py-3 text-[#F7F3EC]/75 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
-            {language === "ar" ? "القائمة" : "Menu"}
           </button>
         </div>
         <p className="mt-3 font-arsans text-sm text-[#F7F3EC]/45">{language === "ar" ? activeWorld.nameAr : activeWorld.nameEn}</p>
@@ -1636,31 +1739,47 @@ export function ChatWindow() {
           const messageLanguage = message.language || language;
           const messageDirection = messageLanguage === "ar" ? "rtl" : "ltr";
           const messageAlignment = messageLanguage === "ar" ? "text-right" : "text-left";
+          const messagePersona = message.role === "assistant" ? resolveMessagePersona(message, customPersona) : activePersona;
+          const messagePersonaPresentation = getHeaderAvatarPresentation(messagePersona);
+          const messagePersonaEnvironment = getPersonaEnvironmentProfile(messagePersona.id);
+          const messageAvatarPath = message.role === "assistant" ? message.avatarPath || messagePersonaPresentation.avatarPath : message.avatarPath || accountImage || undefined;
+          const messageDisplayName = message.role === "assistant" ? message.personaName || getHeaderDisplayName(messagePersona, messageLanguage) : message.personaName || accountName;
+          const userInitial = messageDisplayName.trim().slice(0, 1).toUpperCase() || (messageLanguage === "ar" ? "أ" : "U");
 
           return (
           <article key={message.id} className={`animate-rise-in ${messageAlignment}`} dir={messageDirection}>
             {message.role === "user" ? (
-              <div>
-                <p className={`font-arsans leading-[1.85] text-[#F7F3EC]/95 ${messageLanguage === "ar" ? "text-[15px]" : "text-base"}`}>{message.text}</p>
-                <span className="mt-3 block h-px w-7 bg-[#C9A86A]/70" />
+              <div className={`flex items-start gap-3 ${messageDirection === "rtl" ? "flex-row" : "flex-row-reverse"}`}>
+                <span className="relative mt-1 h-8 w-8 shrink-0 overflow-hidden rounded-2xl border border-[#C9A86A]/20 bg-[#0E0D10] shadow-[0_10px_24px_rgba(0,0,0,0.22)]">
+                  {messageAvatarPath ? (
+                    <Image src={messageAvatarPath} alt={messageDisplayName} fill sizes="32px" className="object-cover" unoptimized />
+                  ) : (
+                    <span className="grid h-full w-full place-items-center font-arsans text-xs font-semibold text-[#C9A86A]">{userInitial}</span>
+                  )}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="mb-1 font-arsans text-[11px] text-[#C9A86A]/58">{messageDisplayName}</p>
+                  <p className={`font-arsans leading-[1.85] text-[#F7F3EC]/95 ${messageLanguage === "ar" ? "text-[15px]" : "text-base"}`}>{message.text}</p>
+                  <span className="mt-3 block h-px w-7 bg-[#C9A86A]/70" />
+                </div>
               </div>
             ) : (
               <div className={`flex items-start gap-3 ${messageDirection === "rtl" ? "flex-row-reverse" : "flex-row"}`}>
                 <span className="relative mt-1 h-9 w-9 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-[#0E0D10] shadow-[0_12px_28px_rgba(0,0,0,0.28)]">
-                  {isGeneratedAvatarPath(message.avatarPath || activeHeaderPresentation.avatarPath) ? (
-                    <img src={message.avatarPath || activeHeaderPresentation.avatarPath} alt={message.personaName || activePersonaDisplayName} className="h-full w-full object-cover" />
+                  {isGeneratedAvatarPath(messageAvatarPath) ? (
+                    <img src={messageAvatarPath} alt={messageDisplayName} className="h-full w-full object-cover" />
                   ) : (
-                    <Image src={message.avatarPath || activeHeaderPresentation.avatarPath} alt={message.personaName || activePersonaDisplayName} fill sizes="36px" className="object-cover" />
+                    <Image src={messageAvatarPath || messagePersonaPresentation.avatarPath} alt={messageDisplayName} fill sizes="36px" className="object-cover" />
                   )}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="mb-2 font-arsans text-[11px] text-[#C9A86A]/70">{message.personaName || activePersonaDisplayName}</p>
+                  <p className="mb-2 font-arsans text-[11px] text-[#C9A86A]/70">{messageDisplayName}</p>
                   <TypewriterSync
-                    text={personaEnvironment.formatAssistantText?.(message.text) ?? message.text}
+                    text={messagePersonaEnvironment.formatAssistantText?.(message.text) ?? message.text}
                     language={messageLanguage}
-                    cadence={resolvePersonaCadence(message.cadence, message.world, personaEnvironment)}
-                    accentHex={activePersona.glowColorHex}
-                    className={personaEnvironment.typewriterClassName}
+                    cadence={resolvePersonaCadence(message.cadence, message.world, messagePersonaEnvironment)}
+                    accentHex={messagePersona.glowColorHex}
+                    className={messagePersonaEnvironment.typewriterClassName}
                   />
                 <MomentActions
                   language={language}
@@ -1706,6 +1825,19 @@ export function ChatWindow() {
               onChange={setDailyPulse}
               onSubmit={submitDailyPulse}
               disabled={isThinking}
+            />
+          ) : null}
+          {activeHomePanel === "sessions" ? (
+            <SessionHistoryPanel
+              language={language}
+              accessState={accessState}
+              sessions={chatSessions}
+              status={sessionStatus}
+              onNewSession={startNewChatSession}
+              onSaveSession={() => void saveCurrentChatSession("manual")}
+              onRefresh={() => void loadChatSessions()}
+              onOpenSession={openChatSession}
+              onSignIn={openSignInGift}
             />
           ) : null}
           {activeHomePanel === "progress" ? (
@@ -1868,6 +2000,47 @@ function buildRecentMessages(messages: ChatMessage[]) {
     world: message.world,
     language: message.language,
   }));
+}
+
+function buildChatSessionSnapshot(sessionId: string, messages: ChatMessage[], activePersonaId: PersonaId, activeWorld: WorldId, language: Language): ChatSessionSummary {
+  const sanitizedMessages = sanitizeStoredMessages(messages).slice(-maxStoredMessages);
+  const firstUserMessage = sanitizedMessages.find((message) => message.role === "user");
+  const title = firstUserMessage?.text.slice(0, 64) || (language === "ar" ? "جلسة فضفضة جديدة" : "New FadFada session");
+
+  return {
+    sessionId: sessionId || `session:${crypto.randomUUID()}`,
+    title,
+    activePersonaId,
+    activeWorld,
+    language,
+    messages: sanitizedMessages,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function sanitizeChatSessions(value: unknown): ChatSessionSummary[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((sessionItem): ChatSessionSummary | null => {
+      const candidate = sessionItem as Partial<ChatSessionSummary>;
+      const sessionId = typeof candidate.sessionId === "string" && candidate.sessionId ? candidate.sessionId.slice(0, 120) : "";
+      const activeWorld = candidate.activeWorld && candidate.activeWorld in worlds ? candidate.activeWorld : "calm";
+      const language = candidate.language === "ar" || candidate.language === "en" ? candidate.language : "ar";
+      if (!sessionId) return null;
+
+      return {
+        sessionId,
+        title: typeof candidate.title === "string" && candidate.title.trim() ? candidate.title.trim().slice(0, 90) : language === "ar" ? "جلسة فضفضة" : "FadFada session",
+        activePersonaId: typeof candidate.activePersonaId === "string" && candidate.activePersonaId ? candidate.activePersonaId.slice(0, 80) : "omar",
+        activeWorld,
+        language,
+        messages: sanitizeStoredMessages(candidate.messages),
+        updatedAt: typeof candidate.updatedAt === "string" ? candidate.updatedAt : undefined,
+      };
+    })
+    .filter((sessionItem): sessionItem is ChatSessionSummary => Boolean(sessionItem))
+    .slice(0, 24);
 }
 
 function sanitizeStoredMessages(value: unknown): ChatMessage[] {
@@ -2433,10 +2606,94 @@ function ActiveQuestCard({ language, quests, onCompleteNext, onShareQuest, onInv
   );
 }
 
+function SessionHistoryPanel({
+  language,
+  accessState,
+  sessions,
+  status,
+  onNewSession,
+  onSaveSession,
+  onRefresh,
+  onOpenSession,
+  onSignIn,
+}: {
+  language: Language;
+  accessState: AccessState;
+  sessions: ChatSessionSummary[];
+  status: "idle" | "saving" | "saved" | "loading" | "error";
+  onNewSession: () => void;
+  onSaveSession: () => void;
+  onRefresh: () => void;
+  onOpenSession: (session: ChatSessionSummary) => void;
+  onSignIn: () => void;
+}) {
+  const isArabic = language === "ar";
+
+  if (accessState === "anonymous") {
+    return (
+      <section className="mt-5 rounded-2xl border border-[#C9A86A]/25 bg-[#C9A86A]/[0.055] p-4 text-start" dir={isArabic ? "rtl" : "ltr"}>
+        <p className="ui-kicker text-[#C9A86A]/85">{isArabic ? "سجل الجلسات" : "Session history"}</p>
+        <h3 className="mt-2 font-arui text-xl font-semibold text-[#F7F3EC]/92">{isArabic ? "سجّل دخولك لحفظ الجلسات" : "Sign in to keep sessions"}</h3>
+        <p className="mt-2 font-arsans text-sm leading-7 text-[#F7F3EC]/58">
+          {isArabic ? "جلسات الحساب تحفظ تاريخك وتسمح لك تبدأ جلسة جديدة بدون ضياع القديمة." : "Account sessions preserve history and let you start fresh without losing older conversations."}
+        </p>
+        <button type="button" onClick={onSignIn} className="ui-action mt-4 rounded-full bg-[#C9A86A] px-4 py-3 text-[#0E0D10] transition hover:bg-[#F7F3EC]">
+          {isArabic ? "تسجيل الدخول" : "Sign in"}
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <section className="mt-5 rounded-2xl border border-white/10 bg-white/[0.025] p-4 text-start" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="flex items-start justify-between gap-3 max-sm:flex-col">
+        <div>
+          <p className="ui-kicker text-[#C9A86A]/85">{isArabic ? "سجل الجلسات" : "Session history"}</p>
+          <h3 className="mt-2 font-arui text-xl font-semibold text-[#F7F3EC]/92">{isArabic ? "ابدأ جلسة جديدة أو ارجع للقديمة" : "Start fresh or reopen history"}</h3>
+          <p className="mt-2 font-arsans text-sm leading-7 text-[#F7F3EC]/55">
+            {isArabic ? "كل جلسة تحفظ الرفيق، العالم، والرسائل. تغيير الرفيق لا يغيّر تاريخ الردود القديمة." : "Each session keeps companion, world, and messages. Switching companions will not repaint old replies."}
+          </p>
+        </div>
+        <span className="rounded-full border border-white/10 px-3 py-1.5 font-arsans text-xs text-[#F7F3EC]/45">
+          {status === "loading" ? (isArabic ? "تحميل" : "Loading") : status === "saving" ? (isArabic ? "حفظ" : "Saving") : status === "saved" ? (isArabic ? "تم الحفظ" : "Saved") : status === "error" ? (isArabic ? "تعذر" : "Error") : isArabic ? "جاهز" : "Ready"}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <button type="button" onClick={onNewSession} className="ui-action rounded-xl bg-[#C9A86A] px-4 py-3 text-[#0E0D10] transition hover:bg-[#F7F3EC]">
+          {isArabic ? "جلسة جديدة" : "New session"}
+        </button>
+        <button type="button" onClick={onSaveSession} className="ui-action rounded-xl border border-emerald-200/30 px-4 py-3 text-emerald-200 transition hover:bg-emerald-200 hover:text-[#0E0D10]">
+          {isArabic ? "حفظ الحالية" : "Save current"}
+        </button>
+        <button type="button" onClick={onRefresh} className="ui-action rounded-xl border border-white/10 px-4 py-3 text-[#F7F3EC]/70 transition hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
+          {isArabic ? "تحديث السجل" : "Refresh history"}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-2">
+        {sessions.length > 0 ? sessions.map((sessionItem) => (
+          <button key={sessionItem.sessionId} type="button" onClick={() => onOpenSession(sessionItem)} className="rounded-xl border border-white/10 bg-black/15 p-3 text-start transition hover:border-[#C9A86A]/45 hover:bg-[#C9A86A]/10">
+            <span className="block truncate font-arsans text-sm text-[#F7F3EC]/84" dir="auto">{sessionItem.title}</span>
+            <span className="mt-1 block font-mono text-[10px] uppercase tracking-[0.08em] text-[#F7F3EC]/35" dir="ltr">
+              {sessionItem.messages.length} messages · {sessionItem.activePersonaId} · {sessionItem.updatedAt ? new Date(sessionItem.updatedAt).toLocaleDateString(isArabic ? "ar-EG" : "en-US") : "local"}
+            </span>
+          </button>
+        )) : (
+          <p className="rounded-xl border border-dashed border-white/10 px-4 py-5 font-arsans text-sm text-[#F7F3EC]/42">
+            {isArabic ? "لا توجد جلسات محفوظة بعد. احفظ الجلسة الحالية أو ابدأ جلسة جديدة." : "No saved sessions yet. Save the current session or start a new one."}
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function HomeToolTabs({ language, activePanel, onSelect }: { language: Language; activePanel: HomeToolPanel; onSelect: (panel: HomeToolPanel) => void }) {
   const isArabic = language === "ar";
   const panels: Array<{ id: HomeToolPanel; ar: string; en: string }> = [
     { id: "checkin", ar: "نبض اليوم", en: "Check-in" },
+    { id: "sessions", ar: "الجلسات", en: "Sessions" },
     { id: "progress", ar: "تقدمك", en: "Progress" },
     { id: "tone", ar: "النبرة", en: "Tone" },
     { id: "prompts", ar: "بدايات", en: "Prompts" },
@@ -2446,7 +2703,7 @@ function HomeToolTabs({ language, activePanel, onSelect }: { language: Language;
 
   return (
     <div className="mt-6 w-full rounded-2xl border border-white/10 bg-white/[0.025] p-1.5" dir={isArabic ? "rtl" : "ltr"}>
-      <div className="grid grid-cols-3 gap-1 sm:grid-cols-6">
+      <div className="grid grid-cols-3 gap-1 sm:grid-cols-7">
         {panels.map((panel) => {
           const active = panel.id === activePanel;
           return (

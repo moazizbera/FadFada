@@ -9,7 +9,7 @@ import { NotificationCenter } from "./NotificationCenter";
 import { PwaUpdateManager } from "./PwaUpdateManager";
 
 type AppLanguage = "ar" | "en";
-type HomeHeaderAction = "start" | "avatars" | "tools";
+type HomeHeaderAction = "start" | "avatars";
 
 type AppLocaleContextValue = {
   language: AppLanguage;
@@ -132,7 +132,6 @@ function GlobalHeader() {
   const headerActions: Array<{ action: HomeHeaderAction; label: string }> = [
     { action: "start", label: isArabic ? "ابدأ" : "Start" },
     { action: "avatars", label: isArabic ? "الرفاق" : "Avatars" },
-    { action: "tools", label: isArabic ? "الأدوات" : "Tools" },
   ];
 
   function runHeaderAction(action: HomeHeaderAction) {
