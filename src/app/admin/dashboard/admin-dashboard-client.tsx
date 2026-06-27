@@ -1,9 +1,11 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { useAppLocale } from "../../../components/AppShell";
 import { personas } from "../../../lib/personas";
+
+const adminRefreshIntervalMs = 30000;
 
 export type AdminDashboardData = {
   configuration: {
@@ -178,6 +180,8 @@ const copy = {
     unnamedProfile: "ملف بدون اسم",
     unknownLocation: "موقع غير معروف",
     userCount: "مستخدم",
+    autoRefreshLabel: "تحديث تلقائي كل 30 ثانية",
+    lastUpdatedLabel: "آخر تحديث",
     paymentLedgerNote: "لا نعرض مبالغ الويبهوك الداخلية هنا لأنها قد تكون سجلات اختبار. مصدر حقيقة الإيراد هو لوحة مزود الدفع: إذا كانت تعرض 0.00$ فالإيراد الحقيقي للفترة هو 0.00$.",
     exportDescription: "يصدر بيانات الزوار والتسجيلات وتوزيع الخطط كملف مشفر للمراجعة والتحليل.",
     exportButton: "تصدير الملف",
@@ -239,6 +243,8 @@ const copy = {
     unnamedProfile: "Unlabeled profile",
     unknownLocation: "Unknown location",
     userCount: "users",
+    autoRefreshLabel: "Auto-refresh every 30 seconds",
+    lastUpdatedLabel: "Last updated",
     paymentLedgerNote: "Internal webhook amounts are hidden here because they can include test records. The payment vendor dashboard is the revenue source of truth: if it shows $0.00, real revenue for the period is $0.00.",
     exportDescription: "Exports visitors, registrations, and plan distribution as an encrypted review file.",
     exportButton: "Export file",
@@ -249,8 +255,10 @@ const copy = {
 
 export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientProps) {
   const { language, direction } = useAppLocale();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
+  const [lastRefreshedAt, setLastRefreshedAt] = useState(() => new Date());
   const labels = copy[language];
   const locale = language === "ar" ? "ar-EG" : "en-US";
   const conversionRate = data.totalVisitors > 0 ? `${Math.round((data.registeredUsers / data.totalVisitors) * 100)}%` : "0%";
@@ -286,6 +294,24 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
     setActiveTab("dashboard");
   }, [searchParams]);
 
+  useEffect(() => {
+    function refreshAdminData() {
+      if (document.visibilityState !== "visible") return;
+      router.refresh();
+      setLastRefreshedAt(new Date());
+    }
+
+    const intervalId = window.setInterval(refreshAdminData, adminRefreshIntervalMs);
+    window.addEventListener("focus", refreshAdminData);
+    document.addEventListener("visibilitychange", refreshAdminData);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshAdminData);
+      document.removeEventListener("visibilitychange", refreshAdminData);
+    };
+  }, [router]);
+
   return (
     <main className="min-h-screen bg-ink px-5 pb-14 pt-24 text-bone/90" dir={direction}>
       <section className="mx-auto max-w-5xl">
@@ -293,6 +319,9 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
           <p className="ui-kicker text-gold">{labels.eyebrow}</p>
           <h1 className="mt-3 font-arserif text-5xl text-bone/95">{labels.title}</h1>
           <p className="mt-4 max-w-2xl font-arsans text-sm leading-7 text-bone/60">{labels.intro}</p>
+          <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="ltr">
+            {labels.autoRefreshLabel} · {labels.lastUpdatedLabel}: {formatTime(lastRefreshedAt, locale)}
+          </p>
         </div>
 
         {activeTab === "dashboard" ? (
@@ -981,6 +1010,10 @@ function formatNumber(value: number, locale: string) {
 
 function formatDate(value: string, locale: string) {
   return new Intl.DateTimeFormat(locale, { month: "short", day: "2-digit", year: "numeric" }).format(new Date(value));
+}
+
+function formatTime(value: Date, locale: string) {
+  return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(value);
 }
 
 function formatCurrency(amount: number, currency: string, locale: string) {
