@@ -6,6 +6,7 @@ import AppleProvider from "next-auth/providers/apple";
 import CredentialsProvider from "next-auth/providers/credentials";
 import EmailProvider from "next-auth/providers/email";
 import GoogleProvider from "next-auth/providers/google";
+import { applyLifetimePlus, hasLifetimePlusAccess } from "./lifetimeAccess";
 import { prisma } from "./prisma";
 
 const complimentaryTokenBalance = 15;
@@ -233,8 +234,8 @@ export const authOptions: NextAuthOptions = {
             email,
             image: user.image,
             currentLanguage: "ar",
-            activeTier: "FREE",
-            tokenBalance: complimentaryTokenBalance,
+            activeTier: hasLifetimePlusAccess(email) ? "PLUS" : "FREE",
+            tokenBalance: hasLifetimePlusAccess(email) ? 9999 : complimentaryTokenBalance,
             role,
             firstEmailDomain,
             registrationRegion: metadata.geographicRegion,
@@ -256,6 +257,7 @@ export const authOptions: NextAuthOptions = {
             name: user.name ?? existingUser.name,
             image: user.image ?? existingUser.image,
             role,
+            ...(hasLifetimePlusAccess(email) ? { activeTier: "PLUS" as const, tokenBalance: { set: Math.max(existingUser.tokenBalance, 9999) }, lemonSubscriptionStatus: "lifetime" } : {}),
           },
         });
       }
@@ -281,14 +283,15 @@ export const authOptions: NextAuthOptions = {
         const fadfadaUser = await prisma.user.findUnique({ where: { email } });
 
         if (fadfadaUser) {
+          const effectiveUser = applyLifetimePlus(fadfadaUser);
           token.sub = fadfadaUser.id;
-          token.name = fadfadaUser.name;
-          token.email = fadfadaUser.email;
-          token.picture = fadfadaUser.image;
-          token.role = fadfadaUser.role;
-          token.activeTier = fadfadaUser.activeTier;
-          token.tokenBalance = fadfadaUser.tokenBalance;
-          token.currentLanguage = fadfadaUser.currentLanguage;
+          token.name = effectiveUser.name;
+          token.email = effectiveUser.email;
+          token.picture = effectiveUser.image;
+          token.role = effectiveUser.role;
+          token.activeTier = effectiveUser.activeTier;
+          token.tokenBalance = effectiveUser.tokenBalance;
+          token.currentLanguage = effectiveUser.currentLanguage;
         }
       }
 

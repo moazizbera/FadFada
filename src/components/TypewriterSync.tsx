@@ -11,6 +11,7 @@ type TypewriterSyncProps = {
   language?: TypewriterLanguage;
   accentHex?: string;
   className?: string;
+  instant?: boolean;
   onComplete?: () => void;
 };
 
@@ -55,7 +56,7 @@ const cadenceProfiles: Record<EmotionalCadence, CadenceProfile> = {
   },
 };
 
-export function TypewriterSync({ text, cadence = "steady_calm", language = "ar", accentHex = "#C9A86A", className = "", onComplete }: TypewriterSyncProps) {
+export function TypewriterSync({ text, cadence = "steady_calm", language = "ar", accentHex = "#C9A86A", className = "", instant = false, onComplete }: TypewriterSyncProps) {
   const [visibleText, setVisibleText] = useState("");
   const [isComplete, setIsComplete] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -70,12 +71,20 @@ export function TypewriterSync({ text, cadence = "steady_calm", language = "ar",
   const alignment = language === "ar" ? "text-right" : "text-left";
   const textSize = language === "ar" ? "text-[15px]" : "text-base";
   const profile = cadenceProfiles[cadence] || cadenceProfiles.steady_calm;
+  const formattedText = formatTextForLanguage(text, language);
 
   useEffect(() => {
+    if (instant) {
+      setVisibleText(formattedText);
+      setIsComplete(true);
+      completionRef.current?.();
+      return;
+    }
+
     setVisibleText("");
     setIsComplete(false);
 
-    const characters = Array.from(formatTextForLanguage(text, language));
+    const characters = Array.from(formattedText);
     if (characters.length === 0) {
       setIsComplete(true);
       completionRef.current?.();
@@ -95,9 +104,11 @@ export function TypewriterSync({ text, cadence = "steady_calm", language = "ar",
     }, profile.intervalMs);
 
     return () => window.clearInterval(timer);
-  }, [text, language, profile.intervalMs]);
+  }, [formattedText, instant, profile.intervalMs]);
 
   useEffect(() => {
+    if (instant) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     const activeCanvas = canvas;
@@ -169,11 +180,11 @@ export function TypewriterSync({ text, cadence = "steady_calm", language = "ar",
         window.cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [cadence, language, profile]);
+  }, [cadence, instant, language, profile]);
 
   return (
     <div className={`relative overflow-hidden ${className}`} dir={direction} lang={language}>
-      <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full opacity-80" aria-hidden="true" />
+      {instant ? null : <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full opacity-80" aria-hidden="true" />}
       <p className={`relative z-10 whitespace-pre-wrap font-arsans leading-[1.85] text-[#F7F3EC]/82 ${alignment} ${textSize}`} dir={direction}>
         {visibleText}
         <span

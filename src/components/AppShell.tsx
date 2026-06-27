@@ -9,7 +9,8 @@ import { NotificationCenter } from "./NotificationCenter";
 import { PwaUpdateManager } from "./PwaUpdateManager";
 
 type AppLanguage = "ar" | "en";
-type HomeHeaderAction = "start" | "avatars";
+type HomeHeaderAction = "start" | "avatars" | "newChat";
+type AccountTier = "FREE" | "PLUS" | "BUSINESS";
 
 type AppLocaleContextValue = {
   language: AppLanguage;
@@ -28,6 +29,7 @@ type AccountProfile = {
   nickname: string | null;
   email: string | null;
   image: string | null;
+  activeTier?: string | null;
 };
 
 const AppLocaleContext = createContext<AppLocaleContextValue | null>(null);
@@ -122,16 +124,27 @@ function GlobalHeader() {
   const { data: session, status } = useSession();
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountProfile, setAccountProfile] = useState<AccountProfile | null>(null);
+  const [activeAdminTab, setActiveAdminTab] = useState("dashboard");
   const isArabic = language === "ar";
   const nextLanguageLabel = isArabic ? "EN" : "AR";
   const authenticatedImage = accountProfile?.image || session?.user?.image;
   const authenticatedName = accountProfile?.nickname || accountProfile?.name || session?.user?.name || accountProfile?.email || session?.user?.email || (isArabic ? "عضو فضفضة" : "FadFada member");
   const authenticatedEmail = accountProfile?.email || session?.user?.email || "";
   const sessionUserRole = session?.user && "role" in session.user ? session.user.role : "USER";
+  const accountTier = getAccountTier(accountProfile?.activeTier ?? (session?.user && "activeTier" in session.user ? session.user.activeTier : undefined));
   const isAdminArea = pathname?.startsWith("/admin") ?? false;
   const headerActions: Array<{ action: HomeHeaderAction; label: string }> = [
     { action: "start", label: isArabic ? "ابدأ" : "Start" },
     { action: "avatars", label: isArabic ? "الرفاق" : "Avatars" },
+    { action: "newChat", label: isArabic ? "محادثة جديدة" : "New chat" },
+  ];
+  const adminTabs = [
+    { id: "dashboard", ar: "القياس", en: "Dashboard" },
+    { id: "configuration", ar: "الإعدادات", en: "Config" },
+    { id: "users", ar: "الهدايا", en: "Gifts" },
+    { id: "personas", ar: "الرفاق", en: "Personas" },
+    { id: "offers", ar: "الخصومات", en: "Offers" },
+    { id: "sessions", ar: "الجلسات", en: "Sessions" },
   ];
 
   function runHeaderAction(action: HomeHeaderAction) {
@@ -165,9 +178,25 @@ function GlobalHeader() {
     };
   }, [status]);
 
+  useEffect(() => {
+    if (!isAdminArea || typeof window === "undefined") {
+      setActiveAdminTab("dashboard");
+      return;
+    }
+
+    function syncActiveAdminTab() {
+      const tab = new URLSearchParams(window.location.search).get("tab");
+      setActiveAdminTab(tab === "configuration" || tab === "users" || tab === "personas" || tab === "offers" || tab === "sessions" ? tab : "dashboard");
+    }
+
+    syncActiveAdminTab();
+    window.addEventListener("popstate", syncActiveAdminTab);
+    return () => window.removeEventListener("popstate", syncActiveAdminTab);
+  }, [isAdminArea, pathname]);
+
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#0E0D10]/78 text-bone/90 shadow-2xl backdrop-blur-xl" dir={direction}>
-      <div className="mx-auto flex h-16 max-w-3xl items-center justify-between gap-2 px-3 sm:px-4">
+      <div className={`mx-auto flex h-16 items-center justify-between gap-2 px-3 sm:px-4 ${isAdminArea ? "max-w-6xl" : "max-w-3xl"}`}>
       <div className="flex min-w-0 items-center gap-2">
         <button
           type="button"
@@ -178,9 +207,22 @@ function GlobalHeader() {
           {nextLanguageLabel}
         </button>
         {isAdminArea ? (
-          <div className="rounded-full border border-gold/25 bg-gold/[0.08] px-4 py-2 font-arsans text-xs text-gold shadow-xl">
-            {isArabic ? "وضع الإدارة" : "Admin mode"}
-          </div>
+          <nav className="flex min-w-0 items-center gap-1 overflow-x-auto rounded-full border border-gold/20 bg-gold/[0.06] p-1 shadow-xl backdrop-blur-xl [scrollbar-width:none]" aria-label={isArabic ? "تبويبات الإدارة" : "Admin tabs"}>
+            {adminTabs.map((tab) => {
+              const active = activeAdminTab === tab.id;
+              return (
+                <Link
+                  key={tab.id}
+                  href={`/admin/dashboard${tab.id === "dashboard" ? "" : `?tab=${tab.id}`}`}
+                  onClick={() => setActiveAdminTab(tab.id)}
+                  className={`group relative shrink-0 overflow-hidden rounded-full px-3 py-1.5 font-arsans text-[11px] transition-all duration-200 hover:-translate-y-0.5 sm:px-3.5 sm:text-xs ${active ? "bg-gold text-ink shadow-[0_14px_34px_rgba(201,168,106,0.22)]" : "text-gold/78 hover:text-ink"}`}
+                >
+                  {!active ? <span className="absolute inset-0 translate-y-full rounded-full bg-gold transition-transform duration-200 group-hover:translate-y-0" aria-hidden="true" /> : null}
+                  <span className="relative">{isArabic ? tab.ar : tab.en}</span>
+                </Link>
+              );
+            })}
+          </nav>
         ) : (
           <nav className="flex min-w-0 items-center gap-1 overflow-x-auto rounded-full border border-white/10 bg-white/[0.035] p-1 shadow-xl backdrop-blur-xl" aria-label={isArabic ? "اختصارات فضفضة الرئيسية" : "FadFada quick actions"}>
             {headerActions.map((item) => (
@@ -188,9 +230,10 @@ function GlobalHeader() {
                 key={item.action}
                 type="button"
                 onClick={() => runHeaderAction(item.action)}
-                className="group relative shrink-0 overflow-hidden rounded-full px-3 py-1.5 font-arsans text-[11px] text-bone/72 transition-all duration-200 hover:-translate-y-0.5 hover:text-ink sm:px-3.5 sm:text-xs"
+                className="group relative inline-flex shrink-0 items-center gap-1.5 overflow-hidden rounded-full px-3 py-1.5 font-arsans text-[11px] text-bone/72 transition-all duration-200 hover:-translate-y-0.5 hover:text-ink sm:px-3.5 sm:text-xs"
               >
                 <span className="absolute inset-0 translate-y-full rounded-full bg-gold transition-transform duration-200 group-hover:translate-y-0" aria-hidden="true" />
+                {item.action === "newChat" ? <NewChatIcon /> : null}
                 <span className="relative">{item.label}</span>
               </button>
             ))}
@@ -198,18 +241,30 @@ function GlobalHeader() {
         )}
       </div>
 
-      <div className="flex items-center">
+      <div className="flex items-center gap-2">
+        {sessionUserRole === "ADMIN" ? (
+          <Link href={isAdminArea ? "/" : "/admin/dashboard"} className={`hidden rounded-full border px-3 py-2 font-arsans text-xs shadow-xl transition-all duration-200 hover:-translate-y-0.5 sm:inline-flex ${isAdminArea ? "border-white/10 bg-white/[0.035] text-bone/72 hover:border-gold/45 hover:text-gold" : "border-gold/35 bg-gold/[0.08] text-gold hover:bg-gold hover:text-ink"}`}>
+            {isAdminArea ? (isArabic ? "فتح الشات" : "Chat") : isArabic ? "الإدارة" : "Admin"}
+          </Link>
+        ) : null}
         {status === "loading" ? (
           <span className="h-8 w-8 rounded-2xl border border-white/10 bg-slate-950/70 shadow-xl" aria-hidden="true" />
         ) : session?.user ? (
           <div className="relative">
-            <button type="button" onClick={() => setAccountOpen((open) => !open)} className="relative h-9 w-9 overflow-hidden rounded-2xl border border-white/10 bg-slate-950 shadow-xl" aria-label={`Open account menu for ${authenticatedName}`} aria-expanded={accountOpen}>
-              {authenticatedImage ? <Image src={authenticatedImage} alt={authenticatedName} fill sizes="36px" className="object-cover" unoptimized /> : <span className="grid h-full w-full place-items-center font-ensans text-xs text-bone/90">{authenticatedName.slice(0, 1).toUpperCase()}</span>}
+            <button type="button" onClick={() => setAccountOpen((open) => !open)} className="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-slate-950/82 p-1 pr-2 shadow-xl transition-colors hover:border-gold/45" aria-label={`Open account menu for ${authenticatedName}`} aria-expanded={accountOpen}>
+              <span className="relative h-8 w-8 overflow-hidden rounded-xl bg-slate-950">
+                {authenticatedImage ? <Image src={authenticatedImage} alt={authenticatedName} fill sizes="32px" className="object-cover" unoptimized /> : <span className="grid h-full w-full place-items-center font-ensans text-xs text-bone/90">{authenticatedName.slice(0, 1).toUpperCase()}</span>}
+              </span>
+              <TierBadge tier={accountTier} language={language} />
             </button>
             {accountOpen ? (
               <div className="absolute left-0 top-12 w-60 border border-white/10 bg-[#0E0D10]/95 p-3 text-right shadow-2xl backdrop-blur-xl" dir={direction}>
                 <p className="truncate font-arsans text-sm text-bone/85">{authenticatedName}</p>
                 <p className="mt-1 truncate font-ensans text-xs text-bone/45" dir="ltr">{authenticatedEmail}</p>
+                <div className="mt-3 flex justify-start">
+                  <TierBadge tier={accountTier} language={language} expanded />
+                </div>
+                <PlusUnlockList tier={accountTier} language={language} />
                 <div className="mt-3 grid gap-1 border-t border-white/10 pt-3">
                   <Link href="/profile" onClick={() => setAccountOpen(false)} className="px-2 py-2 font-arsans text-sm text-bone/70 transition-colors hover:bg-white/[0.04] hover:text-gold">
                     {isArabic ? "الملف واللحظات المحفوظة" : "Profile and saved moments"}
@@ -240,4 +295,64 @@ function GlobalHeader() {
       </div>
     </header>
   );
+}
+
+function NewChatIcon() {
+  return (
+    <svg className="relative h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M3.5 4.2C3.5 3.54 4.04 3 4.7 3h6.6c.66 0 1.2.54 1.2 1.2v4.45c0 .66-.54 1.2-1.2 1.2H7.1L4.35 12v-2.15h.35c-.66 0-1.2-.54-1.2-1.2V4.2Z" stroke="currentColor" strokeWidth="1.35" strokeLinejoin="round" />
+      <path d="M8 5.2v2.8M6.6 6.6h2.8" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function TierBadge({ tier, language, expanded = false }: { tier: AccountTier; language: AppLanguage; expanded?: boolean }) {
+  const isPlus = tier === "PLUS" || tier === "BUSINESS";
+  const label = isPlus ? (language === "ar" ? "بلس" : "Plus") : language === "ar" ? "مجاني" : "Free";
+  const title = isPlus ? (language === "ar" ? "حساب بلس" : "Plus account") : language === "ar" ? "حساب مجاني" : "Free account";
+
+  return (
+    <span title={title} className={`inline-flex items-center gap-1 rounded-full border font-arsans text-[10px] leading-none ${expanded ? "px-2.5 py-1.5" : "px-1.5 py-1"} ${isPlus ? "border-gold/45 bg-gold/18 text-gold" : "border-white/12 bg-white/[0.045] text-bone/58"}`}>
+      {isPlus ? <PlusTierIcon /> : <FreeTierIcon />}
+      <span>{label}</span>
+    </span>
+  );
+}
+
+function PlusTierIcon() {
+  return (
+    <svg className="h-3 w-3" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="m8 1.9 1.72 3.48 3.84.56-2.78 2.7.66 3.82L8 10.66l-3.44 1.8.66-3.82-2.78-2.7 3.84-.56L8 1.9Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function FreeTierIcon() {
+  return <span className="h-2 w-2 rounded-full border border-current" aria-hidden="true" />;
+}
+
+function PlusUnlockList({ tier, language }: { tier: AccountTier; language: AppLanguage }) {
+  const isPlus = tier === "PLUS" || tier === "BUSINESS";
+  const items = language === "ar"
+    ? isPlus
+      ? ["كل الرفقاء مفتوحون", "جلسات محفوظة", "لوحات مشاهد وبطاقات إثبات"]
+      : ["رقّ إلى بلس لكل الرفقاء", "حفظ أوسع للجلسات", "رحلة أعمق بعد كل رد"]
+    : isPlus
+      ? ["All companions unlocked", "Saved sessions", "Storyboards and proof cards"]
+      : ["Upgrade for all companions", "More saved sessions", "Deeper journey after replies"];
+
+  return (
+    <div className={`mt-3 rounded-xl border px-3 py-2 ${isPlus ? "border-gold/25 bg-gold/[0.07]" : "border-white/10 bg-white/[0.025]"}`}>
+      <p className="font-arsans text-[11px] font-semibold text-bone/70">{language === "ar" ? (isPlus ? "مفتوح الآن" : "يفتح مع بلس") : isPlus ? "Unlocked now" : "Unlock with Plus"}</p>
+      <div className="mt-2 grid gap-1.5">
+        {items.map((item) => (
+          <p key={item} className="font-arsans text-[11px] leading-4 text-bone/48">{item}</p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function getAccountTier(value: unknown): AccountTier {
+  return value === "PLUS" || value === "BUSINESS" ? value : "FREE";
 }

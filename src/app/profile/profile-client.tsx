@@ -45,6 +45,7 @@ type GrowthQuest = {
 };
 
 type Profile = {
+  id: string;
   name: string | null;
   nickname: string | null;
   email: string | null;
@@ -86,6 +87,7 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
   const [growthQuests, setGrowthQuests] = useState<GrowthQuest[]>([]);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [billingStatus, setBillingStatus] = useState<"idle" | "opening" | "error">("idle");
+  const [billingMessage, setBillingMessage] = useState("");
 
   useEffect(() => {
     setSavedMoments(JSON.parse(localStorage.getItem("fadfada-saved-moments") || "[]") as SavedMoment[]);
@@ -151,12 +153,14 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
 
   async function startPlusCheckout() {
     setBillingStatus("opening");
+    setBillingMessage("");
+    const discountCode = typeof window !== "undefined" ? localStorage.getItem("fadfada-discount-code") || undefined : undefined;
     const response = await fetch("/api/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ currentLanguage: language, product: "plus_access", personaId: "profile" }),
+      body: JSON.stringify({ userId: profile.id, currentLanguage: language, product: "plus_access", personaId: "profile", discountCode }),
     }).catch(() => null);
-    const data = response ? ((await response.json().catch(() => ({}))) as { url?: string }) : null;
+    const data = response ? ((await response.json().catch(() => ({}))) as { url?: string; error?: string; message?: string; messageEn?: string; lemonMessage?: string; paddleMessage?: string }) : null;
 
     if (data?.url) {
       window.location.assign(data.url);
@@ -164,6 +168,7 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
     }
 
     setBillingStatus("error");
+    setBillingMessage(getCheckoutErrorMessage(data, language));
   }
 
   return (
@@ -219,7 +224,8 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
               {isArabic ? "سياسة الاسترداد" : "Refund policy"}
             </Link>
           </div>
-          {billingStatus === "error" ? <p className="mt-3 font-arsans text-sm text-red-200">{isArabic ? "تعذر فتح الدفع. سجّل الدخول مجددًا ثم حاول مرة أخرى." : "Could not open checkout. Sign in again and try once more."}</p> : null}
+          {billingStatus === "error" ? <p className="mt-3 font-arsans text-sm leading-6 text-red-200">{billingMessage}</p> : null}
+          <PlusUnlockedPanel language={language} activeTier={profile.activeTier} />
         </section>
 
         <form onSubmit={saveProfile} className="space-y-5 border border-white/10 bg-white/[0.025] p-5">
@@ -394,6 +400,51 @@ function formatSubscriptionStatus(status: string, language: "ar" | "en") {
     unpaid: { ar: "غير مدفوع", en: "Unpaid" },
   };
   return labels[normalizedStatus]?.[language] || status;
+}
+
+function getCheckoutErrorMessage(data: { error?: string; message?: string; messageEn?: string; lemonMessage?: string; paddleMessage?: string } | null, language: "ar" | "en") {
+  const isArabic = language === "ar";
+
+  if (!data) {
+    return isArabic ? "تعذر الاتصال ببوابة الدفع. تحقق من الاتصال وحاول مرة أخرى." : "Could not reach checkout. Check your connection and try again.";
+  }
+
+  if (data.error === "USER_ID_REQUIRED") {
+    return isArabic ? "انتهت جلسة الحساب. سجّل الدخول مجددًا ثم حاول الترقية." : "Your account session expired. Sign in again, then try upgrading.";
+  }
+
+  if (data.error === "PREMIUM_PAUSED") {
+    return isArabic ? data.message || "بوابة الدفع متوقفة مؤقتًا حتى يتم إعداد خطة بلس." : data.messageEn || data.message || "Checkout is paused until Plus billing is configured.";
+  }
+
+  if (data.error === "LEMONSQUEEZY_CHECKOUT_FAILED") {
+    return isArabic ? `تعذر إنشاء دفع Lemon Squeezy: ${data.lemonMessage || "راجع إعدادات المتجر والمنتج."}` : `Lemon Squeezy checkout failed: ${data.lemonMessage || "Check store and variant settings."}`;
+  }
+
+  if (data.error === "PADDLE_CHECKOUT_FAILED" || data.error === "INVALID_PADDLE_PRICE_ID") {
+    return isArabic ? `تعذر إنشاء دفع Paddle: ${data.paddleMessage || data.message || "راجع Price ID ومفاتيح Paddle."}` : `Paddle checkout failed: ${data.paddleMessage || data.messageEn || data.message || "Check Paddle price ID and API keys."}`;
+  }
+
+  return isArabic ? "تعذر فتح الدفع. راجع إعدادات بوابة الدفع ثم حاول مرة أخرى." : "Could not open checkout. Check payment gateway settings, then try again.";
+}
+
+function PlusUnlockedPanel({ language, activeTier }: { language: "ar" | "en"; activeTier: string }) {
+  const isArabic = language === "ar";
+  const isPlus = activeTier === "PLUS" || activeTier === "BUSINESS";
+  const items = isArabic
+    ? ["كل الرفقاء والشخصيات", "حفظ جلسات أوسع", "لوحات مشاهد بعد الردود", "بطاقات إثبات ومشاركة آمنة"]
+    : ["All companions and personas", "More saved sessions", "Storyboards after replies", "Proof cards and safe sharing"];
+
+  return (
+    <div className={`mt-5 rounded-2xl border p-4 ${isPlus ? "border-gold/30 bg-gold/[0.07]" : "border-white/10 bg-black/16"}`}>
+      <p className="ui-kicker text-gold">{isPlus ? (isArabic ? "مفتوح في حسابك" : "Unlocked in your account") : isArabic ? "ما يفتحه بلس" : "What Plus unlocks"}</p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {items.map((item) => (
+          <p key={item} className="rounded-xl border border-white/10 bg-black/14 px-3 py-2 font-arsans text-sm text-bone/62">{item}</p>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function formatWorld(world: string, language: "ar" | "en") {

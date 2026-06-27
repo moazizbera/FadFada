@@ -1,7 +1,9 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { FormEvent, useEffect, useState } from "react";
 import { useAppLocale } from "../../../components/AppShell";
+import { personas } from "../../../lib/personas";
 
 export type AdminDashboardData = {
   configuration: {
@@ -36,6 +38,7 @@ export type AdminDashboardData = {
     location: string;
     giftCount: number;
     giftedTokens: number;
+    grantedPersonaIds: string[];
   }>;
   discountOffers: Array<{
     id: string;
@@ -46,6 +49,16 @@ export type AdminDashboardData = {
     maxRedemptions: number | null;
     expiresAt: string | null;
     isActive: boolean;
+    createdAt: string;
+  }>;
+  chatSessions: Array<{
+    id: string;
+    userLabel: string;
+    title: string;
+    activePersonaId: string;
+    activeWorld: string;
+    language: string;
+    messageCount: number;
     createdAt: string;
   }>;
   distribution: Array<{
@@ -107,7 +120,7 @@ type AdminDashboardClientProps = {
   auditHref: string;
 };
 
-type AdminTab = "dashboard" | "configuration" | "users" | "offers" | "sessions";
+type AdminTab = "dashboard" | "configuration" | "users" | "personas" | "offers" | "sessions";
 
 const copy = {
   ar: {
@@ -138,8 +151,8 @@ const copy = {
       funnelTitle: "أحدث الملفات المسجلة",
       funnelDescription: "آخر الأعضاء، لغة الاستخدام، ومصدر التسجيل.",
       plansKicker: "توزيع الخطط",
-      plansTitle: "توزيع الخطط والإيراد الشهري",
-      plansDescription: "مزيج الخطط والتدفق الشهري الحالي.",
+      plansTitle: "توزيع الخطط وسجل الدفع الداخلي",
+      plansDescription: "مزيج الخطط والمدفوعات المسجلة عبر الويبهوك داخل قاعدة البيانات.",
       commentsKicker: "صوت الزوار",
       commentsTitle: "آخر تعليقات الزوار",
       commentsDescription: "ملاحظات قصيرة يرسلها الزوار من الصفحة الرئيسية.",
@@ -165,7 +178,8 @@ const copy = {
     unnamedProfile: "ملف بدون اسم",
     unknownLocation: "موقع غير معروف",
     userCount: "مستخدم",
-    monthlyRevenue: "إيراد شهري",
+    monthlyRevenue: "مسجلة داخلياً",
+    paymentLedgerNote: "مصدر حقيقة الإيراد هو لوحة مزود الدفع. إذا كانت Lemon أو Stripe أو Paddle تعرض 0.00$ فالإيراد الحقيقي للفترة هو 0.00$ حتى لو وُجدت سجلات اختبار داخل التطبيق.",
     exportDescription: "يصدر بيانات الزوار والتسجيلات وتوزيع الخطط كملف مشفر للمراجعة والتحليل.",
     exportButton: "تصدير الملف",
     languageNames: { ar: "العربية", en: "الإنجليزية" },
@@ -199,8 +213,8 @@ const copy = {
       funnelTitle: "Recent registered profiles",
       funnelDescription: "Recent members, language preference, and registration origin.",
       plansKicker: "Commercial plan distribution",
-      plansTitle: "Plan distribution and monthly revenue",
-      plansDescription: "Plan mix and current monthly inflow.",
+      plansTitle: "Plan distribution and internal payment ledger",
+      plansDescription: "Plan mix and webhook-recorded payments saved in the app database.",
       commentsKicker: "Visitor voice",
       commentsTitle: "Latest visitor comments",
       commentsDescription: "Short notes visitors submit from the home experience.",
@@ -226,7 +240,8 @@ const copy = {
     unnamedProfile: "Unlabeled profile",
     unknownLocation: "Unknown location",
     userCount: "users",
-    monthlyRevenue: "MRR",
+    monthlyRevenue: "recorded internally",
+    paymentLedgerNote: "The payment vendor dashboard is the revenue source of truth. If Lemon, Stripe, or Paddle shows $0.00, real revenue for the period is $0.00 even if test records exist inside the app.",
     exportDescription: "Exports visitors, registrations, and plan distribution as an encrypted review file.",
     exportButton: "Export file",
     languageNames: { ar: "Arabic", en: "English" },
@@ -236,6 +251,7 @@ const copy = {
 
 export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientProps) {
   const { language, direction } = useAppLocale();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const labels = copy[language];
   const locale = language === "ar" ? "ar-EG" : "en-US";
@@ -262,13 +278,15 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
     ],
   ];
 
-  const tabs: Array<{ id: AdminTab; ar: string; en: string }> = [
-    { id: "dashboard", ar: "لوحة القياس", en: "Dashboard" },
-    { id: "configuration", ar: "الإعدادات", en: "Configuration" },
-    { id: "users", ar: "المستخدمون والهدايا", en: "Users & gifts" },
-    { id: "offers", ar: "الخصومات", en: "Discounts" },
-    { id: "sessions", ar: "الجلسات", en: "Sessions" },
-  ];
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "configuration" || tab === "users" || tab === "personas" || tab === "offers" || tab === "sessions") {
+      setActiveTab(tab);
+      return;
+    }
+
+    setActiveTab("dashboard");
+  }, [searchParams]);
 
   return (
     <main className="min-h-screen bg-ink px-5 pb-14 pt-24 text-bone/90" dir={direction}>
@@ -278,22 +296,6 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
           <h1 className="mt-3 font-arserif text-5xl text-bone/95">{labels.title}</h1>
           <p className="mt-4 max-w-2xl font-arsans text-sm leading-7 text-bone/60">{labels.intro}</p>
         </div>
-
-        <nav className="sticky top-16 z-30 -mx-2 mt-5 flex gap-2 overflow-x-auto border-b border-white/10 bg-ink/92 px-2 py-3 backdrop-blur-xl [scrollbar-width:none]" aria-label={language === "ar" ? "تبويبات الإدارة" : "Admin tabs"}>
-          {tabs.map((tab) => {
-            const active = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`shrink-0 rounded-full border px-4 py-2 font-arsans text-sm transition-all duration-200 hover:-translate-y-0.5 ${active ? "border-gold bg-gold text-ink shadow-[0_18px_45px_rgba(201,168,106,0.18)]" : "border-white/10 bg-white/[0.035] text-bone/62 hover:border-gold/45 hover:text-gold"}`}
-              >
-                {language === "ar" ? tab.ar : tab.en}
-              </button>
-            );
-          })}
-        </nav>
 
         {activeTab === "dashboard" ? (
           <>
@@ -341,6 +343,7 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
                 <span className="font-arsans text-xs text-bone/50">{formatCurrency(entry.monthlyRevenueMinor, entry.currency, locale)} {labels.monthlyRevenue}</span>
               </div>
             ))}
+            <p className="border-t border-white/10 pt-4 font-arsans text-xs leading-6 text-bone/45">{labels.paymentLedgerNote}</p>
           </div>
         </DashboardListSection>
 
@@ -411,8 +414,9 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
 
         {activeTab === "configuration" ? <ConfigurationPanel language={language} configuration={data.configuration} /> : null}
         {activeTab === "users" ? <UsersGiftPanel language={language} locale={locale} users={data.recentUsers} /> : null}
+        {activeTab === "personas" ? <PersonaAccessPanel language={language} locale={locale} users={data.recentUsers} /> : null}
         {activeTab === "offers" ? <DiscountPanel language={language} locale={locale} offers={data.discountOffers} /> : null}
-        {activeTab === "sessions" ? <SessionsPanel language={language} /> : null}
+        {activeTab === "sessions" ? <SessionsPanel language={language} locale={locale} sessions={data.chatSessions} /> : null}
       </section>
     </main>
   );
@@ -423,11 +427,11 @@ function NotificationComposer({ language, locale, notifications, emptyLabel }: {
   const [localNotifications, setLocalNotifications] = useState(notifications);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [type, setType] = useState("NEW_FEATURE");
-  const [priority, setPriority] = useState(3);
-  const [titleAr, setTitleAr] = useState("ميزة جديدة في فضفضة");
-  const [titleEn, setTitleEn] = useState("New FadFada feature");
-  const [bodyAr, setBodyAr] = useState("جرّب التحديث الجديد الآن من داخل التجربة.");
-  const [bodyEn, setBodyEn] = useState("Try the new update now inside the experience.");
+  const [priority, setPriority] = useState(5);
+  const [titleAr, setTitleAr] = useState("جديد: لوحة مشاهد من فضفضتك");
+  const [titleEn, setTitleEn] = useState("New: turn reflections into storyboards");
+  const [bodyAr, setBodyAr] = useState("بعد أي رد عميق، افتح إيصال فضفضة واضغط حوّلها للوحة مشاهد لترى 3 لقطات رمزية مع ملاحظات وصياغة جاهزة للصور.");
+  const [bodyEn, setBodyEn] = useState("After a meaningful reply, open the Reflection Receipt and choose Turn into storyboard to see 3 symbolic shots with notes and copyable image prompts.");
   const notificationTypes = [
     { value: "GENERAL", ar: "عام", en: "General" },
     { value: "NEW_FEATURE", ar: "ميزة جديدة", en: "New Feature" },
@@ -586,13 +590,115 @@ function ConfigurationPanel({ language, configuration }: { language: Locale; con
   );
 }
 
+function PersonaAccessPanel({ language, locale, users }: { language: Locale; locale: string; users: AdminDashboardData["recentUsers"] }) {
+  const isArabic = language === "ar";
+  const [localUsers, setLocalUsers] = useState(users);
+  const [selectedUserId, setSelectedUserId] = useState(users[0]?.id || "");
+  const selectedUser = localUsers.find((user) => user.id === selectedUserId) || localUsers[0];
+  const [checkedPersonaIds, setCheckedPersonaIds] = useState<string[]>(selectedUser?.grantedPersonaIds || []);
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  useEffect(() => {
+    const nextUser = localUsers.find((user) => user.id === selectedUserId) || localUsers[0];
+    setCheckedPersonaIds(nextUser?.grantedPersonaIds || []);
+    setStatus("idle");
+  }, [localUsers, selectedUserId]);
+
+  function togglePersona(personaId: string) {
+    setCheckedPersonaIds((current) => current.includes(personaId) ? current.filter((item) => item !== personaId) : [...current, personaId]);
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setStatus("saving");
+    try {
+      const response = await fetch("/api/admin/configuration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set_persona_grants", userId: selectedUserId, personaIds: checkedPersonaIds }),
+      });
+      const data = (await response.json()) as { grants?: { userId: string; personaIds: string[] } };
+      if (!response.ok || !data.grants) throw new Error("persona grant failed");
+      setLocalUsers((current) => current.map((user) => user.id === data.grants?.userId ? { ...user, grantedPersonaIds: data.grants.personaIds } : user));
+      setStatus("saved");
+    } catch {
+      setStatus("error");
+    }
+  }
+
+  return (
+    <section className="grid gap-8 py-10 md:grid-cols-[0.8fr_1.2fr]">
+      <SectionIntro
+        kicker={isArabic ? "صلاحيات الرفاق" : "Persona access"}
+        title={isArabic ? "فتح رفيق محجوب لمستخدم محدد" : "Allow blocked personas for signed users"}
+        description={isArabic ? "اختر أي مستخدم مسجل وافتح له أي رفيق، حتى لو كان المستخدم ما زال على الخطة المجانية." : "Choose any signed user and unlock any companion for them, even while they remain on the free plan."}
+      />
+      <div className="space-y-5">
+        <form onSubmit={submit} className="rounded-2xl border border-sky-200/20 bg-sky-200/[0.045] p-4">
+          <div className="mb-4 rounded-xl border border-white/10 bg-[#0E0D10]/72 p-3">
+            <p className="font-arsans text-sm font-semibold text-bone/88">{isArabic ? "كيف تعمل؟" : "How it works"}</p>
+            <p className="mt-1 font-arsans text-xs leading-6 text-bone/52">
+              {isArabic ? "الحفظ يسجل صلاحية خاصة للمستخدم. عند فتح الشات أو تحديث الصفحة، سيظهر الرفيق ضمن اختياراته حتى لو كان خارج حد الرفاق المجاني." : "Saving records a user-specific access grant. When the user opens or refreshes chat, the companion appears in their picker even if it is outside the free companion limit."}
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+            <label className="space-y-2">
+              <span className="block font-arsans text-xs text-bone/50">{isArabic ? "المستخدم" : "User"}</span>
+              <select value={selectedUserId} onChange={(event) => setSelectedUserId(event.target.value)} className="w-full rounded-lg border border-white/10 bg-[#0E0D10] px-3 py-3 font-arsans text-sm text-bone/90 outline-none focus:border-sky-200/60">
+                {localUsers.map((user) => <option key={user.id} value={user.id}>{user.email || user.name || user.id}</option>)}
+              </select>
+            </label>
+            <MiniStat label={isArabic ? "مختار" : "Checked"} value={formatNumber(checkedPersonaIds.length, locale)} />
+          </div>
+          <div className="mt-4 grid max-h-[28rem] gap-2 overflow-y-auto pr-1 sm:grid-cols-2 [scrollbar-color:rgba(125,211,252,0.45)_transparent]">
+            {personas.map((persona) => {
+              const checked = checkedPersonaIds.includes(persona.id);
+              return (
+                <label key={persona.id} className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${checked ? "border-sky-200/50 bg-sky-200/10" : "border-white/10 bg-[#0E0D10]/72 hover:border-sky-200/30"}`}>
+                  <input type="checkbox" checked={checked} onChange={() => togglePersona(persona.id)} className="h-4 w-4 accent-sky-200" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-arsans text-sm text-bone/88">{isArabic ? persona.nameAr : persona.nameEn}</span>
+                    <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="ltr">{persona.id} · {persona.isPremium ? "plus" : "free"}</span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <button type="submit" disabled={status === "saving" || !selectedUserId} className="mt-4 w-full rounded-full bg-sky-200 px-4 py-3 font-arsans text-sm text-ink transition hover:bg-bone disabled:opacity-60">
+            {status === "saving" ? (isArabic ? "جاري الحفظ..." : "Saving...") : isArabic ? "حفظ صلاحيات الرفاق" : "Save persona access"}
+          </button>
+          <p className={`mt-2 font-arsans text-xs ${status === "error" ? "text-red-200" : "text-bone/45"}`}>{status === "saved" ? (isArabic ? "تم حفظ صلاحيات الرفاق." : "Persona access saved.") : isArabic ? "إزالة العلامة تلغي الصلاحية الخاصة، ثم احفظ." : "Uncheck to remove a user-specific grant, then save."}</p>
+        </form>
+        <div className="max-h-[34rem] space-y-3 overflow-y-auto pr-2 [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
+          {localUsers.map((user) => (
+            <article key={user.id} className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+              <div className="flex items-start justify-between gap-3 max-sm:flex-col">
+                <div className="min-w-0">
+                  <p className="truncate font-ensans text-sm text-bone/90" dir="auto">{user.name || user.email || user.id}</p>
+                  <p className="mt-1 truncate font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="ltr">{user.email || "no email"} · {formatTier(user.activeTier, language)} · {formatDate(user.createdAt, locale)}</p>
+                </div>
+                <MiniStat label={isArabic ? "مفتوح" : "Allowed"} value={formatNumber(user.grantedPersonaIds.length, locale)} />
+              </div>
+              <p className="mt-3 rounded-xl border border-sky-200/15 bg-sky-200/[0.045] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.08em] text-sky-100/75" dir="ltr">
+                {user.grantedPersonaIds.length > 0 ? user.grantedPersonaIds.join(", ") : "no specific persona grants"}
+              </p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function UsersGiftPanel({ language, locale, users }: { language: Locale; locale: string; users: AdminDashboardData["recentUsers"] }) {
   const isArabic = language === "ar";
   const [localUsers, setLocalUsers] = useState(users);
   const [selectedUserId, setSelectedUserId] = useState(users[0]?.id || "");
+  const [selectedPersonaId, setSelectedPersonaId] = useState(personas[0]?.id || "omar");
   const [amount, setAmount] = useState(10);
   const [reason, setReason] = useState(isArabic ? "جلسة طويلة كهدية" : "Long session gift");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [personaGrantStatus, setPersonaGrantStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -612,11 +718,37 @@ function UsersGiftPanel({ language, locale, users }: { language: Locale; locale:
     }
   }
 
+  async function grantPersona(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPersonaGrantStatus("saving");
+    try {
+      const response = await fetch("/api/admin/configuration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "grant_persona", userId: selectedUserId, personaId: selectedPersonaId }),
+      });
+      const data = (await response.json()) as { grant?: { userId: string; personaId: string } };
+      if (!response.ok || !data.grant) throw new Error("persona grant failed");
+      setLocalUsers((current) => current.map((user) => user.id === data.grant?.userId ? { ...user, grantedPersonaIds: Array.from(new Set([...user.grantedPersonaIds, data.grant.personaId])) } : user));
+      setPersonaGrantStatus("saved");
+    } catch {
+      setPersonaGrantStatus("error");
+    }
+  }
+
   return (
     <section className="grid gap-8 py-10 md:grid-cols-[0.8fr_1.2fr]">
-      <SectionIntro kicker={isArabic ? "الأعضاء" : "Members"} title={isArabic ? "المستخدمون والهدايا" : "Users and gifts"} description={isArabic ? "كل مستخدم مسجل يظهر هنا مع رصيده وخطته. أضف هدية جلسة طويلة أو رصيد إضافي مباشرة." : "Every signed user appears here with tier and balance. Add long-session gifts or extra credits directly."} />
+      <SectionIntro kicker={isArabic ? "الأعضاء" : "Members"} title={isArabic ? "المستخدمون والهدايا" : "Users and gifts"} description={isArabic ? "كل مستخدم مسجل يظهر هنا مع رصيده وخطته. الهدية تضيف رصيد ردود فوراً إلى حساب المستخدم." : "Every signed user appears here with tier and balance. A gift immediately adds reply credits to the user's account."} />
       <div className="space-y-5">
         <form onSubmit={submit} className="rounded-2xl border border-gold/20 bg-gold/[0.045] p-4">
+          <div className="mb-4 rounded-xl border border-white/10 bg-[#0E0D10]/72 p-3">
+            <p className="font-arsans text-sm font-semibold text-bone/88">{isArabic ? "كيف تطبق الهدية؟" : "How the gift is applied"}</p>
+            <p className="mt-1 font-arsans text-xs leading-6 text-bone/52">
+              {isArabic
+                ? "عند الضغط على إضافة هدية، نزيد رصيد المستخدم في قاعدة البيانات. في الشات سيقرأ الحساب هذا الرصيد ويستخدمه كجلسة أطول من هدية التسجيل العادية. إذا كان المستخدم فاتح التطبيق الآن، يكفي يعمل تحديث للصفحة حتى يظهر الرصيد الجديد."
+                : "When you add a gift, we increase the user's database token balance. The chat reads that balance and treats it as a longer signed-in session than the normal gift. If the user already has the app open, a refresh shows the new balance."}
+            </p>
+          </div>
           <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
             <select value={selectedUserId} onChange={(event) => setSelectedUserId(event.target.value)} className="rounded-lg border border-white/10 bg-[#0E0D10] px-3 py-3 font-arsans text-sm text-bone/90 outline-none focus:border-gold/60">
               {localUsers.map((user) => <option key={user.id} value={user.id}>{user.email || user.name || user.id}</option>)}
@@ -626,6 +758,26 @@ function UsersGiftPanel({ language, locale, users }: { language: Locale; locale:
           <input value={reason} onChange={(event) => setReason(event.target.value)} className="mt-3 w-full rounded-lg border border-white/10 bg-[#0E0D10] px-3 py-3 font-arsans text-sm text-bone/90 outline-none focus:border-gold/60" />
           <button type="submit" disabled={status === "saving" || !selectedUserId} className="mt-3 w-full rounded-full bg-gold px-4 py-3 font-arsans text-sm text-ink transition hover:bg-bone disabled:opacity-60">{status === "saving" ? (isArabic ? "جار الإضافة..." : "Adding...") : isArabic ? "إضافة هدية" : "Add gift"}</button>
           <p className={`mt-2 font-arsans text-xs ${status === "error" ? "text-red-200" : "text-bone/45"}`}>{status === "saved" ? (isArabic ? "تمت إضافة الهدية." : "Gift added.") : isArabic ? "الهدايا تزيد رصيد المستخدم فوراً." : "Gifts increase the user balance immediately."}</p>
+        </form>
+        <form onSubmit={grantPersona} className="rounded-2xl border border-sky-200/20 bg-sky-200/[0.045] p-4">
+          <div className="mb-4 rounded-xl border border-white/10 bg-[#0E0D10]/72 p-3">
+            <p className="font-arsans text-sm font-semibold text-bone/88">{isArabic ? "فتح رفيق لمستخدم محدد" : "Allow a persona for one user"}</p>
+            <p className="mt-1 font-arsans text-xs leading-6 text-bone/52">
+              {isArabic ? "اختر المستخدم والرفيق. بعد الحفظ، يظهر الرفيق لهذا المستخدم حتى لو لم يكن ضمن حد الرفقاء المجاني." : "Choose a user and a persona. After saving, that companion unlocks for this user even if it is outside the normal free companion limit."}
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <select value={selectedUserId} onChange={(event) => setSelectedUserId(event.target.value)} className="rounded-lg border border-white/10 bg-[#0E0D10] px-3 py-3 font-arsans text-sm text-bone/90 outline-none focus:border-sky-200/60">
+              {localUsers.map((user) => <option key={user.id} value={user.id}>{user.email || user.name || user.id}</option>)}
+            </select>
+            <select value={selectedPersonaId} onChange={(event) => setSelectedPersonaId(event.target.value)} className="rounded-lg border border-white/10 bg-[#0E0D10] px-3 py-3 font-arsans text-sm text-bone/90 outline-none focus:border-sky-200/60">
+              {personas.map((persona) => <option key={persona.id} value={persona.id}>{isArabic ? persona.nameAr : persona.nameEn} · {persona.id}</option>)}
+            </select>
+          </div>
+          <button type="submit" disabled={personaGrantStatus === "saving" || !selectedUserId || !selectedPersonaId} className="mt-3 w-full rounded-full bg-sky-200 px-4 py-3 font-arsans text-sm text-ink transition hover:bg-bone disabled:opacity-60">
+            {personaGrantStatus === "saving" ? (isArabic ? "جاري الفتح..." : "Allowing...") : isArabic ? "فتح الرفيق لهذا المستخدم" : "Allow persona for user"}
+          </button>
+          <p className={`mt-2 font-arsans text-xs ${personaGrantStatus === "error" ? "text-red-200" : "text-bone/45"}`}>{personaGrantStatus === "saved" ? (isArabic ? "تم فتح الرفيق للمستخدم." : "Persona allowed for this user.") : isArabic ? "سيحتاج المستخدم تحديث الصفحة إذا كان التطبيق مفتوحاً." : "If the user already has the app open, they may need to refresh."}</p>
         </form>
         <div className="max-h-[34rem] space-y-3 overflow-y-auto pr-2 [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
           {localUsers.map((user) => (
@@ -639,6 +791,11 @@ function UsersGiftPanel({ language, locale, users }: { language: Locale; locale:
                 <MiniStat label={isArabic ? "الرصيد" : "Credits"} value={formatNumber(user.tokenBalance, locale)} />
                 <MiniStat label={isArabic ? "الهدايا" : "Gifts"} value={`${formatNumber(user.giftedTokens, locale)} / ${formatNumber(user.giftCount, locale)}`} />
               </div>
+              {user.grantedPersonaIds.length > 0 ? (
+                <p className="sm:col-span-2 rounded-xl border border-sky-200/15 bg-sky-200/[0.045] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.08em] text-sky-100/75" dir="ltr">
+                  allowed personas: {user.grantedPersonaIds.join(", ")}
+                </p>
+              ) : null}
             </article>
           ))}
         </div>
@@ -654,6 +811,27 @@ function DiscountPanel({ language, locale, offers }: { language: Locale; locale:
   const [label, setLabel] = useState(isArabic ? "خصم المؤمنين الأوائل" : "Early believer discount");
   const [percentOff, setPercentOff] = useState(30);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  function getShareUrl(discountCode: string) {
+    const origin = typeof window === "undefined" ? "https://fad-fada.vercel.app" : window.location.origin;
+    return `${origin}/?discount=${encodeURIComponent(discountCode)}`;
+  }
+
+  async function copyOffer(offer: AdminDashboardData["discountOffers"][number]) {
+    const shareUrl = getShareUrl(offer.code);
+    const text = isArabic
+      ? `استخدم كود ${offer.code} للحصول على خصم ${offer.percentOff}% على فضفضة بلس: ${shareUrl}`
+      : `Use code ${offer.code} for ${offer.percentOff}% off FadFada Plus: ${shareUrl}`;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedCode(offer.code);
+      window.setTimeout(() => setCopiedCode(null), 2200);
+    } catch {
+      setCopiedCode(null);
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -686,9 +864,12 @@ function DiscountPanel({ language, locale, offers }: { language: Locale; locale:
 
   return (
     <section className="grid gap-8 py-10 md:grid-cols-[0.8fr_1.2fr]">
-      <SectionIntro kicker={isArabic ? "العروض" : "Offers"} title={isArabic ? "الخصومات الذكية" : "Smart discounts"} description={isArabic ? "أفضل طريقة: كود محدود للمؤمنين الأوائل، الشركاء، أو المستخدمين النشطين. لا تخفض السعر للجميع." : "Best practice: limited codes for early believers, partners, or active users. Avoid discounting for everyone."} />
+      <SectionIntro kicker={isArabic ? "العروض" : "Offers"} title={isArabic ? "خصومات Lemon Squeezy" : "Lemon Squeezy discounts"} description={isArabic ? "أنشئ نفس الكود داخل Lemon Squeezy أولاً، ثم استخدمه هنا للتتبع والمشاركة. سنرسل الكود إلى Lemon عند الدفع." : "Create the same code in Lemon Squeezy first, then use it here for tracking and sharing. Checkout sends the code to Lemon."} />
       <div className="space-y-5">
         <form onSubmit={submit} className="rounded-2xl border border-sky-300/20 bg-sky-300/[0.045] p-4">
+          <p className="mb-3 rounded-xl border border-sky-200/20 bg-sky-200/10 px-3 py-2 font-arsans text-xs leading-5 text-sky-100/80">
+            {isArabic ? "مهم: لوحة فضفضة لا تنشئ الخصم داخل Lemon Squeezy. يجب إنشاء الكود في Lemon بنفس الاسم حتى يقبله الدفع." : "Important: FadFada does not create the discount inside Lemon Squeezy. Create the same code in Lemon so checkout can apply it."}
+          </p>
           <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
             <input value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} className="rounded-lg border border-white/10 bg-[#0E0D10] px-3 py-3 font-mono text-sm text-bone/90 outline-none focus:border-sky-200/60" />
             <input type="number" min={1} max={90} value={percentOff} onChange={(event) => setPercentOff(Number(event.target.value))} className="rounded-lg border border-white/10 bg-[#0E0D10] px-3 py-3 font-mono text-sm text-bone/90 outline-none focus:border-sky-200/60" />
@@ -705,6 +886,12 @@ function DiscountPanel({ language, locale, offers }: { language: Locale; locale:
               </div>
               <p className="mt-1 font-arsans text-sm text-bone/72">{offer.label}</p>
               <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="ltr">{offer.appliesTo} · {offer.maxRedemptions ? `${offer.maxRedemptions} max` : "unlimited"} · {formatDate(offer.createdAt, locale)}</p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                <p className="truncate rounded-lg border border-white/10 bg-black/20 px-3 py-2 font-mono text-[10px] text-sky-100/75" dir="ltr">{getShareUrl(offer.code)}</p>
+                <button type="button" onClick={() => void copyOffer(offer)} className="rounded-lg border border-sky-200/35 px-3 py-2 font-arsans text-xs text-sky-100 transition-colors hover:bg-sky-100 hover:text-ink">
+                  {copiedCode === offer.code ? (isArabic ? "تم النسخ" : "Copied") : isArabic ? "نسخ المشاركة" : "Copy share"}
+                </button>
+              </div>
             </article>
           )) : <EmptyMetric label={isArabic ? "لا توجد خصومات بعد" : "No discounts yet"} />}
         </div>
@@ -713,13 +900,26 @@ function DiscountPanel({ language, locale, offers }: { language: Locale; locale:
   );
 }
 
-function SessionsPanel({ language }: { language: Locale }) {
+function SessionsPanel({ language, locale, sessions }: { language: Locale; locale: string; sessions: AdminDashboardData["chatSessions"] }) {
   const isArabic = language === "ar";
   return (
     <section className="grid gap-8 py-10 md:grid-cols-[0.8fr_1.2fr]">
-      <SectionIntro kicker={isArabic ? "الجلسات" : "Sessions"} title={isArabic ? "إدارة سجل الجلسات" : "Session history management"} description={isArabic ? "تم تجهيز قاعدة البيانات للجلسات. الخطوة التالية تربط كل محادثة مسجلة بسجل دائم مع زر جلسة جديدة." : "The database is prepared for signed-user sessions. The next step wires each conversation into persistent history with a new-session control."} />
-      <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-5">
-        <p className="font-arsans text-sm leading-7 text-bone/62">{isArabic ? "حالياً لا نخلط إدارة الجلسات مع القائمة العامة. ستظهر هنا جلسات المستخدمين المسجلين، آخر رفيق مستخدم، وعدد الرسائل عند ربط واجهة المحادثة بالـ API الجديد." : "This stays separate from the public site menu. Signed-user sessions, last companion, and message counts will appear here once the chat API is connected."}</p>
+      <SectionIntro kicker={isArabic ? "الجلسات" : "Sessions"} title={isArabic ? "سجل جلسات المستخدمين" : "Signed-user session history"} description={isArabic ? "جلسات الشات محفوظة للمستخدمين المسجلين هنا بدون خلطها مع قائمة الشات العامة." : "Saved signed-user chat sessions stay visible here without mixing admin controls into the public chat menu."} />
+      <div className="max-h-[34rem] space-y-3 overflow-y-auto pr-2 [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
+        {sessions.length > 0 ? sessions.map((session) => (
+          <article key={session.id} className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-arsans text-sm text-bone/90" dir="auto">{session.title}</p>
+                <p className="mt-1 truncate font-ensans text-xs text-bone/42" dir="auto">{session.userLabel}</p>
+              </div>
+              <MiniStat label={isArabic ? "رسائل" : "Messages"} value={formatNumber(session.messageCount, locale)} />
+            </div>
+            <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="ltr">
+              {session.activePersonaId} · {session.activeWorld} · {session.language} · {formatDate(session.createdAt, locale)}
+            </p>
+          </article>
+        )) : <EmptyMetric label={isArabic ? "لا توجد جلسات محفوظة بعد" : "No saved sessions yet"} />}
       </div>
     </section>
   );

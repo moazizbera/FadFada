@@ -124,7 +124,7 @@ async function buildDashboardData() {
   monthStart.setUTCDate(1);
   monthStart.setUTCHours(0, 0, 0, 0);
 
-  const [totalVisitors, registeredUsers, interactionCounts, visitorsByRegion, registrationsByRegionRaw, recentUsers, tierCounts, monthlyTransactions, visibleVisitorCommentCount, visiblePwaInstallCount, recentCommentEvents, pwaInstallEvents, avatarRatingEvents, adminNotifications, adminConfigEvents, adminGiftEvents, adminDiscountEvents] = await Promise.all([
+  const [totalVisitors, registeredUsers, interactionCounts, visitorsByRegion, registrationsByRegionRaw, recentUsers, tierCounts, monthlyTransactions, visibleVisitorCommentCount, visiblePwaInstallCount, recentCommentEvents, pwaInstallEvents, avatarRatingEvents, adminNotifications, adminConfigEvents, adminGiftEvents, adminPersonaGrantEvents, adminPersonaGrantSetEvents, adminDiscountEvents, chatSessionEvents] = await Promise.all([
     prisma.visitorLog.count(),
     prisma.user.count({ where: registeredUserWhere }),
     prisma.interactionEvent.groupBy({
@@ -219,9 +219,32 @@ async function buildDashboardData() {
       take: 1000,
     }),
     prisma.interactionEvent.findMany({
+      where: { eventType: "admin_persona_grant" },
+      orderBy: { createdAt: "desc" },
+      take: 2000,
+    }),
+    prisma.interactionEvent.findMany({
+      where: { eventType: "admin_persona_grants_set" },
+      orderBy: { createdAt: "desc" },
+      take: 2000,
+    }),
+    prisma.interactionEvent.findMany({
       where: { eventType: "admin_discount_offer" },
       orderBy: { createdAt: "desc" },
       take: 100,
+    }),
+    prisma.interactionEvent.findMany({
+      where: { eventType: "chat_session_snapshot" },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
     }),
   ]);
 
@@ -367,6 +390,20 @@ async function buildDashboardData() {
     accumulator[targetUserId] = { giftCount: current.giftCount + 1, giftedTokens: current.giftedTokens + amount };
     return accumulator;
   }, {});
+  const personaGrantsByUser = adminPersonaGrantEvents.reduce<Record<string, string[]>>((accumulator, event) => {
+    const metadata = parseEventMetadata(event.metadataJson);
+    const targetUserId = metadataString(metadata, "targetUserId", "");
+    const personaId = metadataString(metadata, "personaId", "");
+    if (!targetUserId || !personas.some((persona) => persona.id === personaId)) return accumulator;
+    accumulator[targetUserId] = Array.from(new Set([...(accumulator[targetUserId] || []), personaId]));
+    return accumulator;
+  }, {});
+  for (const event of [...adminPersonaGrantSetEvents].reverse()) {
+    const metadata = parseEventMetadata(event.metadataJson);
+    const targetUserId = metadataString(metadata, "targetUserId", "");
+    const personaIds = Array.isArray(metadata.personaIds) ? metadata.personaIds.filter((personaId): personaId is string => typeof personaId === "string" && personas.some((persona) => persona.id === personaId)) : [];
+    if (targetUserId) personaGrantsByUser[targetUserId] = Array.from(new Set(personaIds));
+  }
   const discountOffers = adminDiscountEvents.map((event) => {
     const metadata = parseEventMetadata(event.metadataJson);
     return {
@@ -381,6 +418,34 @@ async function buildDashboardData() {
       createdAt: event.createdAt.toISOString(),
     };
   });
+  const latestChatSessionsById = new Map<string, {
+    id: string;
+    userLabel: string;
+    title: string;
+    activePersonaId: string;
+    activeWorld: string;
+    language: string;
+    messageCount: number;
+    createdAt: string;
+  }>();
+
+  for (const event of chatSessionEvents) {
+    const metadata = parseEventMetadata(event.metadataJson);
+    const sessionId = metadataString(metadata, "sessionId", event.id);
+    if (latestChatSessionsById.has(sessionId)) continue;
+    const messages = Array.isArray(metadata.messages) ? metadata.messages : [];
+    latestChatSessionsById.set(sessionId, {
+      id: event.id,
+      userLabel: event.user?.email || event.user?.name || event.userId || "unknown user",
+      title: metadataString(metadata, "title", "FadFada session"),
+      activePersonaId: metadataString(metadata, "activePersonaId", "omar"),
+      activeWorld: metadataString(metadata, "activeWorld", "calm"),
+      language: metadataString(metadata, "language", "ar"),
+      messageCount: messages.length,
+      createdAt: event.createdAt.toISOString(),
+    });
+  }
+  const chatSessions = Array.from(latestChatSessionsById.values()).slice(0, 24);
 
   const auditSnapshot: AuditSnapshot = {
     generatedAt: new Date().toISOString(),
@@ -431,7 +496,9 @@ async function buildDashboardData() {
     recentNotifications,
     configuration,
     giftTotalsByUser,
+    personaGrantsByUser,
     discountOffers,
+    chatSessions,
     auditSnapshot,
     encryptedAuditSnapshot: encryptAuditSnapshot(auditSnapshot),
   };
@@ -449,7 +516,7 @@ export default async function AdminDashboardPage() {
     redirect("/admin/login");
   }
 
-  const { totalVisitors, registeredUsers, interactionTotals, visitorsByRegion, registrationsByRegion, recentUsers, distribution, visitorComments, pwaInstalls, pwaDeviceBreakdown, avatarRatings, recentNotifications, configuration, giftTotalsByUser, discountOffers, encryptedAuditSnapshot } = await buildDashboardData();
+  const { totalVisitors, registeredUsers, interactionTotals, visitorsByRegion, registrationsByRegion, recentUsers, distribution, visitorComments, pwaInstalls, pwaDeviceBreakdown, avatarRatings, recentNotifications, configuration, giftTotalsByUser, personaGrantsByUser, discountOffers, chatSessions, encryptedAuditSnapshot } = await buildDashboardData();
   const auditHref = `data:application/json;base64,${Buffer.from(JSON.stringify(encryptedAuditSnapshot, null, 2)).toString("base64")}`;
   const dashboardData: AdminDashboardData = {
     configuration,
@@ -473,8 +540,10 @@ export default async function AdminDashboardPage() {
       location: fallbackLocationLabel(user.registrationRegion || user.visitorLogs[0]?.geographicRegion),
       giftCount: giftTotalsByUser[user.id]?.giftCount || 0,
       giftedTokens: giftTotalsByUser[user.id]?.giftedTokens || 0,
+      grantedPersonaIds: personaGrantsByUser[user.id] || [],
     })),
     discountOffers,
+    chatSessions,
     distribution,
     visitorComments,
     pwaInstalls,

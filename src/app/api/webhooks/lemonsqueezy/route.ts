@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { hasLifetimePlusAccess } from "../../../../lib/lifetimeAccess";
 import { prisma } from "../../../../lib/prisma";
 
 type LemonWebhookPayload = {
@@ -77,12 +78,16 @@ export async function POST(request: NextRequest) {
   }
 
   if (eventName === "subscription_cancelled" || eventName === "subscription_expired") {
-    await prisma.user.updateMany({ where: { id: userId }, data: { activeTier: "FREE", lemonSubscriptionStatus: payload.data?.attributes?.status || eventName.replace("subscription_", "") } });
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    const activeTier = hasLifetimePlusAccess(user?.email) ? "PLUS" : "FREE";
+    await prisma.user.updateMany({ where: { id: userId }, data: { activeTier, lemonSubscriptionStatus: hasLifetimePlusAccess(user?.email) ? "lifetime" : payload.data?.attributes?.status || eventName.replace("subscription_", "") } });
     return NextResponse.json({ received: true, entitlement: "FREE" });
   }
 
   if (eventName === "subscription_updated" && payload.data?.attributes?.status && inactiveSubscriptionStatuses.has(payload.data.attributes.status)) {
-    await prisma.user.updateMany({ where: { id: userId }, data: { activeTier: "FREE", lemonSubscriptionStatus: payload.data.attributes.status } });
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    const activeTier = hasLifetimePlusAccess(user?.email) ? "PLUS" : "FREE";
+    await prisma.user.updateMany({ where: { id: userId }, data: { activeTier, lemonSubscriptionStatus: hasLifetimePlusAccess(user?.email) ? "lifetime" : payload.data.attributes.status } });
     return NextResponse.json({ received: true, entitlement: "FREE" });
   }
 

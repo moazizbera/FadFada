@@ -57,6 +57,30 @@
   }
 }
 
+@keyframes personaDrift {
+  0%, 100% {
+    background-position: 12% 18%, 82% 12%, 50% 115%, 0 0;
+    opacity: 0.74;
+    transform: scale(1);
+  }
+
+  50% {
+    background-position: 22% 8%, 72% 26%, 46% 92%, 24px 28px;
+    opacity: 1;
+    transform: scale(1.035);
+  }
+}
+
+@keyframes personaPulseFast {
+  0%, 100% { opacity: 0.62; transform: scale(1) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.055) rotate(0.4deg); }
+}
+
+@keyframes personaStillness {
+  0%, 100% { opacity: 0.44; background-position: 50% 18%, 50% 112%, 0 0; }
+  50% { opacity: 0.68; background-position: 50% 22%, 50% 100%, 0 20px; }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -170,6 +194,90 @@ a {
 
 .animate-rise-in {
   animation: riseIn 520ms ease both;
+}
+
+.persona-ambient-layer {
+  background:
+    radial-gradient(circle at 14% 18%, var(--persona-aura-soft), transparent 18rem),
+    radial-gradient(circle at 82% 14%, var(--persona-aura-faint), transparent 16rem),
+    radial-gradient(ellipse at 50% 112%, var(--persona-aura-soft), transparent 24rem),
+    linear-gradient(120deg, transparent 0 42%, rgb(247 243 236 / 0.035) 48%, transparent 54% 100%);
+  background-size: auto, auto, auto, 220px 220px;
+  mix-blend-mode: screen;
+  opacity: 0.82;
+  animation: personaDrift 13s ease-in-out infinite;
+  will-change: background-position, opacity, transform;
+}
+
+.persona-ambient-warm,
+.persona-ambient-tea {
+  filter: saturate(0.9) sepia(0.12);
+  animation-duration: 16s;
+}
+
+.persona-ambient-literary,
+.persona-ambient-poetry,
+.persona-ambient-story,
+.persona-ambient-cinema {
+  background-size: auto, auto, auto, 180px 260px;
+  animation-duration: 18s;
+}
+
+.persona-ambient-stillness,
+.persona-ambient-detox {
+  animation-name: personaStillness;
+  animation-duration: 22s;
+  mix-blend-mode: lighten;
+}
+
+.persona-ambient-kinetic,
+.persona-ambient-field,
+.persona-ambient-spark,
+.persona-ambient-engineering {
+  animation-name: personaPulseFast;
+  animation-duration: 7s;
+}
+
+.persona-ambient-digital,
+.persona-ambient-radar,
+.persona-ambient-puzzle,
+.persona-ambient-research,
+.persona-ambient-academic,
+.persona-ambient-legal {
+  background-image:
+    radial-gradient(circle at 14% 18%, var(--persona-aura-soft), transparent 16rem),
+    linear-gradient(90deg, transparent 0 48%, var(--persona-aura-faint) 49%, transparent 50% 100%),
+    linear-gradient(0deg, transparent 0 48%, rgb(247 243 236 / 0.04) 49%, transparent 50% 100%);
+  background-size: auto, 54px 54px, 54px 54px;
+  animation-duration: 10s;
+}
+
+.persona-ambient-capital,
+.persona-ambient-architect {
+  background-size: auto, auto, auto, 140px 140px;
+  animation-duration: 11s;
+}
+
+.persona-ambient-metabolic,
+.persona-ambient-biohack,
+.persona-ambient-clinical {
+  background-size: auto, auto, auto, 190px 190px;
+  animation-duration: 9s;
+}
+
+.persona-ambient-sonic {
+  background-size: auto, auto, auto, 120px 260px;
+  animation-duration: 8s;
+}
+
+.persona-ambient-cosmic {
+  background-image:
+    radial-gradient(circle at 20% 14%, rgb(247 243 236 / 0.09), transparent 0.12rem),
+    radial-gradient(circle at 68% 24%, rgb(247 243 236 / 0.07), transparent 0.1rem),
+    radial-gradient(circle at 14% 18%, var(--persona-aura-soft), transparent 19rem),
+    radial-gradient(circle at 82% 14%, var(--persona-aura-faint), transparent 18rem);
+  background-size: 86px 86px, 132px 132px, auto, auto;
+  animation-duration: 20s;
 }
 
 .obsidian-hairline {

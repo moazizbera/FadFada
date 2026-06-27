@@ -44,6 +44,7 @@ const selectorPersonaIds = [
   "nora",
   "kareem",
   "malik",
+  "malik_alt",
   "sheikh",
   "grandmaster",
   "zein",
@@ -56,9 +57,18 @@ const selectorPersonaIds = [
   "wamda",
   "radar",
   "sarah",
+  "sarah_alt",
   "tareq",
 ] as const;
 type SelectorPersonaId = (typeof selectorPersonaIds)[number];
+
+const personaNeedRecommendations: Array<{ id: PersonaId; ar: string; en: string; hintAr: string; hintEn: string }> = [
+  { id: "omar", ar: "اسمعني", en: "Listen", hintAr: "حضور هادئ", hintEn: "Calm presence" },
+  { id: "nora", ar: "خطوة عملية", en: "Plan", hintAr: "تنفيذ سريع", hintEn: "Action steps" },
+  { id: "rawi", ar: "حكاية", en: "Story", hintAr: "مسافة رمزية", hintEn: "Symbolic distance" },
+  { id: "sami", ar: "طمأنينة", en: "Comfort", hintAr: "حكمة ناعمة", hintEn: "Gentle wisdom" },
+  { id: "logoz", ar: "حل لغز", en: "Solve", hintAr: "أسئلة ذكية", hintEn: "Sharp questions" },
+];
 
 type AvatarPresentation = {
   avatarPath: string;
@@ -101,8 +111,12 @@ function isGeneratedAvatarPath(value: string | undefined) {
   return Boolean(value && value.startsWith("data:image/"));
 }
 
+function isSvgAvatarPath(value: string | undefined) {
+  return Boolean(value?.endsWith(".svg"));
+}
+
 function AvatarImage({ src, alt, sizes = "180px", priority = false }: { src: string; alt: string; sizes?: string; priority?: boolean }) {
-  if (isGeneratedAvatarPath(src)) {
+  if (isGeneratedAvatarPath(src) || isSvgAvatarPath(src)) {
     return <img src={src} alt={alt} className="h-full w-full object-cover" />;
   }
 
@@ -152,7 +166,7 @@ export function PersonaDrawer({
       presentation,
       displayName: language === "ar" ? presentation.nameAr : presentation.nameEn,
       role: getPersonaRole(persona, language),
-      locked: Boolean(persona.isPremium && !unlockedPersonaIds.includes(persona.id)),
+      locked: !unlockedPersonaIds.includes(persona.id),
       selected: activePersona === persona.id,
     };
   });
@@ -161,6 +175,16 @@ export function PersonaDrawer({
     label: FAMILY_LABELS[family],
     cards: personaCards.filter(({ persona }) => persona.family === family),
   }));
+
+  function chooseRecommendedPersona(personaId: PersonaId) {
+    if (!unlockedPersonaIds.includes(personaId)) {
+      onLockedPersonaSelect(personaId);
+      return;
+    }
+
+    onSelect(personaId);
+    onClose();
+  }
 
   function submitCustomPersona(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -264,6 +288,21 @@ export function PersonaDrawer({
           <button type="button" onClick={onClose} className={`${isArabic ? "font-arsans" : "font-ensans"} text-xs text-bone/50 transition-colors hover:text-[#C9A86A]`}>
             {isArabic ? "إغلاق" : "Close"}
           </button>
+        </div>
+        <div className="mb-5 rounded-2xl border border-[#C9A86A]/20 bg-[#C9A86A]/[0.045] p-3" dir={isArabic ? "rtl" : "ltr"}>
+          <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-start text-sm font-semibold text-bone/88`}>{isArabic ? "اختر حسب احتياجك الآن" : "Pick by what you need now"}</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-5">
+            {personaNeedRecommendations.map((item) => {
+              const persona = personaSource.find((candidate) => candidate.id === item.id);
+              const locked = !unlockedPersonaIds.includes(item.id);
+              return (
+                <button key={item.id} type="button" onClick={() => chooseRecommendedPersona(item.id)} className={`rounded-xl border px-3 py-2 text-start transition-colors ${locked ? "border-white/10 bg-black/20 text-bone/36" : "border-white/10 bg-white/[0.035] text-bone/78 hover:border-[#C9A86A]/45 hover:bg-[#C9A86A]/10"}`}>
+                  <span className={`${isArabic ? "font-arsans" : "font-ensans"} block text-sm font-semibold`}>{isArabic ? item.ar : item.en}</span>
+                  <span className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 block text-[10px] text-bone/42`}>{persona ? (isArabic ? persona.nameAr : persona.nameEn) : item.id} · {isArabic ? item.hintAr : item.hintEn}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
         <div className="space-y-6">
           {personaCardsByFamily.map(({ family, label, cards }) => (

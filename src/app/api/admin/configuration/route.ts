@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions, buildGeographicRegionFromHeaders } from "../../../../lib/auth";
+import { personas } from "../../../../lib/personas";
 import { prisma } from "../../../../lib/prisma";
 
 export const runtime = "nodejs";
@@ -12,9 +13,11 @@ type AdminSessionUser = {
 };
 
 type AdminConfigurationRequest = {
-  action?: "save_config" | "add_gift" | "create_discount";
+  action?: "save_config" | "add_gift" | "grant_persona" | "set_persona_grants" | "create_discount";
   config?: Record<string, unknown>;
   userId?: string;
+  personaId?: string;
+  personaIds?: string[];
   amount?: number;
   kind?: string;
   reason?: string;
@@ -83,6 +86,54 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, user });
+  }
+
+  if (body.action === "grant_persona") {
+    const userId = cleanText(body.userId, 120);
+    const personaId = cleanText(body.personaId, 80);
+    const persona = personas.find((item) => item.id === personaId);
+
+    if (!userId || !persona) {
+      return NextResponse.json({ ok: false, error: "INVALID_PERSONA_GRANT" }, { status: 400 });
+    }
+
+    await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true } });
+
+    await prisma.interactionEvent.create({
+      data: {
+        userId: sessionUser.id,
+        eventType: "admin_persona_grant",
+        metadataJson: JSON.stringify({ targetUserId: userId, personaId: persona.id, personaNameAr: persona.nameAr, personaNameEn: persona.nameEn }),
+        geographicRegion,
+      },
+    });
+
+    return NextResponse.json({ ok: true, grant: { userId, personaId: persona.id } });
+  }
+
+  if (body.action === "set_persona_grants") {
+    const userId = cleanText(body.userId, 120);
+    const validPersonaIds = new Set(personas.map((persona) => persona.id));
+    const personaIds = Array.from(new Set((Array.isArray(body.personaIds) ? body.personaIds : [])
+      .map((value) => cleanText(value, 80))
+      .filter((personaId) => validPersonaIds.has(personaId))));
+
+    if (!userId) {
+      return NextResponse.json({ ok: false, error: "INVALID_PERSONA_GRANTS" }, { status: 400 });
+    }
+
+    await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true } });
+
+    await prisma.interactionEvent.create({
+      data: {
+        userId: sessionUser.id,
+        eventType: "admin_persona_grants_set",
+        metadataJson: JSON.stringify({ targetUserId: userId, personaIds }),
+        geographicRegion,
+      },
+    });
+
+    return NextResponse.json({ ok: true, grants: { userId, personaIds } });
   }
 
   if (body.action === "create_discount") {

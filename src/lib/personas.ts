@@ -309,7 +309,7 @@ export const MASTER_PERSONA_ROSTER: PersonaConfig[] = [
     roleAr: "مُحاكي الشعر العربي وصياغة القوافي",
     roleEn: "Cosmic Wordsmith",
     family: "listen",
-    avatarPath: "/avatars/poetry_bot.png",
+    avatarPath: "/avatars/mutanabbi.svg",
     glowColorHex: "#059669",
     isPremium: true,
     paddlePriceId: "pri_unlock_poetry_399",

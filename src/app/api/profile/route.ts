@@ -1,6 +1,8 @@
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "../../../lib/auth";
+import { applyLifetimePlus } from "../../../lib/lifetimeAccess";
+import { personas } from "../../../lib/personas";
 import { prisma } from "../../../lib/prisma";
 
 type SocialLinks = {
@@ -31,6 +33,7 @@ export async function GET() {
       socialLinksJson: true,
       role: true,
       activeTier: true,
+      tokenBalance: true,
       lemonSubscriptionStatus: true,
       lemonCustomerPortalUrl: true,
       createdAt: true,
@@ -41,7 +44,11 @@ export async function GET() {
     return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
   }
 
-  return NextResponse.json({ profile: { ...user, socialLinks: parseSocialLinks(user.socialLinksJson) } });
+  const grantedPersonaIds = await getGrantedPersonaIds(userId);
+
+  const effectiveUser = applyLifetimePlus(user);
+
+  return NextResponse.json({ profile: { ...effectiveUser, socialLinks: parseSocialLinks(user.socialLinksJson), grantedPersonaIds } });
 }
 
 export async function POST(request: NextRequest) {
@@ -81,13 +88,14 @@ export async function POST(request: NextRequest) {
       socialLinksJson: true,
       role: true,
       activeTier: true,
+      tokenBalance: true,
       lemonSubscriptionStatus: true,
       lemonCustomerPortalUrl: true,
       createdAt: true,
     },
   });
 
-  return NextResponse.json({ profile: { ...user, socialLinks } });
+  return NextResponse.json({ profile: { ...applyLifetimePlus(user), socialLinks } });
 }
 
 function cleanText(value: string | undefined, maxLength: number) {
@@ -136,5 +144,53 @@ function parseSocialLinks(value: string | null): SocialLinks {
     return JSON.parse(value) as SocialLinks;
   } catch {
     return {};
+  }
+}
+
+async function getGrantedPersonaIds(userId: string) {
+  const validPersonaIds = new Set(personas.map((persona) => persona.id));
+  const latestSetEvent = await prisma.interactionEvent.findFirst({
+    where: {
+      eventType: "admin_persona_grants_set",
+      metadataJson: { contains: `"targetUserId":"${userId}"` },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { metadataJson: true },
+  });
+
+  if (latestSetEvent) {
+    return parsePersonaGrantSet(latestSetEvent.metadataJson).filter((personaId) => validPersonaIds.has(personaId));
+  }
+
+  const events = await prisma.interactionEvent.findMany({
+    where: {
+      eventType: "admin_persona_grant",
+      metadataJson: { contains: `"targetUserId":"${userId}"` },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 500,
+    select: { metadataJson: true },
+  });
+
+  return Array.from(new Set(events.map((event) => parsePersonaGrant(event.metadataJson)).filter((personaId): personaId is string => Boolean(personaId && validPersonaIds.has(personaId)))));
+}
+
+function parsePersonaGrantSet(metadataJson: string | null) {
+  if (!metadataJson) return [];
+  try {
+    const metadata = JSON.parse(metadataJson) as { personaIds?: unknown };
+    return Array.isArray(metadata.personaIds) ? metadata.personaIds.filter((personaId): personaId is string => typeof personaId === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function parsePersonaGrant(metadataJson: string | null) {
+  if (!metadataJson) return null;
+  try {
+    const metadata = JSON.parse(metadataJson) as { personaId?: unknown };
+    return typeof metadata.personaId === "string" ? metadata.personaId.trim() : null;
+  } catch {
+    return null;
   }
 }

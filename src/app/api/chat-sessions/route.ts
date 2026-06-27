@@ -27,13 +27,15 @@ type ChatSessionSnapshot = {
   }>;
 };
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
   const sessionUser = session?.user as SessionUser | undefined;
 
   if (!sessionUser?.id) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
+
+  const requestedSessionId = request.nextUrl.searchParams.get("sessionId")?.trim();
 
   const events = await prisma.interactionEvent.findMany({
     where: {
@@ -44,6 +46,17 @@ export async function GET() {
     take: 120,
   });
 
+  if (requestedSessionId) {
+    for (const event of events) {
+      const snapshot = normalizeSnapshot(parseJson(event.metadataJson));
+      if (snapshot.sessionId === requestedSessionId) {
+        return NextResponse.json({ session: { ...snapshot, updatedAt: event.createdAt.toISOString() } });
+      }
+    }
+
+    return NextResponse.json({ error: "SESSION_NOT_FOUND" }, { status: 404 });
+  }
+
   const latestBySession = new Map<string, ReturnType<typeof normalizeSnapshot> & { updatedAt: string }>();
 
   for (const event of events) {
@@ -52,7 +65,13 @@ export async function GET() {
     latestBySession.set(snapshot.sessionId, { ...snapshot, updatedAt: event.createdAt.toISOString() });
   }
 
-  return NextResponse.json({ sessions: Array.from(latestBySession.values()).slice(0, 24) });
+  return NextResponse.json({
+    sessions: Array.from(latestBySession.values()).slice(0, 24).map((snapshot) => ({
+      ...snapshot,
+      messageCount: snapshot.messages.length,
+      messages: [],
+    })),
+  });
 }
 
 export async function POST(request: NextRequest) {

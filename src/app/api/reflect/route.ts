@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { createGeminiClient, getGeminiModel, getGeminiProvider, isGeminiConfigured } from "../../../lib/gemini";
+import { hasLifetimePlusAccess } from "../../../lib/lifetimeAccess";
 import { reflectLocally, type ReflectInput } from "../../../lib/localReflect";
 import { prisma } from "../../../lib/prisma";
 import { worlds, type WorldId } from "../../../lib/worlds";
@@ -9,6 +10,7 @@ import { worlds, type WorldId } from "../../../lib/worlds";
 type ReflectRequestBody = {
   userId?: string;
   messageText?: string;
+  userDisplayName?: string | null;
   currentWorld?: WorldId;
   currentLanguage?: "ar" | "en";
   personaSystemPrompt?: string;
@@ -52,6 +54,7 @@ export async function POST(request: NextRequest) {
 
   const userId = body.userId?.trim();
   const messageText = body.messageText?.trim();
+  const userDisplayName = normalizeUserDisplayName(body.userDisplayName);
   const currentWorld = normalizeWorld(body.currentWorld);
   const currentLanguage = inferRequestedLanguage(messageText, body.currentLanguage);
   const behaviorStyle = normalizeBehaviorStyle(body.behaviorStyle);
@@ -70,6 +73,7 @@ export async function POST(request: NextRequest) {
 
   const isDailyPulseRequest = /^(Daily check-in:|تسجيل يومي:)/i.test(messageText);
   const recentMessages = normalizeRecentMessages(body.recentMessages);
+  const isProductFeedbackRequest = isFadFadaProductFeedbackRequest(messageText, recentMessages);
   const fallback = reflectLocally({ messageText, currentWorld, currentLanguage, recentMessages, behaviorStyle, softerMode });
   const effectiveWorld = isDailyPulseRequest ? currentWorld : fallback.world;
   let responseText = fallback.replyText;
@@ -101,7 +105,8 @@ export async function POST(request: NextRequest) {
         },
       }));
 
-    const reflectionMeteringEnabled = process.env.FADFADA_ENABLE_REFLECTION_METERING === "true";
+    const hasUnlimitedAccess = user.activeTier === "PLUS" || hasLifetimePlusAccess(user.email);
+    const reflectionMeteringEnabled = process.env.FADFADA_ENABLE_REFLECTION_METERING === "true" && !hasUnlimitedAccess;
 
     if (reflectionMeteringEnabled && user.tokenBalance === 0) {
       return NextResponse.json(
@@ -152,9 +157,16 @@ export async function POST(request: NextRequest) {
       }),
       config: {
         systemInstruction: [
+          "You are FadFada | فضفضة, a premium bilingual wellbeing companion and learning support agent.",
+          isProductFeedbackRequest
+            ? "The user is asking about FadFada as a product, app, or support experience. Answer as a candid product advisor, not as a therapeutic mirror. Be direct, specific, and useful: name what is missing, what already works, and the next product improvements. If the user says 'miss' in this context, interpret it as 'missing from the product', not longing or nostalgia. Do not end by only asking how it feels."
+            : null,
           personaSystemPrompt
-            ? `COMPANION PERSONA IDENTITY (follow this above all else):\n${personaSystemPrompt}`
-            : "You are FadFada | فضفضة, a premium bilingual wellbeing companion and learning support agent.",
+            ? `COMPANION PERSONA IDENTITY:\n${personaSystemPrompt}\nStay in this persona's voice, but do not let persona warmth override direct answers to product, factual, learning, or build questions.`
+            : null,
+          userDisplayName
+            ? `Known user display name: ${userDisplayName}. If the user greets you, starts a new chat, or asks for a simple welcome, address them naturally by this name. Do not repeat the name in every reply.`
+            : null,
           "You are not therapy, diagnosis, legal advice, financial advice, or emergency care.",
           languageInstruction,
           `Current world: ${world.nameEn} / ${world.nameAr}.`,
@@ -173,7 +185,7 @@ export async function POST(request: NextRequest) {
           "If the user asks to translate, convert, continue, or reframe the previous message, preserve the subject and world instead of resetting context.",
           "Return strict JSON only. No markdown fences. No prose outside JSON.",
           "JSON shape: { text: string, world: calm|story|faith|build|learning|celebration|grief, emotionalCadence: { speed: slow_reflective|steady_calm|rapid_energetic, typewriterIntervalMs: number, particleVelocity: number } }.",
-        ].join("\n"),
+        ].filter(Boolean).join("\n"),
         temperature: effectiveWorld === "build" ? 0.35 : 0.72,
         responseMimeType: "application/json",
       },
@@ -217,6 +229,12 @@ export async function POST(request: NextRequest) {
 
 function normalizeWorld(world: WorldId | undefined): WorldId {
   return world && world in worlds ? world : "calm";
+}
+
+function normalizeUserDisplayName(value: unknown) {
+  if (typeof value !== "string") return null;
+  const cleanedName = value.replace(/[<>()[\]{}]/g, "").replace(/\s+/g, " ").trim();
+  return cleanedName ? cleanedName.slice(0, 32) : null;
 }
 
 function normalizeBehaviorStyle(style: ReflectRequestBody["behaviorStyle"]) {
@@ -266,6 +284,20 @@ function normalizeRecentMessages(messages: ReflectRequestBody["recentMessages"])
     }))
     .filter((message) => message.text.length > 0)
     .slice(-8);
+}
+
+function isFadFadaProductFeedbackRequest(messageText: string, recentMessages: NonNullable<ReflectInput["recentMessages"]>) {
+  const currentText = messageText.toLowerCase();
+  const recentUserText = recentMessages
+    .filter((message) => message.role === "user")
+    .slice(-3)
+    .map((message) => message.text.toLowerCase())
+    .join("\n");
+  const contextText = `${recentUserText}\n${currentText}`;
+  const mentionsFadFada = /fadfada|fad fada|فضفضة|فضفضه/.test(contextText);
+  const asksForProductJudgment = /\b(opinion|feedback|review|improve|improvement|missing|miss|amazing support|better support|product|app|feature|features|ux|experience)\b|ناقص|ينقص|رأيك|رايك|تحسين|يحسن|أفضل|افضل/.test(contextText);
+
+  return mentionsFadFada && asksForProductJudgment;
 }
 
 function ensureDirectionFriendlyText(text: string, language: "ar" | "en") {

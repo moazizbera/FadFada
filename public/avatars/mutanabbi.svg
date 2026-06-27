@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Al-Mutanabbi AI avatar</title>
+  <desc id="desc">A distinct poetic avatar with a luminous classical profile, ink, and stars.</desc>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="36%" r="72%">
+      <stop offset="0" stop-color="#1b3d35" />
+      <stop offset="0.48" stop-color="#0d1f1b" />
+      <stop offset="1" stop-color="#050807" />
+    </radialGradient>
+    <linearGradient id="gold" x1="126" x2="386" y1="104" y2="432" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f4d68b" />
+      <stop offset="0.55" stop-color="#c99f43" />
+      <stop offset="1" stop-color="#705019" />
+    </linearGradient>
+    <linearGradient id="ink" x1="138" x2="366" y1="154" y2="404" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f7f0db" />
+      <stop offset="1" stop-color="#b98732" />
+    </linearGradient>
+    <filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="9" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)" />
+  <path d="M82 353c83-12 126-38 169-99 37-53 82-85 179-102-74 45-101 96-127 150-34 70-91 105-221 51Z" fill="#092f29" opacity="0.88" />
+  <circle cx="256" cy="250" r="168" fill="none" stroke="url(#gold)" stroke-width="5" opacity="0.58" />
+  <circle cx="256" cy="250" r="132" fill="none" stroke="#d9b65d" stroke-width="1.5" stroke-dasharray="10 14" opacity="0.42" />
+  <path d="M185 351c35-58 28-102 9-129 30-6 55-30 70-68 18 45 44 67 82 69-27 32-28 79-4 128-45-24-109-23-157 0Z" fill="url(#ink)" filter="url(#softGlow)" />
+  <path d="M211 243c28-19 64-20 94-2" fill="none" stroke="#331f09" stroke-width="9" stroke-linecap="round" opacity="0.62" />
+  <path d="M229 281c20 11 42 11 62 0" fill="none" stroke="#301b07" stroke-width="7" stroke-linecap="round" opacity="0.54" />
+  <path d="M172 161c58 28 111 29 168 0-23-28-51-42-84-42s-61 14-84 42Z" fill="url(#gold)" />
+  <path d="M172 161c58 28 111 29 168 0" fill="none" stroke="#fff2bc" stroke-width="5" stroke-linecap="round" opacity="0.62" />
+  <path d="M167 191c62 23 118 24 178 1" fill="none" stroke="#d1a247" stroke-width="9" stroke-linecap="round" opacity="0.82" />
+  <path d="M128 383c75 17 155 17 253 0" fill="none" stroke="#f0ca6b" stroke-width="8" stroke-linecap="round" opacity="0.84" />
+  <path d="M145 411c68 16 145 16 222 0" fill="none" stroke="#b98732" stroke-width="5" stroke-linecap="round" opacity="0.72" />
+  <path d="M121 122c24-18 47-27 70-27M321 95c25 3 48 12 70 27" fill="none" stroke="#f4d68b" stroke-width="7" stroke-linecap="round" opacity="0.72" />
+  <g fill="#f4d68b" opacity="0.9">
+    <circle cx="114" cy="228" r="4" />
+    <circle cx="396" cy="223" r="4" />
+    <circle cx="151" cy="301" r="3" />
+    <circle cx="363" cy="311" r="3" />
+    <circle cx="256" cy="82" r="3.5" />
+  </g>
+  <path d="M119 322c48-4 76-17 103-43M294 276c26 25 56 39 99 45" fill="none" stroke="#f7f0db" stroke-width="3" stroke-linecap="round" opacity="0.38" />
+</svg>

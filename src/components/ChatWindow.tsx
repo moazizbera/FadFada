@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { createPortal } from "react-dom";
-import { FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { prepareArabicForSpeech } from "../lib/arabicSpeech";
 import { personas, type Persona, type PersonaId, type PersonaVoiceConfig } from "../lib/personas";
 import { selectableWorlds, worlds, type WorldId } from "../lib/worlds";
@@ -43,13 +43,14 @@ interface SpeechRecognitionErrorEvent {
 }
 
 type Language = "ar" | "en";
-type HomeHeaderAction = "start" | "avatars";
+type HomeHeaderAction = "start" | "avatars" | "newChat";
 
 type BehaviorStyle = "signature" | "deep" | "coach" | "quick";
 type HomeToolPanel = "checkin" | "sessions" | "progress" | "tone" | "prompts" | "plans" | "about";
 
 type PersonaEnvironmentProfile = {
   ambientClassName: string;
+  animationClassName: string;
   textClassName: string;
   typographyClassName: string;
   typewriterClassName: string;
@@ -77,6 +78,7 @@ type ChatSessionSummary = {
   activeWorld: string;
   language: Language;
   messages: ChatMessage[];
+  messageCount?: number;
   updatedAt?: string;
 };
 
@@ -115,6 +117,23 @@ type GrowthQuest = {
   world: WorldId;
   language: Language;
   createdAt: string;
+};
+
+type StoryMirrorShot = {
+  sceneNumber: number;
+  title: string;
+  shotType: string;
+  duration: string;
+  visualNotes: string;
+  audioNotes: string;
+  prompt: string;
+};
+
+type StoryMirrorImageState = {
+  status: "idle" | "loading" | "ready" | "error";
+  imageDataUrl?: string;
+  source?: string;
+  model?: string;
 };
 
 type ReflectResponse = {
@@ -195,6 +214,21 @@ const openingMessages: Record<Language, string> = {
   en: "Write what is inside you in any language. I will listen calmly, then help you leave with one small clear step.",
 };
 
+function buildOpeningMessage(language: Language, userName: string | null) {
+  if (!userName) return openingMessages[language];
+  return language === "ar"
+    ? `أهلاً ${userName}. اكتب اللي جواك بأي لغة. أنا هنا أسمعك بهدوء، وبعدها نطلع بخطوة صغيرة واضحة.`
+    : `Hi ${userName}. Write what is inside you in any language. I will listen calmly, then help you leave with one small clear step.`;
+}
+
+function normalizeGreetingName(value: string | null | undefined) {
+  const rawName = value?.trim();
+  if (!rawName) return null;
+  const displayName = rawName.includes("@") ? rawName.split("@")[0].replace(/[._-]+/g, " ") : rawName;
+  const cleanedName = displayName.replace(/[<>()[\]{}]/g, "").replace(/\s+/g, " ").trim();
+  return cleanedName ? cleanedName.slice(0, 32) : null;
+}
+
 const visitorUserIdKey = "fadfada-user-id";
 const chatSessionIdStorageKey = "fadfada-active-chat-session-id";
 const conversationStorageKey = "fadfada-chat-session-v1";
@@ -204,10 +238,13 @@ const dailyPulseStorageKey = "fadfada-daily-pulse";
 const tinyPlanStorageKey = "fadfada-tiny-plans";
 const journeySnapshotStorageKey = "fadfada-journey-snapshots";
 const growthQuestStorageKey = "fadfada-growth-quests";
-const anonymousReflectionLimit = 5;
-const signedGiftReflectionLimit = 15;
-const anonymousPersonaLimit = 4;
-const signedPersonaLimit = 10;
+const discountCodeStorageKey = "fadfada-discount-code";
+const defaultExperienceConfiguration = {
+  anonymousReflectionLimit: 5,
+  signedGiftReflectionLimit: 15,
+  anonymousPersonaLimit: 4,
+  signedPersonaLimit: 10,
+};
 const maxStoredMessages = 80;
 const fadfadaHomeActionEventName = "fadfada:home-action";
 
@@ -330,6 +367,7 @@ function getHeaderDisplayName(persona: Persona, activeLanguage: Language) {
 
 const defaultEnvironmentProfile: PersonaEnvironmentProfile = {
   ambientClassName: "bg-[#0E0D10] shadow-[inset_0_0_90px_rgba(201,168,106,0.08)]",
+  animationClassName: "persona-ambient-calm",
   textClassName: "text-[#F7F3EC]/90",
   typographyClassName: "font-arsans",
   typewriterClassName: "",
@@ -338,6 +376,7 @@ const defaultEnvironmentProfile: PersonaEnvironmentProfile = {
 const personaEnvironmentProfiles: Partial<Record<PersonaId, PersonaEnvironmentProfile>> = {
   omar: {
     ambientClassName: "bg-[#0E0D10] shadow-[inset_0_0_100px_rgba(92,124,107,0.15)]",
+    animationClassName: "persona-ambient-calm",
     textClassName: "text-[#F7F3EC]/88",
     typographyClassName: "font-arsans",
     typewriterClassName: "duration-500",
@@ -345,6 +384,7 @@ const personaEnvironmentProfiles: Partial<Record<PersonaId, PersonaEnvironmentPr
   },
   maryam: {
     ambientClassName: "bg-[#0E0D10] shadow-[inset_0_0_100px_rgba(92,124,107,0.15)]",
+    animationClassName: "persona-ambient-warm",
     textClassName: "text-[#F7F3EC]/88",
     typographyClassName: "font-arsans",
     typewriterClassName: "duration-500",
@@ -352,6 +392,7 @@ const personaEnvironmentProfiles: Partial<Record<PersonaId, PersonaEnvironmentPr
   },
   sami: {
     ambientClassName: "bg-[#0E0D10] shadow-[inset_0_0_100px_rgba(201,168,106,0.12)]",
+    animationClassName: "persona-ambient-literary",
     textClassName: "text-[#F7F3EC]/84",
     typographyClassName: "font-arserif",
     typewriterClassName: "delay-75 duration-700",
@@ -359,6 +400,7 @@ const personaEnvironmentProfiles: Partial<Record<PersonaId, PersonaEnvironmentPr
   },
   nema: {
     ambientClassName: "bg-[#0E0D10] shadow-[inset_0_0_100px_rgba(201,168,106,0.12)]",
+    animationClassName: "persona-ambient-tea",
     textClassName: "text-[#F7F3EC]/84",
     typographyClassName: "font-arserif",
     typewriterClassName: "delay-75 duration-700",
@@ -366,6 +408,7 @@ const personaEnvironmentProfiles: Partial<Record<PersonaId, PersonaEnvironmentPr
   },
   sanad: {
     ambientClassName: "bg-[#0A0A0C] shadow-[inset_0_0_120px_rgba(139,123,184,0.08)]",
+    animationClassName: "persona-ambient-stillness",
     textClassName: "text-[#F7F3EC]/70",
     typographyClassName: "font-arsans",
     typewriterClassName: "leading-[2.15] tracking-[0.01em]",
@@ -374,25 +417,117 @@ const personaEnvironmentProfiles: Partial<Record<PersonaId, PersonaEnvironmentPr
   },
   rawi: {
     ambientClassName: "bg-[#0E0D10] shadow-[inset_0_0_120px_rgba(212,114,74,0.14)]",
+    animationClassName: "persona-ambient-story",
     textClassName: "text-[#F7F3EC]/88",
     typographyClassName: "font-arserif",
     typewriterClassName: "leading-[2.05] duration-700",
     cadenceOverride: "slow_reflective",
   },
+  nora: {
+    ambientClassName: "bg-[#0E0D10] shadow-[inset_0_0_120px_rgba(139,123,184,0.16)]",
+    animationClassName: "persona-ambient-kinetic",
+    textClassName: "text-[#F7F3EC]/92",
+    typographyClassName: "font-arsans",
+    typewriterClassName: "duration-300",
+    cadenceOverride: "rapid_energetic",
+  },
+  kareem: {
+    ambientClassName: "bg-[#07110B] shadow-[inset_0_0_120px_rgba(34,197,94,0.16)]",
+    animationClassName: "persona-ambient-field",
+    textClassName: "text-[#F7F3EC]/92",
+    typographyClassName: "font-arsans",
+    typewriterClassName: "duration-300",
+    cadenceOverride: "rapid_energetic",
+  },
+  malik: {
+    ambientClassName: "bg-[#061216] shadow-[inset_0_0_120px_rgba(6,182,212,0.16)]",
+    animationClassName: "persona-ambient-digital",
+    textClassName: "text-[#F7F3EC]/90",
+    typographyClassName: "font-mono",
+    typewriterClassName: "font-mono tracking-[0.015em]",
+  },
+  malik_alt: {
+    ambientClassName: "bg-[#061016] shadow-[inset_0_0_110px_rgba(2,132,199,0.14)]",
+    animationClassName: "persona-ambient-detox",
+    textClassName: "text-[#F7F3EC]/84",
+    typographyClassName: "font-arsans",
+    typewriterClassName: "leading-[2] duration-700",
+    cadenceOverride: "slow_reflective",
+  },
   sheikh: {
     ambientClassName: "bg-[#0E0D10] shadow-[inset_0_0_100px_rgba(168,85,247,0.14)]",
+    animationClassName: "persona-ambient-capital",
     textClassName: "text-[#F7F3EC]/88",
     typographyClassName: "font-mono",
     typewriterClassName: "font-mono tracking-[0.02em]",
   },
   grandmaster: {
     ambientClassName: "bg-[#0E0D10] shadow-[inset_0_0_100px_rgba(168,85,247,0.14)]",
+    animationClassName: "persona-ambient-architect",
     textClassName: "text-[#F7F3EC]/88",
     typographyClassName: "font-mono",
     typewriterClassName: "font-mono tracking-[0.02em]",
   },
+  zein: {
+    ambientClassName: "bg-[#06130F] shadow-[inset_0_0_120px_rgba(16,185,129,0.16)]",
+    animationClassName: "persona-ambient-research",
+    textClassName: "text-[#F7F3EC]/90",
+    typographyClassName: "font-mono",
+    typewriterClassName: "font-mono tracking-[0.015em]",
+  },
+  logoz: {
+    ambientClassName: "bg-[#0D0A16] shadow-[inset_0_0_120px_rgba(139,92,246,0.16)]",
+    animationClassName: "persona-ambient-puzzle",
+    textClassName: "text-[#F7F3EC]/90",
+    typographyClassName: "font-mono",
+    typewriterClassName: "font-mono tracking-[0.015em]",
+  },
+  poetry_bot: {
+    ambientClassName: "bg-[#07120E] shadow-[inset_0_0_120px_rgba(5,150,105,0.15)]",
+    animationClassName: "persona-ambient-poetry",
+    textClassName: "text-[#F7F3EC]/90",
+    typographyClassName: "font-arserif",
+    typewriterClassName: "leading-[2.25] duration-700",
+    cadenceOverride: "slow_reflective",
+  },
+  screenwriter: {
+    ambientClassName: "bg-[#130717] shadow-[inset_0_0_120px_rgba(217,70,239,0.15)]",
+    animationClassName: "persona-ambient-cinema",
+    textClassName: "text-[#F7F3EC]/90",
+    typographyClassName: "font-enserif",
+    typewriterClassName: "leading-[2] duration-700",
+  },
+  dania: {
+    ambientClassName: "bg-[#071022] shadow-[inset_0_0_120px_rgba(29,78,216,0.14)]",
+    animationClassName: "persona-ambient-legal",
+    textClassName: "text-[#F7F3EC]/88",
+    typographyClassName: "font-mono",
+    typewriterClassName: "font-mono tracking-[0.012em]",
+  },
+  adam: {
+    ambientClassName: "bg-[#151205] shadow-[inset_0_0_120px_rgba(234,179,8,0.16)]",
+    animationClassName: "persona-ambient-metabolic",
+    textClassName: "text-[#F7F3EC]/90",
+    typographyClassName: "font-arsans",
+    typewriterClassName: "duration-300",
+  },
+  ryan: {
+    ambientClassName: "bg-[#160B05] shadow-[inset_0_0_120px_rgba(234,88,12,0.15)]",
+    animationClassName: "persona-ambient-biohack",
+    textClassName: "text-[#F7F3EC]/90",
+    typographyClassName: "font-mono",
+    typewriterClassName: "font-mono tracking-[0.012em]",
+  },
+  layan: {
+    ambientClassName: "bg-[#170713] shadow-[inset_0_0_120px_rgba(236,72,153,0.14)]",
+    animationClassName: "persona-ambient-clinical",
+    textClassName: "text-[#F7F3EC]/88",
+    typographyClassName: "font-arsans",
+    typewriterClassName: "duration-500",
+  },
   wamda: {
     ambientClassName: "bg-[#0E0D10] shadow-[inset_0_0_120px_rgba(234,179,8,0.16)]",
+    animationClassName: "persona-ambient-spark",
     textClassName: "text-[#F7F3EC]/92",
     typographyClassName: "font-arsans",
     typewriterClassName: "duration-300",
@@ -400,15 +535,58 @@ const personaEnvironmentProfiles: Partial<Record<PersonaId, PersonaEnvironmentPr
   },
   radar: {
     ambientClassName: "bg-[#0E0D10] shadow-[inset_0_0_100px_rgba(6,182,212,0.14)]",
+    animationClassName: "persona-ambient-radar",
     textClassName: "text-[#F7F3EC]/88",
     typographyClassName: "font-mono",
     typewriterClassName: "font-mono tracking-[0.015em]",
     cadenceOverride: "steady_calm",
   },
+  layl: {
+    ambientClassName: "bg-[#050D14] shadow-[inset_0_0_120px_rgba(6,182,212,0.14)]",
+    animationClassName: "persona-ambient-sonic",
+    textClassName: "text-[#F7F3EC]/88",
+    typographyClassName: "font-enserif",
+    typewriterClassName: "leading-[2.05] duration-700",
+    cadenceOverride: "slow_reflective",
+  },
+  sarah: {
+    ambientClassName: "bg-[#080817] shadow-[inset_0_0_120px_rgba(139,92,246,0.16)]",
+    animationClassName: "persona-ambient-cosmic",
+    textClassName: "text-[#F7F3EC]/90",
+    typographyClassName: "font-arsans",
+    typewriterClassName: "duration-700",
+  },
+  sarah_alt: {
+    ambientClassName: "bg-[#090A18] shadow-[inset_0_0_120px_rgba(99,102,241,0.15)]",
+    animationClassName: "persona-ambient-academic",
+    textClassName: "text-[#F7F3EC]/88",
+    typographyClassName: "font-mono",
+    typewriterClassName: "font-mono tracking-[0.012em]",
+  },
+  tareq: {
+    ambientClassName: "bg-[#06130C] shadow-[inset_0_0_120px_rgba(34,197,94,0.15)]",
+    animationClassName: "persona-ambient-engineering",
+    textClassName: "text-[#F7F3EC]/90",
+    typographyClassName: "font-mono",
+    typewriterClassName: "font-mono tracking-[0.012em]",
+    cadenceOverride: "rapid_energetic",
+  },
 };
 
 function getPersonaEnvironmentProfile(personaIdValue: PersonaId) {
   return personaEnvironmentProfiles[personaIdValue] ?? defaultEnvironmentProfile;
+}
+
+function hexToRgba(hex: string, alpha: number) {
+  const clean = hex.replace("#", "");
+  const value = clean.length === 3 ? clean.split("").map((item) => item + item).join("") : clean;
+  const parsed = Number.parseInt(value, 16);
+  if (!Number.isFinite(parsed)) return `rgba(201, 168, 106, ${alpha})`;
+
+  const red = (parsed >> 16) & 255;
+  const green = (parsed >> 8) & 255;
+  const blue = parsed & 255;
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
 function formatSanadSilence(text: string) {
@@ -472,6 +650,10 @@ function isProfileLogoPath(value: string | undefined) {
 
 function isGeneratedAvatarPath(value: string | undefined) {
   return Boolean(value && /^data:image\/(png|jpeg|webp|svg\+xml);base64,[a-z0-9+/=]+$/i.test(value) && value.length < 2_600_000);
+}
+
+function isSvgAvatarPath(value: string | undefined) {
+  return Boolean(value?.endsWith(".svg"));
 }
 
 function isAllowedCustomAvatarPath(value: string | undefined) {
@@ -603,6 +785,7 @@ export function ChatWindow() {
   const [actionLoadingKey, setActionLoadingKey] = useState<string | null>(null);
   const [appShareLoading, setAppShareLoading] = useState(false);
   const [shareStatus, setShareStatus] = useState<ShareStatus>("idle");
+  const [plusWelcomeOpen, setPlusWelcomeOpen] = useState(false);
   const [storyOpen, setStoryOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [activeHomePanel, setActiveHomePanel] = useState<HomeToolPanel>("checkin");
@@ -621,6 +804,11 @@ export function ChatWindow() {
   const [activeChatSessionId, setActiveChatSessionId] = useState("");
   const [chatSessions, setChatSessions] = useState<ChatSessionSummary[]>([]);
   const [sessionStatus, setSessionStatus] = useState<"idle" | "saving" | "saved" | "loading" | "error">("idle");
+  const [animatedAssistantMessageIds, setAnimatedAssistantMessageIds] = useState<string[]>([]);
+  const [accountTokenBalance, setAccountTokenBalance] = useState<number | null>(null);
+  const [grantedPersonaIds, setGrantedPersonaIds] = useState<PersonaId[]>([]);
+  const [experienceConfiguration, setExperienceConfiguration] = useState(defaultExperienceConfiguration);
+  const [activeDiscountCode, setActiveDiscountCode] = useState("");
   const recorderRef = useRef<ISpeechRecognition | null>(null);
   const keepRecordingRef = useRef(false);
   const recordingRestartCountRef = useRef(0);
@@ -635,22 +823,27 @@ export function ChatWindow() {
     return personas.find((persona) => persona.id === personaId) ?? personas[0];
   }, [customPersona, personaId]);
   const activeHeaderPresentation = getHeaderAvatarPresentation(activePersona);
+  const personaAura = activeHeaderPresentation.auraHex;
   const activePersonaDisplayName = getHeaderDisplayName(activePersona, language);
   const personaEnvironment = getPersonaEnvironmentProfile(activePersona.id);
   const activeBehavior = behaviorStyles[behaviorStyle];
   const conversationContinuity = useMemo(() => buildConversationContinuity(messages, language), [messages, language]);
+  const latestAssistantMessage = useMemo(() => [...messages].reverse().find((message) => message.role === "assistant" && message.id !== "opening"), [messages]);
+  const greetingName = useMemo(() => normalizeGreetingName(session?.user?.name || session?.user?.email), [session?.user?.email, session?.user?.name]);
   const accountName = session?.user?.name || session?.user?.email || (language === "ar" ? "حسابي" : "Account");
   const accountImage = session?.user?.image || null;
   const sessionUser = session?.user as ({ id?: string; activeTier?: string; tokenBalance?: number } & Record<string, unknown>) | undefined;
   const accessState: AccessState = sessionUser?.activeTier === "PLUS" || sessionUser?.activeTier === "BUSINESS" ? "plus" : sessionUser?.id ? "signed" : "anonymous";
-  const reflectionLimit = accessState === "anonymous" ? anonymousReflectionLimit : accessState === "signed" ? signedGiftReflectionLimit : Number.POSITIVE_INFINITY;
+  const { anonymousReflectionLimit, signedGiftReflectionLimit, anonymousPersonaLimit, signedPersonaLimit } = experienceConfiguration;
+  const signedReflectionAllowance = Math.max(signedGiftReflectionLimit, accountTokenBalance ?? sessionUser?.tokenBalance ?? signedGiftReflectionLimit);
+  const reflectionLimit = accessState === "anonymous" ? anonymousReflectionLimit : accessState === "signed" ? signedReflectionAllowance : Number.POSITIVE_INFINITY;
   const usedReflections = accessState === "plus" ? 0 : trialCounter;
   const remainingReflections = accessState === "plus" ? Number.POSITIVE_INFINITY : Math.max(0, reflectionLimit - usedReflections);
   const unlockedPersonaIds = useMemo<PersonaId[]>(() => {
     if (accessState === "plus") return personas.map((persona) => persona.id);
     const limit = accessState === "signed" ? signedPersonaLimit : anonymousPersonaLimit;
-    return personas.slice(0, limit).map((persona) => persona.id);
-  }, [accessState]);
+    return Array.from(new Set([...personas.slice(0, limit).map((persona) => persona.id), ...grantedPersonaIds]));
+  }, [accessState, anonymousPersonaLimit, grantedPersonaIds, signedPersonaLimit]);
 
   function getUsedCredits() {
     const parsedCredits = Number(localStorage.getItem(getCreditStorageKey()) || "0");
@@ -711,6 +904,13 @@ export function ChatWindow() {
     inputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
+  function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
+
+    event.preventDefault();
+    void submitMessage();
+  }
+
   function stageSecretCommand(command: string) {
     setToolsOpen(false);
     setInput(command);
@@ -721,9 +921,9 @@ export function ChatWindow() {
   useEffect(() => {
     setMessages((current) => {
       if (current.length !== 1 || current[0].id !== "opening") return current;
-      return [{ ...current[0], text: openingMessages[language], language }];
+      return [{ ...current[0], text: buildOpeningMessage(language, greetingName), language }];
     });
-  }, [language]);
+  }, [greetingName, language]);
 
   useEffect(() => {
     if (!conversationHydrated) return;
@@ -755,9 +955,63 @@ export function ChatWindow() {
   }, [accessState, sessionUser?.id]);
 
   useEffect(() => {
+    if (accessState !== "signed" || !sessionUser?.id) {
+      setAccountTokenBalance(null);
+      return;
+    }
+
+    let active = true;
+    fetch("/api/profile")
+      .then((response) => response.ok ? response.json() as Promise<{ profile?: { tokenBalance?: number; grantedPersonaIds?: PersonaId[] } }> : null)
+      .then((data) => {
+        if (!active) return;
+        const tokenBalance = Number(data?.profile?.tokenBalance);
+        setAccountTokenBalance(Number.isFinite(tokenBalance) ? tokenBalance : null);
+        setGrantedPersonaIds(Array.isArray(data?.profile?.grantedPersonaIds) ? data.profile.grantedPersonaIds.filter((personaIdValue) => personas.some((persona) => persona.id === personaIdValue)) : []);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [accessState, sessionUser?.id]);
+
+  useEffect(() => {
     if (accessState === "anonymous") return;
     void loadChatSessions();
   }, [accessState, sessionUser?.id]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sharedDiscountCode = cleanDiscountCode(params.get("discount") || params.get("coupon") || params.get("promo"));
+    const storedDiscountCode = cleanDiscountCode(localStorage.getItem(discountCodeStorageKey));
+    const nextDiscountCode = sharedDiscountCode || storedDiscountCode;
+
+    if (nextDiscountCode) {
+      localStorage.setItem(discountCodeStorageKey, nextDiscountCode);
+      setActiveDiscountCode(nextDiscountCode);
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/configuration")
+      .then((response) => response.ok ? response.json() as Promise<{ configuration?: Partial<typeof defaultExperienceConfiguration> }> : null)
+      .then((data) => {
+        if (!active || !data?.configuration) return;
+        setExperienceConfiguration((current) => ({
+          anonymousReflectionLimit: cleanConfigurationNumber(data.configuration?.anonymousReflectionLimit, current.anonymousReflectionLimit),
+          signedGiftReflectionLimit: cleanConfigurationNumber(data.configuration?.signedGiftReflectionLimit, current.signedGiftReflectionLimit),
+          anonymousPersonaLimit: cleanConfigurationNumber(data.configuration?.anonymousPersonaLimit, current.anonymousPersonaLimit),
+          signedPersonaLimit: cleanConfigurationNumber(data.configuration?.signedPersonaLimit, current.signedPersonaLimit),
+        }));
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (accessState === "anonymous" || !conversationHydrated || !activeChatSessionId || messages.length < 2) return;
@@ -783,7 +1037,7 @@ export function ChatWindow() {
   }
 
   async function saveCurrentChatSession(mode: "silent" | "manual" = "manual") {
-    if (accessState === "anonymous" || !activeChatSessionId || messages.length < 2) return;
+    if (accessState === "anonymous" || !activeChatSessionId || messages.length < 2) return false;
     if (mode === "manual") setSessionStatus("saving");
 
     const snapshot = buildChatSessionSnapshot(activeChatSessionId, messages, activePersona.id, world, language);
@@ -797,32 +1051,60 @@ export function ChatWindow() {
       if (!response.ok) throw new Error("save failed");
       setChatSessions((current) => [snapshot, ...current.filter((sessionItem) => sessionItem.sessionId !== snapshot.sessionId)].slice(0, 24));
       setSessionStatus(mode === "manual" ? "saved" : "idle");
+      return true;
     } catch {
       if (mode === "manual") setSessionStatus("error");
+      return false;
     }
   }
 
-  function startNewChatSession() {
-    if (accessState !== "anonymous") {
-      void saveCurrentChatSession("silent");
+  async function startNewChatSession() {
+    if (accessState !== "anonymous" && messages.length >= 2) {
+      setSessionStatus("saving");
+      const saved = await saveCurrentChatSession("silent");
+      if (!saved) {
+        setSessionStatus("error");
+        setActiveHomePanel("sessions");
+        setToolsOpen(true);
+        return;
+      }
     }
 
     const nextSessionId = `session:${crypto.randomUUID()}`;
     localStorage.setItem(chatSessionIdStorageKey, nextSessionId);
     setActiveChatSessionId(nextSessionId);
-    setMessages([{ id: "opening", role: "assistant", text: openingMessages[language], world: "calm", language }]);
+    setAnimatedAssistantMessageIds([]);
+    setMessages([{ id: "opening", role: "assistant", text: buildOpeningMessage(language, greetingName), world: "calm", language, personaId: "omar", personaName: language === "ar" ? "عمر" : "Omar", avatarPath: "/avatars/omar.png" }]);
     setWorld("calm");
     setToolsOpen(false);
     window.setTimeout(focusInput, 120);
   }
 
-  function openChatSession(sessionItem: ChatSessionSummary) {
+  async function openChatSession(sessionItem: ChatSessionSummary) {
+    setSessionStatus("loading");
+    let sessionToOpen = sessionItem;
+
+    if (sessionItem.messages.length === 0) {
+      try {
+        const response = await fetch(`/api/chat-sessions?sessionId=${encodeURIComponent(sessionItem.sessionId)}`);
+        if (!response.ok) throw new Error("session failed");
+        const data = (await response.json()) as { session?: ChatSessionSummary };
+        sessionToOpen = sanitizeChatSessions(data.session ? [data.session] : [])[0] || sessionItem;
+      } catch {
+        setSessionStatus("error");
+        return;
+      }
+    }
+
     localStorage.setItem(chatSessionIdStorageKey, sessionItem.sessionId);
-    setActiveChatSessionId(sessionItem.sessionId);
-    setMessages(sessionItem.messages.length > 0 ? sessionItem.messages : [{ id: "opening", role: "assistant", text: openingMessages[language], world: "calm", language }]);
-    if (sessionItem.activeWorld in worlds) setWorld(sessionItem.activeWorld as WorldId);
-    const nextPersona = personas.find((persona) => persona.id === sessionItem.activePersonaId);
+    setActiveChatSessionId(sessionToOpen.sessionId);
+    const restoredMessages: ChatMessage[] = sessionToOpen.messages.length > 0 ? sessionToOpen.messages : [{ id: "opening", role: "assistant", text: buildOpeningMessage(language, greetingName), world: "calm", language, personaId: "omar", personaName: language === "ar" ? "عمر" : "Omar", avatarPath: "/avatars/omar.png" }];
+    setMessages(restoredMessages);
+    setAnimatedAssistantMessageIds(getAssistantMessageIds(restoredMessages));
+    if (sessionToOpen.activeWorld in worlds) setWorld(sessionToOpen.activeWorld as WorldId);
+    const nextPersona = personas.find((persona) => persona.id === sessionToOpen.activePersonaId);
     if (nextPersona) setPersonaId(nextPersona.id);
+    setSessionStatus("idle");
     setToolsOpen(false);
     window.setTimeout(() => scrollToSection("chat"), 80);
   }
@@ -849,12 +1131,34 @@ export function ChatWindow() {
       return;
     }
 
+    if (action === "newChat") {
+      setPersonaOpen(false);
+      setToolsOpen(false);
+      void startNewChatSession();
+      void trackInteraction("starter_tap", { type: "top_menu_new_chat", language });
+      return;
+    }
+
   }
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const initialAction = params.get("fadfadaAction");
-    if (initialAction === "start" || initialAction === "avatars") {
+    const checkoutSession = params.get("session");
+    const checkoutProvider = params.get("provider");
+
+    if (checkoutSession === "success") {
+      setPlusWelcomeOpen(true);
+      setPaywallOpen(false);
+      void trackInteraction("starter_tap", { type: "plus_checkout_success", provider: checkoutProvider || "unknown", language });
+      params.delete("session");
+      params.delete("provider");
+      const nextSearch = params.toString();
+      const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
+      window.history.replaceState(null, "", nextUrl);
+    }
+
+    if (initialAction === "start" || initialAction === "avatars" || initialAction === "newChat") {
       window.setTimeout(() => runHomeHeaderAction(initialAction), 180);
       params.delete("fadfadaAction");
       const nextSearch = params.toString();
@@ -862,9 +1166,17 @@ export function ChatWindow() {
       window.history.replaceState(null, "", nextUrl);
     }
 
+    if (params.get("upgrade") === "plus") {
+      window.setTimeout(() => setPaywallOpen(true), 180);
+      params.delete("upgrade");
+      const nextSearch = params.toString();
+      const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
+      window.history.replaceState(null, "", nextUrl);
+    }
+
     const handleAction = (event: Event) => {
       const action = (event as CustomEvent<{ action?: HomeHeaderAction }>).detail?.action;
-      if (action === "start" || action === "avatars") {
+      if (action === "start" || action === "avatars" || action === "newChat") {
         runHomeHeaderAction(action);
       }
     };
@@ -942,6 +1254,15 @@ export function ChatWindow() {
     const text = buildProofCard(message, lastUserMessage, activePersonaDisplayName, messageLanguage);
 
     await shareOrCopy({ title, text, url: "https://fad-fada.vercel.app" }, "moment_share", { type: "proof_card", world: message.world, language: messageLanguage });
+  }
+
+  async function shareSafeReceipt(message: ChatMessage) {
+    const messageLanguage = message.language || language;
+    const lastUserMessage = [...messages].reverse().find((item) => item.role === "user");
+    const title = messageLanguage === "ar" ? "خلاصة فضفضة" : "FadFada Reflection Summary";
+    const text = buildSafeReceiptShareText(message, lastUserMessage, messageLanguage);
+
+    await shareOrCopy({ title, text, url: "https://fad-fada.vercel.app" }, "moment_share", { type: "safe_receipt", world: message.world, language: messageLanguage });
   }
 
   async function shareJudgePitch() {
@@ -1329,6 +1650,7 @@ export function ChatWindow() {
           messageText: text,
           currentWorld: requestWorld,
           currentLanguage: nextLanguage,
+          userDisplayName: greetingName,
           personaSystemPrompt: requestPersona.coreSystemPrompt,
           behaviorStyle,
           softerMode: softerNext,
@@ -1373,6 +1695,9 @@ export function ChatWindow() {
           world: requestWorld,
           language: nextLanguage,
           cadence: normalizeCadence(undefined, requestWorld),
+          personaId: requestPersona.id,
+          personaName: nextLanguage === "ar" ? requestPersona.nameAr : requestPersona.nameEn,
+          avatarPath: requestPersona.avatarPath,
         },
       ]);
     } finally {
@@ -1473,6 +1798,7 @@ export function ChatWindow() {
       const restoredMessages = sanitizeStoredMessages(storedConversation?.messages);
       if (restoredMessages.length > 0) {
         setMessages(restoredMessages);
+        setAnimatedAssistantMessageIds(getAssistantMessageIds(restoredMessages));
       }
       if (storedConversation?.world && storedConversation.world in worlds) {
         setWorld(storedConversation.world);
@@ -1537,6 +1863,7 @@ export function ChatWindow() {
         userId,
         currentLanguage: language,
         product: "plus_access",
+        discountCode: activeDiscountCode || undefined,
       }),
     }).catch(() => null);
     const data = response ? ((await response.json()) as { url?: string; error?: string; message?: string }) : null;
@@ -1561,6 +1888,9 @@ export function ChatWindow() {
         world,
         language,
         cadence: normalizeCadence(undefined, world),
+        personaId: activePersona.id,
+        personaName: language === "ar" ? activePersona.nameAr : activePersona.nameEn,
+        avatarPath: activePersona.avatarPath,
       },
     ]);
   }
@@ -1613,6 +1943,9 @@ export function ChatWindow() {
           world,
           language,
           cadence: normalizeCadence("steady_calm", world),
+          personaId: activePersona.id,
+          personaName: language === "ar" ? activePersona.nameAr : activePersona.nameEn,
+          avatarPath: activePersona.avatarPath,
         },
       ]);
       setPaywallOpen(true);
@@ -1641,6 +1974,9 @@ export function ChatWindow() {
         world,
         language,
         cadence: normalizeCadence("steady_calm", world),
+        personaId: activePersona.id,
+        personaName: language === "ar" ? activePersona.nameAr : activePersona.nameEn,
+        avatarPath: activePersona.avatarPath,
       },
     ]);
     setPaywallOpen(true);
@@ -1665,13 +2001,19 @@ export function ChatWindow() {
   return (
     <main
       className={`relative mx-auto flex min-h-screen max-w-2xl flex-col overflow-hidden px-4 pb-44 pt-20 transition-all duration-700 ease-in-out ${personaEnvironment.ambientClassName} ${personaEnvironment.textClassName} ${personaEnvironment.typographyClassName}`}
-      style={{ backgroundImage: activeWorld.gradient }}
+      style={{
+        backgroundImage: activeWorld.gradient,
+        "--persona-aura": personaAura,
+        "--persona-aura-soft": hexToRgba(personaAura, 0.22),
+        "--persona-aura-faint": hexToRgba(personaAura, 0.1),
+      } as React.CSSProperties}
     >
+      <div className={`persona-ambient-layer pointer-events-none absolute inset-0 ${personaEnvironment.animationClassName}`} />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_8%,rgba(247,243,236,0.08),transparent_22rem)]" />
 
       <header className="relative z-10 flex min-h-24 items-start justify-between">
-        <button type="button" onClick={() => setToolsOpen(true)} className="ui-action rounded-full border border-white/10 bg-black/15 px-3 py-2 text-[#F7F3EC]/70 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
-          {language === "ar" ? "القائمة" : "Menu"}
+        <button type="button" onClick={() => void startNewChatSession()} className="ui-action rounded-full border border-white/10 bg-black/15 px-3 py-2 text-xs text-[#F7F3EC]/70 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
+          {language === "ar" ? "محادثة جديدة" : "New chat"}
         </button>
         <button
           type="button"
@@ -1684,7 +2026,7 @@ export function ChatWindow() {
               }`}
             style={{ boxShadow: `0 0 0 1px rgba(255,255,255,0.14), 0 0 44px ${activeHeaderPresentation.auraHex}C8, 0 26px 76px ${activeHeaderPresentation.auraHex}82` }}
           >
-            {isGeneratedAvatarPath(activeHeaderPresentation.avatarPath) ? (
+            {isGeneratedAvatarPath(activeHeaderPresentation.avatarPath) || isSvgAvatarPath(activeHeaderPresentation.avatarPath) ? (
               <img src={activeHeaderPresentation.avatarPath} alt={`${activePersonaDisplayName} avatar`} className="h-full w-full object-cover" />
             ) : (
               <Image
@@ -1717,11 +2059,51 @@ export function ChatWindow() {
             ? "مساحة عربية/إنجليزية هادئة: اكتب ما بداخلك، واختر من القائمة عندما تحتاج رفيقًا أو خطوة أو حفظ لحظة."
             : "A calm Arabic/English space: write what is inside, then open the menu when you need a companion, a step, or a saved moment."}
         </p>
+        <TrustChipRow language={language} />
+        {plusWelcomeOpen ? (
+          <PlusWelcomeCard
+            language={language}
+            onClose={() => setPlusWelcomeOpen(false)}
+            onExplore={() => {
+              setPlusWelcomeOpen(false);
+              setToolsOpen(true);
+              setActiveHomePanel("plans");
+            }}
+          />
+        ) : null}
+        <FeatureAnnouncementCard language={language} onTry={() => {
+          const storyPersona = personas.find((persona) => persona.id === "rawi") ?? activePersona;
+          submitJudgeScenario(
+            language === "ar"
+              ? "اصنعي مثالاً بصرياً إبداعياً: شخص يدخل غرفة هادئة مليئة بضوء ذهبي وظلال زرقاء، يحمل شعور أن أحداً قلل من ألمه. حوّليها إلى لوحة مشاهد بثلاث صور رمزية: اللحظة كما دخلت، المرآة الهادئة، والخطوة الصغيرة نحو ضوء واضح. اجعلي البرومبتات صالحة لتوليد صور سينمائية آمنة بدون نص داخل الصورة."
+              : "Create a creative visual demo: a person enters a quiet room filled with golden light and blue shadows, carrying the feeling that someone minimized their pain. Turn it into a three-image symbolic storyboard: the moment as it arrived, the calm mirror, and one small step toward clear light. Make the prompts ready for safe cinematic image generation with no text inside the image.",
+            "story",
+            language,
+            storyPersona.id
+          );
+        }} />
+        <JudgeDemoCallout language={language} onRun={() => {
+          const scenario = judgeDemoScenarios[language][0];
+          submitJudgeScenario(scenario.text, scenario.world, scenario.targetLanguage, scenario.personaId);
+        }} />
         <div className="mt-5 w-full max-w-sm" dir={language === "ar" ? "rtl" : "ltr"}>
           <button type="button" onClick={focusInput} className="ui-action w-full rounded-xl bg-[#C9A86A] px-4 py-3 text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
             {language === "ar" ? "ابدأ الفضفضة" : "Start venting"}
           </button>
         </div>
+        <FirstMomentPanel language={language} onSelect={submitStarterMoment} onPersona={() => setPersonaOpen(true)} onDemo={() => {
+          const scenario = judgeDemoScenarios[language][0];
+          submitJudgeScenario(scenario.text, scenario.world, scenario.targetLanguage, scenario.personaId);
+        }} />
+        <ReturnMemoryCard
+          language={language}
+          continuity={conversationContinuity}
+          onContinue={() => {
+            scrollToSection("chat");
+            window.setTimeout(focusInput, 120);
+          }}
+          onSaveSnapshot={saveJourneySnapshot}
+        />
         <p className="mt-3 font-arsans text-sm text-[#F7F3EC]/45">{language === "ar" ? activeWorld.nameAr : activeWorld.nameEn}</p>
         {shareStatus !== "idle" ? (
           <p className="mt-3 rounded-full border border-cyan-100/20 bg-black/25 px-4 py-2 text-center font-arsans text-xs text-cyan-100" aria-live="polite">
@@ -1766,7 +2148,7 @@ export function ChatWindow() {
             ) : (
               <div className={`flex items-start gap-3 ${messageDirection === "rtl" ? "flex-row-reverse" : "flex-row"}`}>
                 <span className="relative mt-1 h-9 w-9 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-[#0E0D10] shadow-[0_12px_28px_rgba(0,0,0,0.28)]">
-                  {isGeneratedAvatarPath(messageAvatarPath) ? (
+                  {isGeneratedAvatarPath(messageAvatarPath) || isSvgAvatarPath(messageAvatarPath) ? (
                     <img src={messageAvatarPath} alt={messageDisplayName} className="h-full w-full object-cover" />
                   ) : (
                     <Image src={messageAvatarPath || messagePersonaPresentation.avatarPath} alt={messageDisplayName} fill sizes="36px" className="object-cover" />
@@ -1780,7 +2162,15 @@ export function ChatWindow() {
                     cadence={resolvePersonaCadence(message.cadence, message.world, messagePersonaEnvironment)}
                     accentHex={messagePersona.glowColorHex}
                     className={messagePersonaEnvironment.typewriterClassName}
+                    instant={animatedAssistantMessageIds.includes(message.id)}
+                    onComplete={() => setAnimatedAssistantMessageIds((current) => current.includes(message.id) ? current : [...current, message.id])}
                   />
+                <VoicePlaybackButton
+                  language={messageLanguage}
+                  speaking={speakingMessageId === message.id}
+                  loading={actionLoadingKey === `${message.id}:speak`}
+                  onClick={() => void runMomentAction(message.id, "speak", () => toggleVoicePlayback(message))}
+                />
                 <MomentActions
                   language={language}
                   saved={savedMomentIds.includes(message.id)}
@@ -1791,8 +2181,7 @@ export function ChatWindow() {
                   onShare={() => void runMomentAction(message.id, "share", () => shareMoment(message))}
                   onProof={() => void runMomentAction(message.id, "proof", () => shareProofCard(message))}
                   onDownload={() => void runMomentAction(message.id, "download", () => downloadCapsule(message))}
-                  onSpeak={() => void runMomentAction(message.id, "speak", () => toggleVoicePlayback(message))}
-                  speaking={speakingMessageId === message.id}
+                  onPersona={() => setPersonaOpen(true)}
                   onHelpful={() => void runMomentAction(message.id, "helpful", () => sendFeedback(message, "helpful_feedback"))}
                   onSofter={() => void runMomentAction(message.id, "softer", () => sendFeedback(message, "softer_feedback"))}
                 />
@@ -1803,12 +2192,24 @@ export function ChatWindow() {
           </article>
           );
         })}
+        {latestAssistantMessage ? (
+          <ReflectionReceiptCard
+            language={language}
+            message={latestAssistantMessage}
+            userMessage={[...messages].reverse().find((message) => message.role === "user")}
+            personaName={latestAssistantMessage.personaName || activePersonaDisplayName}
+            onSaveSnapshot={saveJourneySnapshot}
+            onSafeShare={() => void shareSafeReceipt(latestAssistantMessage)}
+            onProofShare={() => void shareProofCard(latestAssistantMessage)}
+            onStartQuest={startGrowthQuest}
+          />
+        ) : null}
         {isThinking ? (
           <ThinkingShimmer language={language} personaName={language === "ar" ? activePersona.nameAr : activePersona.nameEn} />
         ) : null}
       </section>
 
-      {paywallOpen ? <PaywallCard language={language} accessState={accessState} remainingReflections={remainingReflections} loading={checkoutLoading} onCheckout={startCheckout} onSignIn={openSignInGift} onClose={() => setPaywallOpen(false)} /> : null}
+      {paywallOpen ? <PaywallCard language={language} accessState={accessState} remainingReflections={remainingReflections} configuration={experienceConfiguration} loading={checkoutLoading} onCheckout={startCheckout} onSignIn={openSignInGift} onClose={() => setPaywallOpen(false)} /> : null}
 
       {toolsOpen ? (
         <HomeToolsDialog
@@ -1836,7 +2237,7 @@ export function ChatWindow() {
               onNewSession={startNewChatSession}
               onSaveSession={() => void saveCurrentChatSession("manual")}
               onRefresh={() => void loadChatSessions()}
-              onOpenSession={openChatSession}
+              onOpenSession={(sessionItem) => void openChatSession(sessionItem)}
               onSignIn={openSignInGift}
             />
           ) : null}
@@ -1901,20 +2302,27 @@ export function ChatWindow() {
 
       <form onSubmit={submitMessage} className="fixed inset-x-0 bottom-20 z-30 mx-auto flex max-w-2xl flex-col gap-2 px-4 pb-3 pt-4 backdrop-blur-xl">
         {accessState !== "plus" ? (
-          <div className="flex items-center justify-between gap-3 rounded-full border border-white/10 bg-[#0E0D10]/82 px-3 py-2 shadow-xl" dir={language === "ar" ? "rtl" : "ltr"}>
-            <p className="min-w-0 truncate font-arsans text-[11px] text-[#F7F3EC]/58">
-              {accessState === "anonymous"
-                ? language === "ar"
-                  ? `زائر: ${remainingReflections} من ${anonymousReflectionLimit} ردود متبقية · سجّل لهدية ${signedGiftReflectionLimit}`
-                  : `Visitor: ${remainingReflections} of ${anonymousReflectionLimit} replies left · sign in for ${signedGiftReflectionLimit}`
-                : language === "ar"
-                  ? `هدية الحساب: ${remainingReflections} ردود متبقية · بلس يحفظ الرحلة`
-                  : `Account gift: ${remainingReflections} replies left · Plus saves the journey`}
-            </p>
-            <button type="button" onClick={accessState === "anonymous" ? openSignInGift : () => setPaywallOpen(true)} className="ui-action shrink-0 rounded-full border border-[#C9A86A]/35 px-3 py-1.5 text-[11px] text-[#C9A86A] transition-colors hover:bg-[#C9A86A] hover:text-[#0E0D10]">
-              {accessState === "anonymous" ? (language === "ar" ? "الهدية" : "Gift") : language === "ar" ? "بلس" : "Plus"}
-            </button>
-          </div>
+          <>
+            <div className="flex items-center justify-between gap-3 rounded-full border border-white/10 bg-[#0E0D10]/82 px-3 py-2 shadow-xl" dir={language === "ar" ? "rtl" : "ltr"}>
+              <p className="min-w-0 truncate font-arsans text-[11px] text-[#F7F3EC]/58">
+                {accessState === "anonymous"
+                  ? language === "ar"
+                    ? `زائر: ${remainingReflections} من ${anonymousReflectionLimit} ردود متبقية · سجّل لهدية ${signedGiftReflectionLimit}`
+                    : `Visitor: ${remainingReflections} of ${anonymousReflectionLimit} replies left · sign in for ${signedGiftReflectionLimit}`
+                  : language === "ar"
+                    ? `هدية الحساب: ${remainingReflections} ردود متبقية · بلس يحفظ الرحلة`
+                    : `Account gift: ${remainingReflections} replies left · Plus saves the journey`}
+              </p>
+              <button type="button" onClick={accessState === "anonymous" ? openSignInGift : () => setPaywallOpen(true)} className="ui-action shrink-0 rounded-full border border-[#C9A86A]/35 px-3 py-1.5 text-[11px] text-[#C9A86A] transition-colors hover:bg-[#C9A86A] hover:text-[#0E0D10]">
+                {accessState === "anonymous" ? (language === "ar" ? "الهدية" : "Gift") : language === "ar" ? "بلس" : "Plus"}
+              </button>
+            </div>
+            {activeDiscountCode ? (
+              <p className="rounded-full border border-sky-200/20 bg-sky-200/10 px-3 py-2 text-center font-mono text-[10px] uppercase tracking-[0.08em] text-sky-100" dir="ltr">
+                Lemon discount {activeDiscountCode} ready for checkout
+              </p>
+            ) : null}
+          </>
         ) : null}
         {voiceCaptureStatus !== "idle" ? (
           <p className="w-full rounded-lg border border-red-300/20 bg-red-300/10 px-3 py-2 font-arsans text-xs text-red-100" dir={language === "ar" ? "rtl" : "ltr"}>
@@ -1952,6 +2360,7 @@ export function ChatWindow() {
           ref={inputRef}
           value={input}
           onChange={(event) => setInput(event.target.value)}
+          onKeyDown={handleComposerKeyDown}
           rows={1}
           dir={language === "ar" ? "rtl" : "ltr"}
           placeholder={language === "ar" ? "فضفض هنا..." : "Write freely..."}
@@ -2036,6 +2445,7 @@ function sanitizeChatSessions(value: unknown): ChatSessionSummary[] {
         activeWorld,
         language,
         messages: sanitizeStoredMessages(candidate.messages),
+        messageCount: typeof candidate.messageCount === "number" && Number.isFinite(candidate.messageCount) ? Math.max(0, Math.round(candidate.messageCount)) : undefined,
         updatedAt: typeof candidate.updatedAt === "string" ? candidate.updatedAt : undefined,
       };
     })
@@ -2088,6 +2498,10 @@ function sanitizeStoredMessages(value: unknown): ChatMessage[] {
     .slice(-maxStoredMessages);
 }
 
+function getAssistantMessageIds(messages: ChatMessage[]) {
+  return messages.filter((message) => message.role === "assistant").map((message) => message.id);
+}
+
 function sanitizeStoredGrowthQuests(value: unknown): GrowthQuest[] {
   if (!Array.isArray(value)) return [];
 
@@ -2115,6 +2529,15 @@ function sanitizeStoredGrowthQuests(value: unknown): GrowthQuest[] {
     })
     .filter((quest): quest is GrowthQuest => Boolean(quest))
     .slice(0, 8);
+}
+
+function cleanConfigurationNumber(value: unknown, fallback: number) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? Math.max(1, Math.min(200, Math.round(numberValue))) : fallback;
+}
+
+function cleanDiscountCode(value: unknown) {
+  return typeof value === "string" ? value.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 32) : "";
 }
 
 function buildNextDailyPulseStats(current: DailyPulseStats, today: string): DailyPulseStats {
@@ -2216,6 +2639,147 @@ function buildProofCard(message: ChatMessage, userMessage: ChatMessage | undefin
   ].join("\n");
 }
 
+function buildReflectionReceipt(message: ChatMessage, userMessage: ChatMessage | undefined, language: Language) {
+  const isArabic = language === "ar";
+  const worldName = isArabic ? worlds[message.world].nameAr : worlds[message.world].nameEn;
+  const cameInWith = summarizeText(userMessage?.text || (isArabic ? "لحظة شخصية" : "a personal moment"), language, 90);
+  const named = summarizeText(message.text, language, 100);
+  const nextStep = extractSmallStep(message.text, language) || (isArabic ? "اختر خطوة صغيرة لا تتجاوز عشر دقائق." : "Choose one small step that takes under ten minutes.");
+
+  return { cameInWith, named, nextStep, worldName };
+}
+
+function buildSafeReceiptShareText(message: ChatMessage, userMessage: ChatMessage | undefined, language: Language) {
+  const receipt = buildReflectionReceipt(message, userMessage, language);
+
+  if (language === "ar") {
+    return [
+      "حوّلت لحظة ثقيلة إلى خطوة صغيرة على فضفضة.",
+      "",
+      `المساحة: ${receipt.worldName}`,
+      `الخطوة التالية: ${receipt.nextStep}`,
+      "",
+      "لا أشارك نصي الخاص، فقط النتيجة: شعور أوضح وخطوة قابلة للتنفيذ.",
+      "#فضفضة #خطوة_صغيرة #ذكاء_اصطناعي_عربي",
+    ].join("\n");
+  }
+
+  return [
+    "I turned a heavy thought into one small step on FadFada.",
+    "",
+    `World: ${receipt.worldName}`,
+    `Next step: ${receipt.nextStep}`,
+    "",
+    "I am not sharing my private text, only the outcome: a clearer feeling and one action I can take.",
+    "#FadFada #TinyStep #ArabicAI",
+  ].join("\n");
+}
+
+function buildStoryMirrorBoard(message: ChatMessage, userMessage: ChatMessage | undefined, personaName: string, language: Language): StoryMirrorShot[] {
+  const isArabic = language === "ar";
+  const explicitStoryShots = extractExplicitStoryShots(message.text, language);
+  if (explicitStoryShots.length >= 2) {
+    return explicitStoryShots;
+  }
+
+  const receipt = buildReflectionReceipt(message, userMessage, language);
+  const worldName = receipt.worldName;
+  const palette = isArabic ? "إضاءة ناعمة، تباين هادئ، ألوان دافئة غير صاخبة" : "soft light, quiet contrast, warm restrained colors";
+
+  return [
+    {
+      sceneNumber: 1,
+      title: isArabic ? "اللحظة كما دخلت" : "The moment as it arrived",
+      shotType: isArabic ? "لقطة قريبة هادئة" : "Quiet close-up",
+      duration: "6s",
+      visualNotes: isArabic ? `شخص يجلس في مساحة هادئة، الشعور الأساسي: ${receipt.cameInWith}.` : `A person in a quiet space, carrying the feeling: ${receipt.cameInWith}.`,
+      audioNotes: isArabic ? "صمت قصير ونَفَس واضح قبل الكلام." : "A short silence and one clear breath before words.",
+      prompt: isArabic ? `مشهد رمزي آمن عن: ${receipt.cameInWith}. ${palette}. بدون نصوص على الصورة، بدون واقعية علاجية.` : `A safe symbolic scene about: ${receipt.cameInWith}. ${palette}. No text in image, no clinical realism.`,
+    },
+    {
+      sceneNumber: 2,
+      title: isArabic ? `عين ${personaName}` : `${personaName}'s mirror`,
+      shotType: isArabic ? "لقطة متوسطة / انعكاس" : "Medium mirror shot",
+      duration: "8s",
+      visualNotes: isArabic ? `الرفيق يعكس المعنى الذي ظهر: ${receipt.named}.` : `The companion reflects the meaning that appeared: ${receipt.named}.`,
+      audioNotes: isArabic ? "نبرة مطمئنة، كلمات قليلة، إيقاع بطيء." : "Reassuring tone, few words, slow pacing.",
+      prompt: isArabic ? `انعكاس بصري شاعري لفكرة: ${receipt.named}. شخصية خيالية، ${worldName}، ${palette}.` : `A poetic visual reflection of: ${receipt.named}. Fictional companion, ${worldName}, ${palette}.`,
+    },
+    {
+      sceneNumber: 3,
+      title: isArabic ? "الخروج بخطوة" : "Leaving with one step",
+      shotType: isArabic ? "لقطة واسعة باتجاه ضوء" : "Wide shot toward light",
+      duration: "7s",
+      visualNotes: isArabic ? `الحركة تصبح بسيطة وواضحة: ${receipt.nextStep}.` : `The movement becomes simple and clear: ${receipt.nextStep}.`,
+      audioNotes: isArabic ? "إيقاع أهدأ، صوت خطوة واحدة، نهاية مفتوحة." : "Calmer rhythm, one footstep, open ending.",
+      prompt: isArabic ? `شخصية خيالية تتحرك نحو خطوة صغيرة: ${receipt.nextStep}. ${palette}. لقطة أمل هادئ.` : `A fictional figure moving toward one small step: ${receipt.nextStep}. ${palette}. Quiet hopeful frame.`,
+    },
+  ];
+}
+
+function extractExplicitStoryShots(text: string, language: Language): StoryMirrorShot[] {
+  const isArabic = language === "ar";
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const shots: StoryMirrorShot[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const title = extractStoryPanelTitle(lines[index], shots.length + 1, language);
+    if (!title) continue;
+
+    const prompt = findNearbyImagePrompt(lines, index);
+    if (!prompt) continue;
+
+    shots.push({
+      sceneNumber: shots.length + 1,
+      title,
+      shotType: isArabic ? "صورة رمزية مولّدة" : "Generated symbolic image",
+      duration: shots.length === 0 ? "6s" : shots.length === 1 ? "8s" : "7s",
+      visualNotes: summarizeText(prompt, language, 180),
+      audioNotes: isArabic ? "موسيقى هادئة تناسب المشهد دون كلمات." : "Quiet non-verbal ambience that matches the scene.",
+      prompt: strengthenStoryboardPrompt(prompt, language),
+    });
+
+    if (shots.length === 3) break;
+  }
+
+  return shots;
+}
+
+function extractStoryPanelTitle(line: string, fallbackNumber: number, language: Language) {
+  const cleanedLine = stripMarkdown(line);
+  const arabicMatch = cleanedLine.match(/(?:اللوحة|المشهد)\s*(?:الأولى|الأول|الثانية|الثاني|الثالثة|الثالث|الرابعة|الرابع|\d+)\s*[:：-]\s*(.+)$/i);
+  if (arabicMatch?.[1]) return arabicMatch[1].trim().slice(0, 80);
+
+  const englishMatch = cleanedLine.match(/(?:panel|scene|shot)\s*(?:one|two|three|four|\d+)\s*[:：-]\s*(.+)$/i);
+  if (englishMatch?.[1]) return englishMatch[1].trim().slice(0, 80);
+
+  return "";
+}
+
+function findNearbyImagePrompt(lines: string[], titleIndex: number) {
+  for (let offset = 1; offset <= 8; offset += 1) {
+    const line = lines[titleIndex + offset];
+    if (!line) continue;
+    const promptMatch = line.match(/(?:برومبت\s*الصورة|image\s*prompt|prompt)\s*[:：-]\s*["“”']?(.+?)["“”']?\s*$/i);
+    if (promptMatch?.[1]) return stripMarkdown(promptMatch[1]).replace(/^[:：-]\s*/, "").trim();
+  }
+
+  return "";
+}
+
+function strengthenStoryboardPrompt(prompt: string, language: Language) {
+  const cleanedPrompt = prompt.replace(/^"|"$/g, "").trim();
+  const safetyTail = language === "ar"
+    ? "بدون كتابة أو شعارات داخل الصورة، أسلوب سينمائي آمن، تفاصيل مختلفة بوضوح عن بقية المشاهد."
+    : "No text or logos inside the image, safe cinematic style, clearly distinct from the other scenes.";
+
+  return /بدون كتابة|no text/i.test(cleanedPrompt) ? cleanedPrompt : `${cleanedPrompt}. ${safetyTail}`;
+}
+
+function stripMarkdown(value: string) {
+  return value.replace(/^[>*\-\s]+/, "").replace(/\*\*/g, "").replace(/\*/g, "").trim();
+}
+
 function buildJudgePitchCard(language: Language) {
   if (language === "ar") {
     return [
@@ -2236,7 +2800,7 @@ function buildJudgePitchCard(language: Language) {
     "",
     "Problem: Most AI apps reply, but they do not adapt to emotional state, language, culture, and context.",
     "Solution: FadFada is an Arabic-first bilingual space that chooses the right companion, shifts the atmosphere by persona, and turns a conversation into a step, capsule, or quest.",
-    "What stands out: 23 companions, hidden Judge Mode, shareable Proof Cards, Moment Capsules, and 3-day growth quests.",
+    "What stands out: 26 companions, hidden Judge Mode, shareable Proof Cards, Moment Capsules, and 3-day growth quests.",
     "Demo proof: type /judge, then type /proof after the reply.",
     "Why now: people do not only need a longer chat; they need a felt moment that becomes one clear action.",
     "",
@@ -2676,7 +3240,7 @@ function SessionHistoryPanel({
           <button key={sessionItem.sessionId} type="button" onClick={() => onOpenSession(sessionItem)} className="rounded-xl border border-white/10 bg-black/15 p-3 text-start transition hover:border-[#C9A86A]/45 hover:bg-[#C9A86A]/10">
             <span className="block truncate font-arsans text-sm text-[#F7F3EC]/84" dir="auto">{sessionItem.title}</span>
             <span className="mt-1 block font-mono text-[10px] uppercase tracking-[0.08em] text-[#F7F3EC]/35" dir="ltr">
-              {sessionItem.messages.length} messages · {sessionItem.activePersonaId} · {sessionItem.updatedAt ? new Date(sessionItem.updatedAt).toLocaleDateString(isArabic ? "ar-EG" : "en-US") : "local"}
+              {sessionItem.messageCount ?? sessionItem.messages.length} messages · {sessionItem.activePersonaId} · {sessionItem.updatedAt ? new Date(sessionItem.updatedAt).toLocaleDateString(isArabic ? "ar-EG" : "en-US") : "local"}
             </span>
           </button>
         )) : (
@@ -2867,6 +3431,175 @@ function StarterMomentRail({ language, onSelect }: { language: Language; onSelec
         ))}
       </div>
     </div>
+  );
+}
+
+function TrustChipRow({ language }: { language: Language }) {
+  const isArabic = language === "ar";
+  const chips = isArabic ? ["خاص", "ليس علاجاً", "عربي / English", "خطوة صغيرة"] : ["Private", "Not therapy", "Arabic / English", "One small step"];
+
+  return (
+    <div className="mt-4 flex max-w-md flex-wrap justify-center gap-2" dir={isArabic ? "rtl" : "ltr"}>
+      {chips.map((chip) => (
+        <span key={chip} className="rounded-full border border-white/10 bg-black/18 px-3 py-1.5 font-arsans text-[11px] text-[#F7F3EC]/52 backdrop-blur">
+          {chip}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function FeatureAnnouncementCard({ language, onTry }: { language: Language; onTry: () => void }) {
+  const isArabic = language === "ar";
+
+  return (
+    <section className="mt-4 w-full rounded-2xl border border-cyan-100/25 bg-cyan-100/[0.07] p-3 text-start shadow-2xl backdrop-blur" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="ui-kicker text-cyan-100/85">{isArabic ? "ميزة جديدة" : "New feature"}</p>
+          <h2 className="mt-1 font-arui text-lg font-semibold leading-7 text-[#F7F3EC]/92">
+            {isArabic ? "جرّب لوحة المشاهد بخطوة واحدة" : "Try Storyboard in one tap"}
+          </h2>
+          <div className="mt-2 grid gap-1.5 font-arsans text-sm leading-6 text-[#F7F3EC]/58">
+            {(isArabic
+              ? ["اضغط الزر لتشغيل مثال بصري جاهز.", "بعد الرد، انزل إلى خلاصة الفضفضة.", "اضغط حوّلها للوحة مشاهد لترى صوراً وبرومبتات."]
+              : ["Press the button to run a visual demo.", "After the reply, scroll to the Reflection summary.", "Press Turn into storyboard to see images and prompts."]
+            ).map((step, index) => (
+              <p key={step} className="grid grid-cols-[1.5rem_1fr] gap-2">
+                <span className="grid h-6 w-6 place-items-center rounded-full bg-cyan-100/12 font-mono text-[10px] text-cyan-100">{index + 1}</span>
+                <span>{step}</span>
+              </p>
+            ))}
+          </div>
+        </div>
+        <span className="shrink-0 rounded-full border border-cyan-100/25 bg-black/20 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-cyan-100" dir="ltr">
+          Story
+        </span>
+      </div>
+      <button type="button" onClick={onTry} className="ui-action mt-3 w-full rounded-xl bg-cyan-100 px-4 py-3 text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
+        {isArabic ? "شغّل مثال توليد الصور" : "Run image generation demo"}
+      </button>
+    </section>
+  );
+}
+
+function PlusWelcomeCard({ language, onExplore, onClose }: { language: Language; onExplore: () => void; onClose: () => void }) {
+  const isArabic = language === "ar";
+  const items = isArabic
+    ? ["كل الرفقاء والشخصيات", "حفظ الجلسات والعودة لها", "لوحات مشاهد وبطاقات إثبات", "استمرارية أعمق للرحلة"]
+    : ["All companions and personas", "Saved sessions you can reopen", "Storyboards and proof cards", "Deeper journey continuity"];
+
+  return (
+    <section className="mt-4 w-full rounded-2xl border border-gold/35 bg-gold/[0.09] p-4 text-start shadow-2xl backdrop-blur" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="ui-kicker text-gold">{isArabic ? "أهلاً بك في بلس" : "Welcome to Plus"}</p>
+          <h2 className="mt-1 font-arui text-xl font-semibold text-[#F7F3EC]/94">{isArabic ? "رحلتك أصبحت مفتوحة أكثر" : "Your journey is now more open"}</h2>
+        </div>
+        <button type="button" onClick={onClose} className="rounded-full border border-white/10 px-2.5 py-1 font-mono text-xs text-[#F7F3EC]/45 transition hover:border-gold/45 hover:text-gold" aria-label={isArabic ? "إغلاق ترحيب بلس" : "Close Plus welcome"}>×</button>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {items.map((item) => (
+          <p key={item} className="rounded-xl border border-white/10 bg-black/16 px-3 py-2 font-arsans text-sm text-[#F7F3EC]/68">{item}</p>
+        ))}
+      </div>
+      <button type="button" onClick={onExplore} className="ui-action mt-3 w-full rounded-xl bg-gold px-4 py-3 text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
+        {isArabic ? "استكشف مزايا بلس" : "Explore Plus benefits"}
+      </button>
+    </section>
+  );
+}
+
+function JudgeDemoCallout({ language, onRun }: { language: Language; onRun: () => void }) {
+  const isArabic = language === "ar";
+
+  return (
+    <section className="mt-4 w-full rounded-2xl border border-emerald-200/20 bg-emerald-200/[0.055] p-3 text-start shadow-xl backdrop-blur" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="ui-kicker text-emerald-100/80">{isArabic ? "عرض الحكام" : "Judge demo"}</p>
+          <p className="mt-1 font-arsans text-sm leading-6 text-[#F7F3EC]/62">
+            {isArabic ? "شغّل رحلة جاهزة تعرض: رفيق مناسب، رد عاطفي، إيصال، ولوحة مشاهد." : "Run a ready journey showing companion match, reflection, receipt, and storyboard."}
+          </p>
+        </div>
+        <button type="button" onClick={onRun} className="ui-action shrink-0 rounded-full bg-emerald-100 px-3 py-2 text-xs text-[#0E0D10] transition hover:bg-[#F7F3EC]">
+          {isArabic ? "تشغيل" : "Run"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function FirstMomentPanel({ language, onSelect, onPersona, onDemo }: { language: Language; onSelect: (text: string, world: WorldId) => void; onPersona: () => void; onDemo: () => void }) {
+  const isArabic = language === "ar";
+  const moments = isArabic
+    ? [
+        { label: "محتاج أفضفض", text: "أنا محتاج أفضفض من غير حكم. اسمعني بهدوء وساعدني أفهم اللي جوايا.", world: "calm" as WorldId },
+        { label: "حوّلها لخطة", text: "عندي حاجة مضايقاني ومحتاج أحولها لخطوة عملية صغيرة أبدأ بها الآن.", world: "build" as WorldId },
+        { label: "احكيها كقصة", text: "حوّل إحساسي إلى مشهد رمزي قصير يساعدني أشوف نفسي من بعيد.", world: "story" as WorldId },
+        { label: "طمني", text: "محتاج طمأنة هادئة وكلام بسيط يساعدني أتنفس بدون نصائح كثيرة.", world: "faith" as WorldId },
+      ]
+    : [
+        { label: "I need to vent", text: "I need to vent without judgment. Listen calmly and help me understand what is inside me.", world: "calm" as WorldId },
+        { label: "Turn it into a plan", text: "Something is bothering me and I need to turn it into one practical step I can start now.", world: "build" as WorldId },
+        { label: "Tell it as a story", text: "Turn this feeling into a short symbolic scene that helps me see myself from a distance.", world: "story" as WorldId },
+        { label: "Reassure me", text: "I need calm reassurance and simple words that help me breathe without too much advice.", world: "faith" as WorldId },
+      ];
+
+  return (
+    <section className="mt-5 w-full rounded-2xl border border-[#C9A86A]/20 bg-black/18 p-3 shadow-2xl backdrop-blur" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="flex items-start justify-between gap-3 px-1 text-start">
+        <div>
+          <p className="ui-kicker text-[#C9A86A]/85">{isArabic ? "اختر البداية" : "Choose your start"}</p>
+          <p className="mt-1 font-arsans text-sm leading-6 text-[#F7F3EC]/62">{isArabic ? "لا تفكر في صياغة مثالية. اختر ما تحتاجه الآن." : "No need to phrase it perfectly. Pick what you need now."}</p>
+        </div>
+        <button type="button" onClick={onPersona} className="shrink-0 rounded-full border border-white/10 px-3 py-1.5 font-arsans text-[11px] text-[#F7F3EC]/58 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
+          {isArabic ? "اختر رفيق" : "Pick companion"}
+        </button>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {moments.map((moment) => (
+          <button key={moment.label} type="button" onClick={() => onSelect(moment.text, moment.world)} className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-3 text-start transition-all hover:-translate-y-0.5 hover:border-[#C9A86A]/45 hover:bg-[#C9A86A]/10">
+            <span className="block font-arsans text-sm font-semibold text-[#F7F3EC]/88">{moment.label}</span>
+            <span className="mt-1 block font-arsans text-[11px] text-[#C9A86A]/70">{worldLabels[moment.world][language]}</span>
+          </button>
+        ))}
+      </div>
+      <button type="button" onClick={onDemo} className="mt-3 w-full rounded-xl border border-cyan-100/25 bg-cyan-100/10 px-3 py-3 text-center font-arsans text-sm text-cyan-100 transition-colors hover:bg-cyan-100 hover:text-[#0E0D10]">
+        {isArabic ? "جرّب لقطة الديمو في ٦٠ ثانية" : "Try the 60-second demo moment"}
+      </button>
+    </section>
+  );
+}
+
+function ReturnMemoryCard({ language, continuity, onContinue, onSaveSnapshot }: { language: Language; continuity: ReturnType<typeof buildConversationContinuity>; onContinue: () => void; onSaveSnapshot: () => void }) {
+  if (!continuity || continuity.count < 1) return null;
+
+  const isArabic = language === "ar";
+
+  return (
+    <section className="mt-4 w-full rounded-2xl border border-emerald-200/20 bg-emerald-200/[0.045] p-3 text-start shadow-xl backdrop-blur" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="ui-kicker text-emerald-100/80">{isArabic ? "ذاكرة ناعمة" : "Soft memory"}</p>
+          <p className="mt-1 truncate font-arsans text-sm text-[#F7F3EC]/72">
+            {isArabic ? "آخر خيط: " : "Last thread: "}{continuity.topic}
+          </p>
+          <p className="mt-1 line-clamp-2 font-arsans text-xs leading-5 text-[#F7F3EC]/48">
+            {isArabic ? "الخطوة التالية: " : "Next step: "}{continuity.step}
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full border border-white/10 bg-black/20 px-2.5 py-1 font-arsans text-[10px] text-emerald-100/78">{worldLabels[continuity.world][language]}</span>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <button type="button" onClick={onContinue} className="ui-action rounded-lg bg-emerald-100 px-3 py-2.5 text-xs text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
+          {isArabic ? "كمّل الخيط" : "Continue thread"}
+        </button>
+        <button type="button" onClick={onSaveSnapshot} className="ui-action rounded-lg border border-emerald-100/35 px-3 py-2.5 text-xs text-emerald-100 transition-colors hover:bg-emerald-100 hover:text-[#0E0D10]">
+          {isArabic ? "احفظ لقطة" : "Save snapshot"}
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -3449,8 +4182,7 @@ function MomentActions({
   onShare,
   onProof,
   onDownload,
-  onSpeak,
-  speaking,
+  onPersona,
   onHelpful,
   onSofter,
 }: {
@@ -3463,15 +4195,14 @@ function MomentActions({
   onShare: () => void;
   onProof: () => void;
   onDownload: () => void;
-  onSpeak: () => void;
-  speaking: boolean;
+  onPersona: () => void;
   onHelpful: () => void;
   onSofter: () => void;
 }) {
   const isArabic = language === "ar";
   const [open, setOpen] = useState(false);
   const loadingLabel = isArabic ? "جار التنفيذ" : "Working";
-  const actionClass = "w-full rounded-xl border border-[#F7F3EC]/10 bg-white/[0.025] px-3 py-2.5 text-start font-arsans text-xs text-[#F7F3EC]/72 transition-colors hover:border-[#C9A86A]/45 hover:bg-[#C9A86A]/10 hover:text-[#C9A86A] disabled:animate-pulse disabled:opacity-65";
+  const actionClass = "flex w-full items-center gap-3 rounded-xl border border-[#F7F3EC]/10 bg-white/[0.025] px-3 py-2.5 text-start font-arsans text-xs text-[#F7F3EC]/72 transition-colors hover:border-[#C9A86A]/45 hover:bg-[#C9A86A]/10 hover:text-[#C9A86A] disabled:animate-pulse disabled:opacity-65";
 
   function runFromMenu(action: () => void) {
     setOpen(false);
@@ -3488,32 +4219,370 @@ function MomentActions({
             {isArabic ? "إغلاق" : "Close"}
           </button>
         </div>
-        <button type="button" onClick={() => runFromMenu(onSave)} disabled={pendingAction === "save"} className={actionClass}>{pendingAction === "save" ? loadingLabel : saved ? (isArabic ? "تم الحفظ" : "Saved") : isArabic ? "احفظ اللحظة" : "Save moment"}</button>
-        <button type="button" onClick={() => runFromMenu(onPlan)} disabled={pendingAction === "plan"} className={actionClass}>{pendingAction === "plan" ? loadingLabel : isArabic ? "خطة صغيرة" : "Tiny plan"}</button>
-        <button type="button" onClick={() => runFromMenu(onSpeak)} disabled={pendingAction === "speak"} className={actionClass}>{pendingAction === "speak" ? loadingLabel : speaking ? (isArabic ? "إيقاف الصوت" : "Stop voice") : isArabic ? "استمع" : "Listen"}</button>
-        <button type="button" onClick={() => runFromMenu(onShare)} disabled={pendingAction === "share"} className={actionClass}>{pendingAction === "share" ? loadingLabel : isArabic ? "شارك الرد" : "Share reply"}</button>
-        <button type="button" onClick={() => runFromMenu(onProof)} disabled={pendingAction === "proof"} className={actionClass}>{pendingAction === "proof" ? loadingLabel : isArabic ? "بطاقة إثبات" : "Proof card"}</button>
-        <button type="button" onClick={() => runFromMenu(onDownload)} disabled={pendingAction === "download"} className={actionClass}>{pendingAction === "download" ? loadingLabel : isArabic ? "حمّل كبسولة" : "Download capsule"}</button>
+        <button type="button" onClick={() => runFromMenu(onSave)} disabled={pendingAction === "save"} className={actionClass}><ActionGlyph name="save" /> <span>{pendingAction === "save" ? loadingLabel : saved ? (isArabic ? "تم الحفظ" : "Saved") : isArabic ? "احفظ اللحظة" : "Save moment"}</span></button>
+        <button type="button" onClick={() => runFromMenu(onPlan)} disabled={pendingAction === "plan"} className={actionClass}><ActionGlyph name="plan" /> <span>{pendingAction === "plan" ? loadingLabel : isArabic ? "خطة صغيرة" : "Tiny plan"}</span></button>
+        <button type="button" onClick={() => runFromMenu(onShare)} disabled={pendingAction === "share"} className={actionClass}><ActionGlyph name="share" /> <span>{pendingAction === "share" ? loadingLabel : isArabic ? "شارك الرد" : "Share reply"}</span></button>
+        <button type="button" onClick={() => runFromMenu(onProof)} disabled={pendingAction === "proof"} className={actionClass}><ActionGlyph name="proof" /> <span>{pendingAction === "proof" ? loadingLabel : isArabic ? "بطاقة إثبات" : "Proof card"}</span></button>
+        <button type="button" onClick={() => runFromMenu(onDownload)} disabled={pendingAction === "download"} className={actionClass}><ActionGlyph name="download" /> <span>{pendingAction === "download" ? loadingLabel : isArabic ? "حمّل كبسولة" : "Download capsule"}</span></button>
         <div className="my-1 h-px bg-white/10" />
-        <button type="button" onClick={() => runFromMenu(onHelpful)} disabled={pendingAction === "helpful"} className={actionClass}>{pendingAction === "helpful" ? loadingLabel : feedbackSent ? (isArabic ? "وصلنا رأيك" : "Noted") : isArabic ? "مفيد" : "Helpful"}</button>
-        <button type="button" onClick={() => runFromMenu(onSofter)} disabled={pendingAction === "softer"} className={actionClass}>{pendingAction === "softer" ? loadingLabel : isArabic ? "أهدى" : "Softer"}</button>
+        <button type="button" onClick={() => runFromMenu(onHelpful)} disabled={pendingAction === "helpful"} className={actionClass}><ActionGlyph name="helpful" /> <span>{pendingAction === "helpful" ? loadingLabel : feedbackSent ? (isArabic ? "وصلنا رأيك" : "Noted") : isArabic ? "مفيد" : "Helpful"}</span></button>
+        <button type="button" onClick={() => runFromMenu(onSofter)} disabled={pendingAction === "softer"} className={actionClass}><ActionGlyph name="softer" /> <span>{pendingAction === "softer" ? loadingLabel : isArabic ? "أهدى" : "Softer"}</span></button>
       </div>
     </div>,
     document.body
   ) : null;
 
   return (
-    <div className="mt-4 flex justify-end" dir={isArabic ? "rtl" : "ltr"}>
+    <div className="mt-4 flex flex-wrap justify-end gap-2" dir={isArabic ? "rtl" : "ltr"}>
+      <button type="button" onClick={onSave} disabled={pendingAction === "save"} className="ui-action inline-flex items-center gap-1.5 rounded-full border border-emerald-200/30 bg-emerald-200/10 px-3 py-2 text-xs text-emerald-100 transition-colors hover:bg-emerald-200 hover:text-[#0E0D10] disabled:animate-pulse disabled:opacity-65">
+        <ActionGlyph name="save" />
+        <span>{pendingAction === "save" ? loadingLabel : saved ? (isArabic ? "محفوظ" : "Saved") : isArabic ? "احفظ" : "Save"}</span>
+      </button>
+      <button type="button" onClick={onPlan} disabled={pendingAction === "plan"} className="ui-action inline-flex items-center gap-1.5 rounded-full border border-cyan-100/30 bg-cyan-100/10 px-3 py-2 text-xs text-cyan-100 transition-colors hover:bg-cyan-100 hover:text-[#0E0D10] disabled:animate-pulse disabled:opacity-65">
+        <ActionGlyph name="plan" />
+        <span>{pendingAction === "plan" ? loadingLabel : isArabic ? "خطة" : "Plan"}</span>
+      </button>
+      <button type="button" onClick={onPersona} className="ui-action inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-[#F7F3EC]/62 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
+        <ActionGlyph name="persona" />
+        <span>{isArabic ? "جرّب رفيق" : "Try companion"}</span>
+      </button>
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="ui-action rounded-full border border-[#C9A86A]/35 bg-[#C9A86A]/10 px-3 py-2 text-xs text-[#C9A86A] shadow-[0_12px_30px_rgba(0,0,0,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#C9A86A] hover:text-[#0E0D10] hover:shadow-[0_18px_48px_rgba(201,168,106,0.22)]"
+        className="ui-action inline-flex items-center gap-1.5 rounded-full border border-[#C9A86A]/35 bg-[#C9A86A]/10 px-3 py-2 text-xs text-[#C9A86A] shadow-[0_12px_30px_rgba(0,0,0,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#C9A86A] hover:text-[#0E0D10] hover:shadow-[0_18px_48px_rgba(201,168,106,0.22)]"
         aria-expanded={open}
       >
-        {isArabic ? "إجراءات اللحظة" : "Moment actions"}
+        <ActionGlyph name="more" />
+        <span>{isArabic ? "إجراءات" : "Actions"}</span>
       </button>
       {menu}
     </div>
+  );
+}
+
+function VoicePlaybackButton({ language, speaking, loading, onClick }: { language: Language; speaking: boolean; loading: boolean; onClick: () => void }) {
+  const isArabic = language === "ar";
+  const label = loading ? (isArabic ? "جار التجهيز" : "Preparing") : speaking ? (isArabic ? "إيقاف الصوت" : "Stop voice") : isArabic ? "استمع للرد" : "Listen to reply";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={loading}
+      className={`ui-action mt-4 inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-xs shadow-[0_14px_36px_rgba(0,0,0,0.22)] transition-all hover:-translate-y-0.5 disabled:animate-pulse disabled:opacity-70 ${speaking ? "border-red-200/35 bg-red-200/12 text-red-100 hover:bg-red-200 hover:text-[#0E0D10]" : "border-[#C9A86A]/45 bg-[#C9A86A]/12 text-[#C9A86A] hover:bg-[#C9A86A] hover:text-[#0E0D10]"}`}
+      aria-pressed={speaking}
+      aria-label={label}
+    >
+      <span className={speaking ? "relative grid h-7 w-7 place-items-center rounded-full bg-red-200/14" : "relative grid h-7 w-7 place-items-center rounded-full bg-[#C9A86A]/16"}>
+        {speaking ? <span className="absolute inset-0 rounded-full border border-red-100/50 animate-ping" aria-hidden="true" /> : null}
+        <ActionGlyph name={speaking ? "stop" : "listen"} />
+      </span>
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function ActionGlyph({ name }: { name: "save" | "plan" | "share" | "proof" | "download" | "helpful" | "softer" | "persona" | "more" | "listen" | "stop" }) {
+  const common = "h-4 w-4 shrink-0";
+
+  if (name === "save") return <svg className={common} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 4.75h9.2l2.8 2.8v11.7H6V4.75Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /><path d="M8.75 4.75v5h6.5v-5M8.75 19.25v-5h6.5v5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>;
+  if (name === "plan") return <svg className={common} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 5.75h10M7 12h10M7 18.25h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /><path d="m15.25 16.75 1.55 1.55 3.1-3.4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  if (name === "share") return <svg className={common} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8.25 12.5 15.75 8M8.25 12.5l7.5 4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /><path d="M6.5 15.25a2.75 2.75 0 1 0 0-5.5 2.75 2.75 0 0 0 0 5.5ZM17.5 9.75a2.75 2.75 0 1 0 0-5.5 2.75 2.75 0 0 0 0 5.5ZM17.5 19.75a2.75 2.75 0 1 0 0-5.5 2.75 2.75 0 0 0 0 5.5Z" stroke="currentColor" strokeWidth="1.8" /></svg>;
+  if (name === "proof") return <svg className={common} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.75 19 7v5.2c0 4.05-2.85 7.1-7 8.05-4.15-.95-7-4-7-8.05V7l7-3.25Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /><path d="m8.8 12.1 2.1 2.1 4.45-4.65" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  if (name === "download") return <svg className={common} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4.5v9M8.25 10.25 12 14l3.75-3.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /><path d="M5.5 18.75h13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>;
+  if (name === "helpful") return <svg className={common} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7.5 20.25h8.65a2 2 0 0 0 1.96-1.6l1.1-5.4a2 2 0 0 0-1.96-2.4H14.5l.55-3.2A2.45 2.45 0 0 0 12.65 4.75L8.5 10.6h-1v9.65Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /><path d="M4.25 10.6h3.25v9.65H4.25V10.6Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>;
+  if (name === "softer") return <svg className={common} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20.25c3.9-2.65 6.5-5.6 6.5-9.2A5.25 5.25 0 0 0 8.95 8.05 5.25 5.25 0 0 0 5.5 17.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /><path d="M8 16.5c1.7-1.7 4.3-1.7 6 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>;
+  if (name === "persona") return <svg className={common} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 12.25a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z" stroke="currentColor" strokeWidth="1.8" /><path d="M5.75 20.25a6.25 6.25 0 0 1 12.5 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>;
+  if (name === "more") return <svg className={common} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 6.75v10.5M6.75 12h10.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" /></svg>;
+  if (name === "stop") return <svg className={common} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 8h8v8H8V8Z" fill="currentColor" /></svg>;
+  return <svg className={common} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 9.5v5M11 7v10M15 9.5v5M19 11v2M5 11v2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" /></svg>;
+}
+
+function ReflectionReceiptCard({
+  language,
+  message,
+  userMessage,
+  personaName,
+  onSaveSnapshot,
+  onSafeShare,
+  onProofShare,
+  onStartQuest,
+}: {
+  language: Language;
+  message: ChatMessage;
+  userMessage: ChatMessage | undefined;
+  personaName: string;
+  onSaveSnapshot: () => void;
+  onSafeShare: () => void;
+  onProofShare: () => void;
+  onStartQuest: () => void;
+}) {
+  const isArabic = language === "ar";
+  const receipt = buildReflectionReceipt(message, userMessage, language);
+  const storyboard = useMemo(() => buildStoryMirrorBoard(message, userMessage, personaName, language), [language, message, personaName, userMessage]);
+  const [storyboardOpen, setStoryboardOpen] = useState(false);
+
+  return (
+    <section className="animate-rise-in rounded-2xl border border-[#C9A86A]/25 bg-[#C9A86A]/[0.055] p-4 text-start shadow-2xl backdrop-blur" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="ui-kicker text-[#C9A86A]/85">{isArabic ? "خلاصة الفضفضة" : "Reflection summary"}</p>
+          <h3 className="mt-1 font-arui text-xl font-semibold text-[#F7F3EC]/92">{isArabic ? "ما الذي فهمناه؟ وما الخطوة؟" : "What did we understand, and what is next?"}</h3>
+        </div>
+        <span className="shrink-0 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 font-arsans text-[11px] text-[#F7F3EC]/58">{personaName}</span>
+      </div>
+      <div className="mt-4 grid gap-2">
+        <ReceiptLine label={isArabic ? "دخلت بـ" : "Came in with"} value={receipt.cameInWith} accent="text-cyan-100" />
+        <ReceiptLine label={isArabic ? "سمّيت" : "Named"} value={receipt.named} accent="text-[#C9A86A]" />
+        <ReceiptLine label={isArabic ? "خطوتك" : "Next step"} value={receipt.nextStep} accent="text-emerald-100" />
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <button type="button" onClick={onSafeShare} className="ui-action min-h-10 rounded-lg bg-[#C9A86A] px-3 py-2.5 text-xs leading-4 text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
+          {isArabic ? "شارك بأمان" : "Safe share"}
+        </button>
+        <button type="button" onClick={onProofShare} className="ui-action min-h-10 rounded-lg border border-cyan-100/30 px-3 py-2.5 text-xs leading-4 text-cyan-100 transition-colors hover:bg-cyan-100 hover:text-[#0E0D10]">
+          {isArabic ? "إثبات" : "Proof"}
+        </button>
+        <button type="button" onClick={onSaveSnapshot} className="ui-action min-h-10 rounded-lg border border-emerald-100/30 px-3 py-2.5 text-xs leading-4 text-emerald-100 transition-colors hover:bg-emerald-100 hover:text-[#0E0D10]">
+          {isArabic ? "لقطة" : "Snapshot"}
+        </button>
+        <button type="button" onClick={onStartQuest} className="ui-action min-h-10 rounded-lg border border-white/10 px-3 py-2.5 text-xs leading-4 text-[#F7F3EC]/70 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
+          {isArabic ? "تحدي" : "Quest"}
+        </button>
+      </div>
+      <button type="button" onClick={() => setStoryboardOpen((open) => !open)} className="mt-3 w-full rounded-lg border border-blue-200/25 bg-blue-200/10 px-3 py-3 text-center font-arsans text-xs text-blue-100 transition-colors hover:bg-blue-100 hover:text-[#0E0D10]">
+        {storyboardOpen ? (isArabic ? "إخفاء لوحة المشاهد" : "Hide storyboard") : isArabic ? "حوّلها للوحة مشاهد" : "Turn into storyboard"}
+      </button>
+      {storyboardOpen ? <StoryMirrorBoard language={language} shots={storyboard} /> : null}
+    </section>
+  );
+}
+
+function StoryMirrorBoard({ language, shots }: { language: Language; shots: StoryMirrorShot[] }) {
+  const isArabic = language === "ar";
+  const [activeShotIndex, setActiveShotIndex] = useState(0);
+  const [copiedScene, setCopiedScene] = useState<number | null>(null);
+  const [exportStatus, setExportStatus] = useState<"idle" | "saved">("idle");
+  const [refreshNonce, setRefreshNonce] = useState(0);
+  const [imageStates, setImageStates] = useState<Record<number, StoryMirrorImageState>>({});
+  const activeShot = shots[Math.min(activeShotIndex, shots.length - 1)] || shots[0];
+  const cast = buildStoryMirrorCast(shots, language);
+  const activeImageState = activeShot ? imageStates[activeShot.sceneNumber] : undefined;
+
+  useEffect(() => {
+    let cancelled = false;
+    shots.forEach((shot) => {
+      setImageStates((current) => ({ ...current, [shot.sceneNumber]: { status: "loading" } }));
+
+      fetch(`/api/storyboard/image?fresh=${Date.now()}-${refreshNonce}-${shot.sceneNumber}`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-cache" },
+        body: JSON.stringify({ prompt: shot.prompt, title: shot.title, sceneNumber: shot.sceneNumber, variation: refreshNonce, language }),
+      })
+        .then(async (response) => {
+          if (!response.ok) throw new Error("Storyboard image failed");
+          return (await response.json()) as { imageDataUrl?: string; source?: string; model?: string };
+        })
+        .then((data) => {
+          if (cancelled) return;
+          if (!data.imageDataUrl) throw new Error("Storyboard image missing");
+          setImageStates((current) => ({ ...current, [shot.sceneNumber]: { status: "ready", imageDataUrl: data.imageDataUrl, source: data.source, model: data.model } }));
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setImageStates((current) => ({ ...current, [shot.sceneNumber]: { status: "error" } }));
+        });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [language, refreshNonce, shots]);
+
+  async function copyPrompt(shot: StoryMirrorShot) {
+    try {
+      await copyTextToClipboard(shot.prompt);
+      setCopiedScene(shot.sceneNumber);
+      window.setTimeout(() => setCopiedScene(null), 1800);
+    } catch {
+      setCopiedScene(null);
+    }
+  }
+
+  async function copyAllPrompts() {
+    const text = shots.map((shot) => `${shot.sceneNumber}. ${shot.title}\n${shot.prompt}`).join("\n\n");
+    await copyTextToClipboard(text);
+    setCopiedScene(0);
+    window.setTimeout(() => setCopiedScene(null), 1800);
+  }
+
+  function exportBoard() {
+    const markdown = buildStoryMirrorMarkdown(shots, cast, language);
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `fadfada-story-mirror-${new Date().toISOString().slice(0, 10)}.md`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setExportStatus("saved");
+    window.setTimeout(() => setExportStatus("idle"), 1800);
+  }
+
+  return (
+    <div className="mt-4 rounded-2xl border border-blue-200/25 bg-blue-200/[0.045] p-3" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="ui-kicker text-blue-100/80">{isArabic ? "لوحة المشاهد" : "Story mirror board"}</p>
+          <h4 className="mt-1 font-arui text-lg font-semibold text-[#F7F3EC]/90">{isArabic ? "شخصيات، مشاهد، وبرومبتات صور" : "Characters, scenes, and image prompts"}</h4>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <button type="button" onClick={() => setRefreshNonce((current) => current + 1)} className="rounded-full border border-blue-100/25 px-2.5 py-1 font-arsans text-[10px] text-blue-100 transition-colors hover:bg-blue-100 hover:text-[#0E0D10]">
+            {isArabic ? "صورة جديدة" : "New visual"}
+          </button>
+          <span className="rounded-full bg-blue-200/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-blue-100">{shots.length} shots</span>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        {cast.map((character) => (
+          <article key={character.name} className="rounded-xl border border-white/10 bg-black/16 p-3">
+            <div className="flex items-center gap-2">
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-blue-200/12 font-arsans text-sm text-blue-100">{character.icon}</span>
+              <div className="min-w-0">
+                <p className="truncate font-arsans text-sm font-semibold text-[#F7F3EC]/88">{character.name}</p>
+                <p className="font-arsans text-[11px] text-blue-100/65">{character.role}</p>
+              </div>
+            </div>
+            <p className="mt-2 line-clamp-3 font-arsans text-xs leading-5 text-[#F7F3EC]/50">{character.description}</p>
+          </article>
+        ))}
+      </div>
+
+      {activeShot ? (
+        <section className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+          <div className="relative aspect-video overflow-hidden bg-[radial-gradient(circle_at_22%_18%,rgba(191,219,254,0.22),transparent_28%),radial-gradient(circle_at_78%_78%,rgba(201,168,106,0.18),transparent_30%),linear-gradient(135deg,rgba(8,13,22,0.96),rgba(20,25,45,0.92))]">
+            {activeImageState?.status === "ready" && activeImageState.imageDataUrl ? (
+              <img src={activeImageState.imageDataUrl} alt={activeShot.title} className="h-full w-full object-cover" />
+            ) : (
+              <div className="grid h-full place-items-center p-5 text-center">
+                <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 font-arsans text-sm text-blue-100/72">
+                  {activeImageState?.status === "error" ? (isArabic ? "لم تُنشأ الصورة الآن. البرومبت جاهز للنسخ." : "Image could not be created now. The prompt is ready to copy.") : isArabic ? "جار إنشاء صورة المشهد..." : "Creating scene image..."}
+                </div>
+              </div>
+            )}
+            <div className="absolute inset-0 flex flex-col justify-between bg-gradient-to-t from-black/78 via-black/12 to-black/35 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <span className="rounded-full bg-blue-200/12 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-blue-100">{activeShot.shotType}</span>
+                <span className="rounded-full bg-[#C9A86A]/12 px-3 py-1 font-mono text-[10px] text-[#C9A86A]">{activeShot.duration}</span>
+              </div>
+              <div>
+                <h5 className="font-arui text-xl font-semibold text-[#F7F3EC]/95">{activeShot.title}</h5>
+                <p className="mt-2 max-w-xl font-arsans text-sm leading-6 text-[#F7F3EC]/62">{activeShot.visualNotes}</p>
+                {activeImageState?.source ? <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.08em] text-blue-100/55">{activeImageState.source}</p> : null}
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-1 border-t border-white/10 bg-black/16 p-2">
+            {shots.map((shot, index) => (
+              <button key={shot.sceneNumber} type="button" onClick={() => setActiveShotIndex(index)} className={`rounded-lg px-2 py-2 text-center font-arsans text-[11px] transition-colors ${index === activeShotIndex ? "bg-blue-100 text-[#0E0D10]" : "text-blue-100/70 hover:bg-blue-100/10"}`}>
+                {isArabic ? "مشهد" : "Scene"} {shot.sceneNumber}
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <button type="button" onClick={() => void copyAllPrompts()} className="ui-action rounded-lg border border-blue-100/30 px-3 py-2.5 text-xs text-blue-100 transition-colors hover:bg-blue-100 hover:text-[#0E0D10]">
+          {copiedScene === 0 ? (isArabic ? "نُسخت البرومبتات" : "Prompts copied") : isArabic ? "انسخ كل برومبتات الصور" : "Copy all image prompts"}
+        </button>
+        <button type="button" onClick={exportBoard} className="ui-action rounded-lg border border-[#C9A86A]/35 px-3 py-2.5 text-xs text-[#C9A86A] transition-colors hover:bg-[#C9A86A] hover:text-[#0E0D10]">
+          {exportStatus === "saved" ? (isArabic ? "تم تنزيل الملف" : "Downloaded") : isArabic ? "نزّل اللوحة كملف" : "Download board file"}
+        </button>
+      </div>
+
+      <div className="mt-3 grid gap-3">
+        {shots.map((shot) => (
+          <article key={shot.sceneNumber} className="rounded-xl border border-white/10 bg-black/18 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-blue-200/12 font-mono text-xs text-blue-100">{shot.sceneNumber}</span>
+                <div className="min-w-0">
+                  <h5 className="truncate font-arsans text-sm font-semibold text-[#F7F3EC]/88">{shot.title}</h5>
+                  <p className="mt-0.5 font-arsans text-[11px] text-blue-100/68">{shot.shotType} · {shot.duration}</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => void copyPrompt(shot)} className="shrink-0 rounded-full border border-blue-100/25 px-2.5 py-1 font-arsans text-[10px] text-blue-100 transition-colors hover:bg-blue-100 hover:text-[#0E0D10]">
+                {copiedScene === shot.sceneNumber ? (isArabic ? "نُسخ" : "Copied") : isArabic ? "انسخ البرومبت" : "Copy prompt"}
+              </button>
+            </div>
+            <div className="mt-3 grid gap-2 text-start">
+              {imageStates[shot.sceneNumber]?.status === "ready" && imageStates[shot.sceneNumber]?.imageDataUrl ? (
+                <img src={imageStates[shot.sceneNumber].imageDataUrl} alt={shot.title} className="aspect-video w-full rounded-lg border border-white/10 object-cover" />
+              ) : null}
+              <p className="font-arsans text-xs leading-5 text-[#F7F3EC]/62"><span className="text-blue-100">{isArabic ? "الصورة: " : "Visual: "}</span>{shot.visualNotes}</p>
+              <p className="font-arsans text-xs leading-5 text-[#F7F3EC]/52"><span className="text-pink-100">{isArabic ? "الصوت: " : "Audio: "}</span>{shot.audioNotes}</p>
+              <p className="rounded-lg border border-white/10 bg-white/[0.025] px-3 py-2 font-arsans text-[11px] leading-5 text-[#F7F3EC]/48"><span className="text-[#C9A86A]">Prompt: </span>{shot.prompt}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function buildStoryMirrorCast(shots: StoryMirrorShot[], language: Language) {
+  const isArabic = language === "ar";
+  const first = shots[0];
+  const second = shots[1];
+  const third = shots[2];
+
+  return isArabic
+    ? [
+        { icon: "أنا", name: "أنا الآن", role: "الشخصية الرئيسية", description: first?.visualNotes || "الشعور كما دخل إلى فضفضة." },
+        { icon: "رف", name: "الرفيق", role: "المرآة الهادئة", description: second?.visualNotes || "يعكس المعنى بدون حكم أو تهويل." },
+        { icon: "خط", name: "الخطوة", role: "المشهد القادم", description: third?.visualNotes || "فعل صغير وواضح يمكن البدء به." },
+      ]
+    : [
+        { icon: "Me", name: "Me now", role: "Main character", description: first?.visualNotes || "The feeling as it entered FadFada." },
+        { icon: "Co", name: "Companion", role: "Calm mirror", description: second?.visualNotes || "Reflects meaning without judgment or drama." },
+        { icon: "Go", name: "The step", role: "Next scene", description: third?.visualNotes || "One small clear action to begin with." },
+      ];
+}
+
+function buildStoryMirrorMarkdown(shots: StoryMirrorShot[], cast: ReturnType<typeof buildStoryMirrorCast>, language: Language) {
+  const isArabic = language === "ar";
+  const lines = [
+    `# ${isArabic ? "لوحة مشاهد فضفضة" : "FadFada Story Mirror Board"}`,
+    "",
+    `## ${isArabic ? "الشخصيات" : "Cast"}`,
+    "",
+    ...cast.flatMap((character) => [`### ${character.name}`, `- ${isArabic ? "الدور" : "Role"}: ${character.role}`, `- ${isArabic ? "الوصف" : "Description"}: ${character.description}`, ""]),
+    `## ${isArabic ? "المشاهد" : "Scenes"}`,
+    "",
+    ...shots.flatMap((shot) => [
+      `### ${isArabic ? "مشهد" : "Scene"} ${shot.sceneNumber}: ${shot.title}`,
+      `- ${isArabic ? "نوع اللقطة" : "Shot type"}: ${shot.shotType}`,
+      `- ${isArabic ? "المدة" : "Duration"}: ${shot.duration}`,
+      `- ${isArabic ? "الصورة" : "Visual"}: ${shot.visualNotes}`,
+      `- ${isArabic ? "الصوت" : "Audio"}: ${shot.audioNotes}`,
+      `- Prompt: ${shot.prompt}`,
+      "",
+    ]),
+  ];
+
+  return lines.join("\n");
+}
+
+function ReceiptLine({ label, value, accent }: { label: string; value: string; accent: string }) {
+  return (
+    <p className="rounded-xl border border-white/10 bg-black/16 px-3 py-2 font-arsans text-sm leading-6 text-[#F7F3EC]/68">
+      <span className={`${accent} font-semibold`}>{label}: </span>{value}
+    </p>
   );
 }
 
@@ -3536,6 +4605,7 @@ function PaywallCard({
   language,
   accessState,
   remainingReflections,
+  configuration,
   loading,
   onCheckout,
   onSignIn,
@@ -3544,6 +4614,7 @@ function PaywallCard({
   language: Language;
   accessState: AccessState;
   remainingReflections: number;
+  configuration: typeof defaultExperienceConfiguration;
   loading: boolean;
   onCheckout: () => void;
   onSignIn: () => void;
@@ -3551,6 +4622,7 @@ function PaywallCard({
 }) {
   const isArabic = language === "ar";
   const isAnonymous = accessState === "anonymous";
+  const { anonymousReflectionLimit, signedGiftReflectionLimit, anonymousPersonaLimit, signedPersonaLimit } = configuration;
   const gains = isAnonymous
     ? isArabic
       ? [`هدية تسجيل: ${signedGiftReflectionLimit} ردًا`, `${signedPersonaLimit} رفقاء بدل ${anonymousPersonaLimit}`, "حفظ الرحلة على حسابك", "بدون دفع الآن"]

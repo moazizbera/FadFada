@@ -47,6 +47,13 @@ export function reflectLocally(input: ReflectInput): ReflectOutput {
   const behaviorStyle = input.behaviorStyle || "signature";
   const userIntent = inferIntent(text);
 
+  if (isFadFadaProductFeedbackRequest(text, input.recentMessages)) {
+    return {
+      world: "build",
+      replyText: buildFadFadaProductFeedbackReply(language),
+    };
+  }
+
   if (isArabicFollowUp(text)) {
     const previousTopic = inferPreviousTopic(input.recentMessages);
 
@@ -224,6 +231,28 @@ function buildGeneralReply(text: string, language: "ar" | "en") {
   return language === "ar"
     ? `أنا معك. بدل رد عام، خلينا نمسك ${concern} تحديداً: ما أكثر جزء يضغط عليك فيه الآن؟ اكتب جملة واحدة، وبعدها نختار خطوة صغيرة تناسب هذا الجزء فقط.`
     : `I am with you. Instead of a generic answer, let's hold ${concern} specifically: what is the most pressured part of it right now? Name that in one sentence, then we can choose one small step for that part only.`;
+}
+
+function isFadFadaProductFeedbackRequest(text: string, recentMessages: ReflectInput["recentMessages"]) {
+  const currentText = text.toLowerCase();
+  const recentUserText = (recentMessages || [])
+    .filter((message) => message.role === "user")
+    .slice(-3)
+    .map((message) => message.text.toLowerCase())
+    .join("\n");
+  const contextText = `${recentUserText}\n${currentText}`;
+  const mentionsFadFada = /fadfada|fad fada|فضفضة|فضفضه/.test(contextText);
+  const asksForProductJudgment = /\b(opinion|feedback|review|improve|improvement|missing|miss|amazing support|better support|product|app|feature|features|ux|experience)\b|ناقص|ينقص|رأيك|رايك|تحسين|يحسن|أفضل|افضل/.test(contextText);
+
+  return mentionsFadFada && asksForProductJudgment;
+}
+
+function buildFadFadaProductFeedbackReply(language: "ar" | "en") {
+  if (language === "ar") {
+    return "كرأي منتج: فضفضة لديها أساس قوي: مساحة هادئة، شخصيات مختلفة، عربي/إنجليزي، وخطوة صغيرة بعد الكلام. الناقص لتصبح دعمًا ممتازًا هو: 1. فهم أوضح للسياق عندما يسأل المستخدم عن المنتج نفسه. 2. ذاكرة تقدم تلخص ما تغيّر عبر الجلسات. 3. خطة متابعة بعد كل فضفضة، ليس مجرد رد لطيف. 4. حدود سلامة واضحة عند الخطر. 5. طريقة بسيطة لقياس: هل خرج المستخدم أخف أم بخطوة عملية؟ أول تحسين أبدأ به: اجعل الرد يميز بين فضفضة شخصية وسؤال عن المنتج، ثم يعطي نقدًا مباشرًا مثل هذا.";
+  }
+
+  return "As product feedback: FadFada already has a strong base: a calm space, distinct companions, Arabic/English support, and one small next step after sharing. What is missing for amazing support is: 1. clearer context detection when the user is asking about the product itself. 2. progress memory that summarizes what changed across sessions. 3. follow-up plans after each reflection, not only a kind reply. 4. clearer safety boundaries when risk appears. 5. a simple outcome check: did the user leave lighter or with an action? First improvement I would ship: distinguish personal venting from product-feedback questions, then answer directly like this.";
 }
 
 function extractConcern(text: string, language: "ar" | "en") {
