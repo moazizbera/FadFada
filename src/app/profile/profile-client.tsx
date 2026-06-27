@@ -64,6 +64,8 @@ type CompanionInsight = {
   latestText: string;
 };
 
+type VoiceDialect = "ar-EG" | "ar-SA" | "ar-AE" | "ar-LB";
+
 type Profile = {
   id: string;
   name: string | null;
@@ -97,6 +99,15 @@ const worldLabels: Record<string, { ar: string; en: string }> = {
   grief: { ar: "سكينة", en: "Stillness" },
 };
 
+const voiceDialectStorageKey = "fadfada-voice-dialect";
+
+const voiceDialects: Array<{ value: VoiceDialect; ar: string; en: string; detailAr: string; detailEn: string }> = [
+  { value: "ar-EG", ar: "مصري", en: "Egyptian", detailAr: "دافئ وقريب", detailEn: "warm and close" },
+  { value: "ar-SA", ar: "فصحى هادئة", en: "MSA", detailAr: "واضح ورسمي", detailEn: "clear and formal" },
+  { value: "ar-AE", ar: "خليجي", en: "Gulf", detailAr: "ناعم ومطمئن", detailEn: "soft and steady" },
+  { value: "ar-LB", ar: "شامي", en: "Levantine", detailAr: "خفيف وقريب", detailEn: "light and familiar" },
+];
+
 export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
   const { language, direction } = useAppLocale();
   const isArabic = language === "ar";
@@ -108,16 +119,24 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [billingStatus, setBillingStatus] = useState<"idle" | "opening" | "error">("idle");
   const [billingMessage, setBillingMessage] = useState("");
+  const [voiceDialect, setVoiceDialect] = useState<VoiceDialect>("ar-EG");
   const journeyInsight = buildJourneyInsight({ savedMoments, tinyPlans, journeySnapshots, growthQuests }, language);
   const companionInsights = buildCompanionInsights(savedMoments, language);
   const storyMirrorMoments = savedMoments.filter((moment) => moment.world === "story").slice(0, 4);
+  const moodConstellation = buildMoodConstellation({ savedMoments, tinyPlans, journeySnapshots, growthQuests });
 
   useEffect(() => {
     setSavedMoments(JSON.parse(localStorage.getItem("fadfada-saved-moments") || "[]") as SavedMoment[]);
     setTinyPlans(JSON.parse(localStorage.getItem("fadfada-tiny-plans") || "[]") as TinyPlan[]);
     setJourneySnapshots(JSON.parse(localStorage.getItem("fadfada-journey-snapshots") || "[]") as JourneySnapshot[]);
     setGrowthQuests(JSON.parse(localStorage.getItem("fadfada-growth-quests") || "[]") as GrowthQuest[]);
+    setVoiceDialect(normalizeVoiceDialect(localStorage.getItem(voiceDialectStorageKey)));
   }, []);
+
+  function saveVoiceDialect(nextDialect: VoiceDialect) {
+    localStorage.setItem(voiceDialectStorageKey, nextDialect);
+    setVoiceDialect(nextDialect);
+  }
 
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -310,6 +329,21 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
           </div>
         </section>
 
+        <section className="md:col-span-2 border border-white/10 bg-white/[0.025] p-5">
+          <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+            <div>
+              <p className="ui-kicker text-dusk">{isArabic ? "كوكبة المزاج" : "Mood constellation"}</p>
+              <h2 className="mt-2 font-arserif text-3xl text-bone/90">{isArabic ? "نمطك بدون ازدحام أرقام" : "Your pattern without chart clutter"}</h2>
+              <p className="mt-3 font-arsans text-sm leading-7 text-bone/55">{isArabic ? "كل نقطة أثر محفوظ. لونها يلمّح للمساحة التي رجعت لها أكثر من مرة." : "Each point is a saved artifact. Its color hints at the world you returned to."}</p>
+            </div>
+            <div className="grid min-h-44 grid-cols-8 gap-2 rounded-sm border border-white/10 bg-black/15 p-4 sm:grid-cols-12">
+              {moodConstellation.length > 0 ? moodConstellation.map((point, index) => (
+                <span key={`${point.world}-${index}`} title={formatWorld(point.world, language)} className={`aspect-square rounded-full ${point.className}`} style={{ opacity: point.opacity }} />
+              )) : <p className="col-span-full self-center font-arsans text-sm text-bone/42">{isArabic ? "احفظ لحظات وخططاً لتظهر الكوكبة." : "Save moments and plans to reveal the constellation."}</p>}
+            </div>
+          </div>
+        </section>
+
         <section className="md:col-span-2 grid gap-4 lg:grid-cols-2">
           <div className="border border-white/10 bg-white/[0.025] p-5">
             <p className="ui-kicker text-gold">{isArabic ? "ذاكرة الرفقاء" : "Companion memory"}</p>
@@ -325,6 +359,7 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
                     <span className="mt-1 block truncate font-arsans text-xs text-bone/42" dir="auto">{formatWorld(companion.world, language)} · {companion.latestText}</span>
                   </span>
                   <span className="font-mono text-[10px] text-gold">{companion.count}</span>
+                  {companion.count >= 3 ? <span className="col-span-3 border-t border-white/10 pt-2 font-arsans text-xs text-gold/80">{isArabic ? "شارة تطور: رفيق متكرر" : "Evolution badge: recurring companion"}</span> : null}
                 </article>
               )) : <p className="font-arsans text-sm leading-7 text-bone/45">{isArabic ? "احفظ لحظة من رد رفيقك لتبدأ ذاكرة الرفقاء بالظهور هنا." : "Save a reply from a companion and this memory strip will start to appear here."}</p>}
             </div>
@@ -336,11 +371,25 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {storyMirrorMoments.length > 0 ? storyMirrorMoments.map((moment) => (
                 <article key={moment.id} className="border border-gold/20 bg-black/10 p-4">
+                  <img src={buildStoryMirrorPreviewUrl(moment)} alt={isArabic ? "مشهد رمزي محفوظ" : "Saved symbolic scene"} className="mb-4 aspect-video w-full border border-white/10 object-cover" loading="lazy" />
                   <p className="font-arsans text-sm leading-6 text-bone/72" dir="auto">{cleanArtifactText(moment.text).slice(0, 160)}</p>
                   <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35">{new Date(moment.savedAt).toLocaleDateString(isArabic ? "ar-EG" : "en-US")}</p>
                 </article>
               )) : <p className="font-arsans text-sm leading-7 text-bone/45">{isArabic ? "استخدم /story ثم احفظ الرد ليظهر هنا كمعرض هادئ." : "Use /story, then save the reply to build a quiet gallery here."}</p>}
             </div>
+          </div>
+        </section>
+
+        <section className="md:col-span-2 border border-cyan-200/15 bg-cyan-200/[0.025] p-5">
+          <p className="ui-kicker text-cyan-100">{isArabic ? "استوديو الصوت الخفيف" : "Voice studio lite"}</p>
+          <h2 className="mt-2 font-arserif text-3xl text-bone/90">{isArabic ? "اختر نبرة العربية المفضلة" : "Choose your Arabic voice flavor"}</h2>
+          <div className="mt-5 grid gap-3 sm:grid-cols-4">
+            {voiceDialects.map((dialect) => (
+              <button key={dialect.value} type="button" onClick={() => saveVoiceDialect(dialect.value)} className={`border p-4 text-start transition-colors ${voiceDialect === dialect.value ? "border-cyan-200/60 bg-cyan-200/10" : "border-white/10 bg-black/10 hover:border-cyan-200/35"}`}>
+                <span className="block font-arsans text-sm text-bone/85">{isArabic ? dialect.ar : dialect.en}</span>
+                <span className="mt-2 block font-arsans text-xs text-bone/42">{isArabic ? dialect.detailAr : dialect.detailEn}</span>
+              </button>
+            ))}
           </div>
         </section>
 
@@ -528,6 +577,43 @@ function buildCompanionInsights(savedMoments: SavedMoment[], language: "ar" | "e
   });
 
   return Array.from(companionMap.values()).sort((a, b) => b.count - a.count).slice(0, 4);
+}
+
+function buildMoodConstellation(artifacts: { savedMoments: SavedMoment[]; tinyPlans: TinyPlan[]; journeySnapshots: JourneySnapshot[]; growthQuests: GrowthQuest[] }) {
+  const worldsList = [
+    ...artifacts.savedMoments.map((item) => item.world),
+    ...artifacts.tinyPlans.map((item) => item.world),
+    ...artifacts.journeySnapshots.map((item) => item.world),
+    ...artifacts.growthQuests.map((item) => item.world),
+  ].slice(0, 48);
+
+  return worldsList.map((world, index) => ({
+    world,
+    className: getConstellationColor(world),
+    opacity: 0.42 + ((index % 5) * 0.12),
+  }));
+}
+
+function getConstellationColor(world: string) {
+  if (world === "story") return "bg-gold";
+  if (world === "build" || world === "learning") return "bg-emerald-300";
+  if (world === "faith" || world === "grief") return "bg-cyan-200";
+  if (world === "celebration") return "bg-dusk";
+  return "bg-bone/70";
+}
+
+function buildStoryMirrorPreviewUrl(moment: SavedMoment) {
+  const prompt = [
+    "quiet symbolic emotional storyboard frame, not text, no words, no logos",
+    formatWorld(moment.world, "en"),
+    cleanArtifactText(moment.text).slice(0, 220),
+  ].join(", ");
+
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=960&height=540&model=flux&nologo=true&seed=${encodeURIComponent(moment.id)}`;
+}
+
+function normalizeVoiceDialect(value: string | null): VoiceDialect {
+  return voiceDialects.some((dialect) => dialect.value === value) ? value as VoiceDialect : "ar-EG";
 }
 
 function formatTier(tier: string, language: "ar" | "en") {

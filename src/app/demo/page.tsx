@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { personas } from "../../lib/personas";
 
@@ -23,6 +25,22 @@ const proofPaths = [
   { label: "Operator truth", href: "/admin/dashboard", detail: "Admin keeps telemetry, gifts, persona grants, sessions, and live signals away from users." },
 ];
 
+const guidedSequence = [
+  { step: "01", title: "Open with the judge run", href: "/?demoCommand=%2Fjudge", detail: "Frame the product, trust boundaries, AI stack, and user value." },
+  { step: "02", title: "Stage Story Mirror", href: "/?demoCommand=%2Fstory", detail: "Show emotional imagination without making the chat visually busy." },
+  { step: "03", title: "Reveal personal depth", href: "/profile", detail: "Open Journey Map, mood constellation, companion memory, voice studio, and saved galleries." },
+  { step: "04", title: "Prove operations", href: "/admin/dashboard", detail: "Show live room, narrative timeline, sessions, gifts, grants, and admin controls." },
+];
+
+const snapshotFacts = [
+  "Arabic-first bilingual emotional reflection PWA",
+  "26 focused companions with Plus unlocks and grants",
+  "Gemini / Vertex reflection, storyboard prompt, avatar, and fallback-ready AI stack",
+  "Profile journey map, mood constellation, story gallery, quests, and voice studio",
+  "Admin live room, narrative timeline, sessions, gifts, persona grants, offers, and notifications",
+  "Non-clinical wellbeing boundaries with no emergency, medical, legal, or financial claims",
+];
+
 export default function DemoEvidencePage() {
   const freeCount = personas.filter((persona) => !persona.isPremium).length;
   const plusCount = personas.length - freeCount;
@@ -38,6 +56,7 @@ export default function DemoEvidencePage() {
             <Link href="/" className="ui-action bg-gold px-4 py-3 text-ink hover:bg-bone">Open app</Link>
             <Link href="/admin/dashboard" className="ui-action border border-white/15 px-4 py-3 text-bone/80 hover:border-gold/45 hover:text-gold">Admin dashboard</Link>
             <Link href="/profile" className="ui-action border border-white/15 px-4 py-3 text-bone/80 hover:border-gold/45 hover:text-gold">Journey profile</Link>
+            <button type="button" onClick={() => window.print()} className="ui-action border border-cyan-200/30 px-4 py-3 text-cyan-100 hover:bg-cyan-200 hover:text-ink">Print snapshot</button>
           </div>
         </div>
 
@@ -61,6 +80,43 @@ export default function DemoEvidencePage() {
             <EvidenceStat label="Total personas" value={String(personas.length)} />
             <EvidenceStat label="Free" value={String(freeCount)} />
             <EvidenceStat label="Plus" value={String(plusCount)} />
+          </div>
+        </section>
+
+        <section className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <p className="ui-kicker text-gold">Guided autopilot</p>
+            <h2 className="mt-2 font-arserif text-4xl text-bone/92">A clean route through the whole product.</h2>
+            <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">Browsers should not auto-drive private interactions, so this gives presenters a one-click sequence that stays controlled and demo-safe.</p>
+          </div>
+          <div className="space-y-3">
+            {guidedSequence.map((item) => (
+              <Link key={item.step} href={item.href} className="grid gap-3 border border-white/10 bg-white/[0.025] p-4 transition-colors hover:border-gold/45 sm:grid-cols-[3rem_1fr_auto]">
+                <span className="font-enserif text-3xl italic text-gold">{item.step}</span>
+                <span>
+                  <span className="block font-arserif text-2xl text-bone/90">{item.title}</span>
+                  <span className="mt-2 block font-arsans text-sm leading-6 text-bone/55">{item.detail}</span>
+                </span>
+                <span className="self-center font-mono text-[10px] uppercase tracking-[0.08em] text-gold/70">Open</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <section id="snapshot" className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <p className="ui-kicker text-gold">Judge snapshot</p>
+            <h2 className="mt-2 font-arserif text-4xl text-bone/92">One page of proof when time is short.</h2>
+            <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">This section prints cleanly as the lightweight investor or judge leave-behind.</p>
+          </div>
+          <div className="border border-gold/20 bg-gold/[0.025] p-5">
+            <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-gold/70">FadFada / فضفضة</p>
+            <h3 className="mt-3 font-arserif text-3xl text-bone/92">Calm Arabic AI for reflection, growth, and emotional artifacts.</h3>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {snapshotFacts.map((fact) => (
+                <p key={fact} className="border border-white/10 bg-black/10 p-3 font-arsans text-sm leading-6 text-bone/62">{fact}</p>
+              ))}
+            </div>
           </div>
         </section>
 

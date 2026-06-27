@@ -250,6 +250,7 @@ const tinyPlanStorageKey = "fadfada-tiny-plans";
 const journeySnapshotStorageKey = "fadfada-journey-snapshots";
 const growthQuestStorageKey = "fadfada-growth-quests";
 const discountCodeStorageKey = "fadfada-discount-code";
+const voiceDialectStorageKey = "fadfada-voice-dialect";
 const defaultExperienceConfiguration = {
   anonymousReflectionLimit: 5,
   signedGiftReflectionLimit: 15,
@@ -733,6 +734,15 @@ function getArabicSpeechDialect(voiceConfig: PersonaVoiceConfig) {
   if (locale.includes("ar-lb")) return "levantine";
   if (locale.includes("ar-sa")) return "fusha";
   return "fusha";
+}
+
+function getPreferredVoiceConfig(voiceConfig: PersonaVoiceConfig): PersonaVoiceConfig {
+  if (typeof window === "undefined") return voiceConfig;
+
+  const preferredLocale = window.localStorage.getItem(voiceDialectStorageKey);
+  if (!preferredLocale || !["ar-EG", "ar-SA", "ar-AE", "ar-LB"].includes(preferredLocale)) return voiceConfig;
+
+  return { ...voiceConfig, locale: preferredLocale };
 }
 
 function selectSpeechVoice(language: Language, voiceConfig: PersonaVoiceConfig) {
@@ -1482,11 +1492,12 @@ export function ChatWindow() {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
 
     const speechLanguage = message.language || language;
-    const utterance = new SpeechSynthesisUtterance(prepareArabicForSpeech(message.text, speechLanguage, getArabicSpeechDialect(activePersona.voiceConfig)));
-    utterance.lang = getSpeechLocale(speechLanguage, activePersona.voiceConfig);
-    utterance.rate = activePersona.voiceConfig.rate;
-    utterance.pitch = activePersona.voiceConfig.pitch;
-    utterance.voice = selectSpeechVoice(speechLanguage, activePersona.voiceConfig) ?? null;
+    const preferredVoiceConfig = getPreferredVoiceConfig(activePersona.voiceConfig);
+    const utterance = new SpeechSynthesisUtterance(prepareArabicForSpeech(message.text, speechLanguage, getArabicSpeechDialect(preferredVoiceConfig)));
+    utterance.lang = getSpeechLocale(speechLanguage, preferredVoiceConfig);
+    utterance.rate = preferredVoiceConfig.rate;
+    utterance.pitch = preferredVoiceConfig.pitch;
+    utterance.voice = selectSpeechVoice(speechLanguage, preferredVoiceConfig) ?? null;
     utterance.onend = () => setSpeakingMessageId(null);
     utterance.onerror = () => setSpeakingMessageId(null);
     setSpeakingMessageId(message.id);
@@ -1772,7 +1783,7 @@ export function ChatWindow() {
 
     setVoiceCaptureStatus("idle");
     const recognition = new SpeechRecognitionAPI() as ISpeechRecognition;
-    recognition.lang = language === "ar" ? "ar-SA" : "en-US";
+    recognition.lang = getSpeechLocale(language, getPreferredVoiceConfig(activePersona.voiceConfig));
     recognition.interimResults = true;
     recognition.continuous = true;
     recognition.maxAlternatives = 1;
