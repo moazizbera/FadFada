@@ -9,10 +9,18 @@ const evidenceCards = [
 ];
 
 const flows = [
-  ["/judge", "Switches into the strongest judge demo flow."],
-  ["/story", "Turns a feeling into a compact Story Mirror."],
-  ["/proof", "Creates a share-ready before/after artifact."],
-  ["/quest", "Starts a tiny 3-day growth challenge."],
+  { command: "/judge", title: "Judge run", detail: "Switches into the strongest end-to-end product demo.", proof: "Use first to frame the hackathon story." },
+  { command: "/story", title: "Story Mirror", detail: "Turns a feeling into a compact symbolic scene.", proof: "Save it, then show the Profile gallery." },
+  { command: "/proof", title: "Proof Card", detail: "Creates a share-ready before/after artifact.", proof: "Shows emotional value without exposing private chat." },
+  { command: "/quest", title: "Growth Quest", detail: "Starts a tiny 3-day challenge from the conversation.", proof: "Then show the quest checklist in Profile." },
+  { command: "/pitch", title: "Pitch Card", detail: "Generates a concise judge-facing product summary.", proof: "Useful when screen time is short." },
+  { command: "/badge", title: "Believer Badge", detail: "Creates a launch/community artifact.", proof: "Shows shareability beyond the chat." },
+];
+
+const proofPaths = [
+  { label: "Clean chat", href: "/", detail: "The main room stays focused on writing, voice, companions, and response actions." },
+  { label: "Personal depth", href: "/profile", detail: "Journey map, companion memory, saved scenes, quests, snapshots, and billing live one layer down." },
+  { label: "Operator truth", href: "/admin/dashboard", detail: "Admin keeps telemetry, gifts, persona grants, sessions, and live signals away from users." },
 ];
 
 export default function DemoEvidencePage() {
@@ -56,18 +64,41 @@ export default function DemoEvidencePage() {
           </div>
         </section>
 
-        <section className="grid gap-10 py-10 md:grid-cols-[0.8fr_1.2fr]">
+        <section className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.8fr_1.2fr]">
           <div>
             <p className="ui-kicker text-gold">Demo keys</p>
-            <h2 className="mt-2 font-arserif text-4xl text-bone/92">A judge can see the magic in four commands.</h2>
-            <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">These commands live inside Tools, but they also work directly in chat input for fast demo flow.</p>
+            <h2 className="mt-2 font-arserif text-4xl text-bone/92">A judge can see the magic without hunting for it.</h2>
+            <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">Each button opens the app and stages the command in chat. The presenter only presses Enter.</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {flows.map((flow) => (
+              <article key={flow.command} className="border border-white/10 bg-white/[0.025] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-mono text-sm text-gold">{flow.command}</p>
+                    <h3 className="mt-2 font-arserif text-2xl text-bone/90">{flow.title}</h3>
+                  </div>
+                  <Link href={`/?demoCommand=${encodeURIComponent(flow.command)}`} className="ui-action border border-gold/30 px-3 py-2 text-gold hover:bg-gold hover:text-ink">Stage</Link>
+                </div>
+                <p className="mt-3 font-arsans text-sm leading-6 text-bone/65">{flow.detail}</p>
+                <p className="mt-3 border-t border-white/10 pt-3 font-arsans text-xs leading-5 text-bone/42">{flow.proof}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="grid gap-10 py-10 md:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <p className="ui-kicker text-gold">Where the depth lives</p>
+            <h2 className="mt-2 font-arserif text-4xl text-bone/92">Polish is layered, not piled onto the chat.</h2>
+            <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">This is the product structure to explain when someone asks why the interface feels calm while still being full-featured.</p>
           </div>
           <div className="space-y-3">
-            {flows.map(([command, detail]) => (
-              <article key={command} className="grid gap-3 border border-white/10 bg-white/[0.025] p-4 sm:grid-cols-[8rem_1fr]">
-                <p className="font-mono text-sm text-gold">{command}</p>
-                <p className="font-arsans text-sm leading-6 text-bone/65">{detail}</p>
-              </article>
+            {proofPaths.map((path) => (
+              <Link key={path.href} href={path.href} className="block border border-gold/15 bg-gold/[0.025] p-4 transition-colors hover:border-gold/45">
+                <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-gold/70">{path.label}</p>
+                <p className="mt-2 font-arsans text-sm leading-6 text-bone/65">{path.detail}</p>
+              </Link>
             ))}
           </div>
         </section>

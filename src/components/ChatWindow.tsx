@@ -229,6 +229,17 @@ function normalizeGreetingName(value: string | null | undefined) {
   return cleanedName ? cleanedName.slice(0, 32) : null;
 }
 
+function cleanClientDiscountCode(value: string | null) {
+  const cleanedValue = value?.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 48);
+  return cleanedValue || "";
+}
+
+function cleanDemoCommand(value: string | null) {
+  const cleanedValue = value?.trim().toLowerCase();
+  const allowedCommands = new Set(["/judge", "/story", "/proof", "/quest", "/pitch", "/launch", "/badge"]);
+  return cleanedValue && allowedCommands.has(cleanedValue) ? cleanedValue : "";
+}
+
 const visitorUserIdKey = "fadfada-user-id";
 const chatSessionIdStorageKey = "fadfada-active-chat-session-id";
 const conversationStorageKey = "fadfada-chat-session-v1";
@@ -998,8 +1009,8 @@ export function ChatWindow() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const sharedDiscountCode = cleanDiscountCode(params.get("discount") || params.get("coupon") || params.get("promo"));
-    const storedDiscountCode = cleanDiscountCode(localStorage.getItem(discountCodeStorageKey));
+    const sharedDiscountCode = cleanClientDiscountCode(params.get("discount") || params.get("coupon") || params.get("promo"));
+    const storedDiscountCode = cleanClientDiscountCode(localStorage.getItem(discountCodeStorageKey));
     const nextDiscountCode = sharedDiscountCode || storedDiscountCode;
 
     if (nextDiscountCode) {
@@ -1007,6 +1018,23 @@ export function ChatWindow() {
       setActiveDiscountCode(nextDiscountCode);
     }
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const stagedCommand = cleanDemoCommand(params.get("demoCommand") || params.get("fadfadaCommand"));
+    if (!stagedCommand) return;
+
+    setInput(stagedCommand);
+    setToolsOpen(false);
+    scrollToSection("chat");
+    window.setTimeout(focusInput, 120);
+    trackInteraction("starter_tap", { type: "demo_command_staged", command: stagedCommand, language });
+    params.delete("demoCommand");
+    params.delete("fadfadaCommand");
+    const nextSearch = params.toString();
+    const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
+    window.history.replaceState(null, "", nextUrl);
+  }, [language]);
 
   useEffect(() => {
     let active = true;
@@ -1328,6 +1356,9 @@ export function ChatWindow() {
       id: string;
       text: string;
       world: WorldId;
+      personaId?: PersonaId | "custom";
+      personaName?: string;
+      avatarPath?: string;
       language?: Language;
       savedAt: string;
     }>;
@@ -1336,6 +1367,9 @@ export function ChatWindow() {
         id: message.id,
         text: message.text,
         world: message.world,
+        personaId: message.personaId,
+        personaName: message.personaName || activePersonaDisplayName,
+        avatarPath: message.avatarPath,
         language: message.language,
         savedAt: new Date().toISOString(),
       },

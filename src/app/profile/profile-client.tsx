@@ -10,6 +10,9 @@ type SavedMoment = {
   id: string;
   text: string;
   world: string;
+  personaId?: string;
+  personaName?: string;
+  avatarPath?: string;
   language?: "ar" | "en";
   savedAt: string;
 };
@@ -51,6 +54,14 @@ type JourneyInsight = {
   reflectionScore: number;
   streakSignal: string;
   nextFocus: string;
+};
+
+type CompanionInsight = {
+  name: string;
+  avatarPath?: string;
+  count: number;
+  world: string;
+  latestText: string;
 };
 
 type Profile = {
@@ -98,6 +109,8 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
   const [billingStatus, setBillingStatus] = useState<"idle" | "opening" | "error">("idle");
   const [billingMessage, setBillingMessage] = useState("");
   const journeyInsight = buildJourneyInsight({ savedMoments, tinyPlans, journeySnapshots, growthQuests }, language);
+  const companionInsights = buildCompanionInsights(savedMoments, language);
+  const storyMirrorMoments = savedMoments.filter((moment) => moment.world === "story").slice(0, 4);
 
   useEffect(() => {
     setSavedMoments(JSON.parse(localStorage.getItem("fadfada-saved-moments") || "[]") as SavedMoment[]);
@@ -297,6 +310,40 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
           </div>
         </section>
 
+        <section className="md:col-span-2 grid gap-4 lg:grid-cols-2">
+          <div className="border border-white/10 bg-white/[0.025] p-5">
+            <p className="ui-kicker text-gold">{isArabic ? "ذاكرة الرفقاء" : "Companion memory"}</p>
+            <h2 className="mt-2 font-arserif text-3xl text-bone/90">{isArabic ? "من ساعدك مؤخراً" : "Who has been helping lately"}</h2>
+            <div className="mt-5 space-y-3">
+              {companionInsights.length > 0 ? companionInsights.map((companion) => (
+                <article key={companion.name} className="grid grid-cols-[2.6rem_1fr_auto] items-center gap-3 border border-white/10 bg-black/10 p-3">
+                  <span className="relative h-10 w-10 overflow-hidden rounded-full border border-gold/20 bg-gold/10">
+                    {companion.avatarPath ? <Image src={companion.avatarPath} alt={companion.name} fill sizes="40px" className="object-cover" unoptimized /> : null}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate font-arsans text-sm text-bone/82" dir="auto">{companion.name}</span>
+                    <span className="mt-1 block truncate font-arsans text-xs text-bone/42" dir="auto">{formatWorld(companion.world, language)} · {companion.latestText}</span>
+                  </span>
+                  <span className="font-mono text-[10px] text-gold">{companion.count}</span>
+                </article>
+              )) : <p className="font-arsans text-sm leading-7 text-bone/45">{isArabic ? "احفظ لحظة من رد رفيقك لتبدأ ذاكرة الرفقاء بالظهور هنا." : "Save a reply from a companion and this memory strip will start to appear here."}</p>}
+            </div>
+          </div>
+
+          <div className="border border-gold/20 bg-gold/[0.025] p-5">
+            <p className="ui-kicker text-gold">{isArabic ? "معرض المرآة" : "Story Mirror gallery"}</p>
+            <h2 className="mt-2 font-arserif text-3xl text-bone/90">{isArabic ? "مشاهدك الرمزية المحفوظة" : "Your saved symbolic scenes"}</h2>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {storyMirrorMoments.length > 0 ? storyMirrorMoments.map((moment) => (
+                <article key={moment.id} className="border border-gold/20 bg-black/10 p-4">
+                  <p className="font-arsans text-sm leading-6 text-bone/72" dir="auto">{cleanArtifactText(moment.text).slice(0, 160)}</p>
+                  <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35">{new Date(moment.savedAt).toLocaleDateString(isArabic ? "ar-EG" : "en-US")}</p>
+                </article>
+              )) : <p className="font-arsans text-sm leading-7 text-bone/45">{isArabic ? "استخدم /story ثم احفظ الرد ليظهر هنا كمعرض هادئ." : "Use /story, then save the reply to build a quiet gallery here."}</p>}
+            </div>
+          </div>
+        </section>
+
         <section className="md:col-span-2 border border-white/10 bg-white/[0.025] p-5">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -460,6 +507,27 @@ function buildJourneyInsight(
       ? topWorld ? `أكثر خيط ظاهر الآن هو ${formatWorld(topWorld, language)}. اجعل الخطوة القادمة صغيرة بما يكفي أن تبدأها اليوم.` : "احفظ لحظة، خطة، أو لقطة رحلة لتبدأ فضفضة في رسم نمطك الشخصي."
       : topWorld ? `Your strongest current thread is ${formatWorld(topWorld, language)}. Keep the next step small enough to start today.` : "Save a moment, plan, or snapshot so FadFada can begin drawing your personal pattern.",
   };
+}
+
+function buildCompanionInsights(savedMoments: SavedMoment[], language: "ar" | "en"): CompanionInsight[] {
+  const fallbackName = language === "ar" ? "رفيق فضفضة" : "FadFada companion";
+  const companionMap = new Map<string, CompanionInsight>();
+
+  savedMoments.forEach((moment) => {
+    const name = moment.personaName || fallbackName;
+    const existing = companionMap.get(name);
+    const latestText = cleanArtifactText(moment.text).slice(0, 90);
+
+    companionMap.set(name, {
+      name,
+      avatarPath: moment.avatarPath || existing?.avatarPath,
+      count: (existing?.count || 0) + 1,
+      world: existing?.world || moment.world,
+      latestText: existing?.latestText || latestText,
+    });
+  });
+
+  return Array.from(companionMap.values()).sort((a, b) => b.count - a.count).slice(0, 4);
 }
 
 function formatTier(tier: string, language: "ar" | "en") {

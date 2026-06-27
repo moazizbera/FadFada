@@ -289,6 +289,7 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
       { label: labels.metrics.pwaInstalls, value: formatNumber(data.interactionTotals.pwaInstalls, locale) },
     ],
   ];
+  const narrativeTimeline = buildNarrativeTimeline(data, language, locale, labels.unnamedProfile, labels.unknownLocation);
 
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -344,6 +345,14 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
             <LiveSignal label={language === "ar" ? "آخر عضو" : "Latest member"} value={data.recentUsers[0]?.name || data.recentUsers[0]?.email || labels.unnamedProfile} detail={data.recentUsers[0] ? `${formatTier(data.recentUsers[0].activeTier, language)} · ${formatDate(data.recentUsers[0].createdAt, locale)}` : labels.emptySignups} />
             <LiveSignal label={language === "ar" ? "آخر تعليق" : "Latest comment"} value={data.visitorComments[0]?.comment || labels.emptyComments} detail={data.visitorComments[0] ? formatDate(data.visitorComments[0].createdAt, locale) : ""} />
             <LiveSignal label={language === "ar" ? "آخر جلسة" : "Latest session"} value={data.chatSessions[0]?.title || (language === "ar" ? "لا توجد جلسات" : "No sessions yet")} detail={data.chatSessions[0] ? `${data.chatSessions[0].userLabel} · ${formatNumber(data.chatSessions[0].messageCount, locale)} ${language === "ar" ? "رسائل" : "messages"}` : ""} />
+          </div>
+          <div className="mt-5 border-t border-white/10 pt-5">
+            <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35">{language === "ar" ? "خط زمني مختصر" : "Narrative timeline"}</p>
+            <div className="space-y-3">
+              {narrativeTimeline.length > 0 ? narrativeTimeline.map((item) => (
+                <LiveTimelineItem key={`${item.type}-${item.createdAt}-${item.title}`} item={item} />
+              )) : <EmptyMetric label={language === "ar" ? "لا توجد إشارات كافية بعد" : "No live signals yet"} />}
+            </div>
           </div>
         </DashboardListSection>
 
@@ -1026,6 +1035,58 @@ function LiveSignal({ label, value, detail }: { label: string; value: string; de
       {detail ? <p className="mt-2 truncate font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="auto">{detail}</p> : null}
     </article>
   );
+}
+
+type LiveTimelineEntry = {
+  type: string;
+  title: string;
+  detail: string;
+  createdAt: string;
+};
+
+function LiveTimelineItem({ item }: { item: LiveTimelineEntry }) {
+  return (
+    <article className="grid grid-cols-[0.75rem_1fr_auto] items-start gap-3 border border-white/10 bg-black/10 p-3">
+      <span className="mt-1 h-3 w-3 rounded-full bg-gold/80" />
+      <span className="min-w-0">
+        <span className="block truncate font-arsans text-sm text-bone/78" dir="auto">{item.title}</span>
+        <span className="mt-1 block truncate font-arsans text-xs text-bone/42" dir="auto">{item.detail}</span>
+      </span>
+      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35">{item.type}</span>
+    </article>
+  );
+}
+
+function buildNarrativeTimeline(data: AdminDashboardData, language: Locale, locale: string, unnamedProfile: string, unknownLocation: string): LiveTimelineEntry[] {
+  const isArabic = language === "ar";
+  const entries: LiveTimelineEntry[] = [
+    ...data.recentUsers.slice(0, 3).map((user) => ({
+      type: isArabic ? "عضو" : "Member",
+      title: user.name || user.email || unnamedProfile,
+      detail: `${formatTier(user.activeTier, language)} · ${formatDate(user.createdAt, locale)} · ${formatLocationValue(user.location, unknownLocation)}`,
+      createdAt: user.createdAt,
+    })),
+    ...data.visitorComments.slice(0, 2).map((comment) => ({
+      type: isArabic ? "تعليق" : "Comment",
+      title: comment.comment,
+      detail: `${formatDate(comment.createdAt, locale)} · ${comment.device} · ${formatLocationValue(comment.location, unknownLocation)}`,
+      createdAt: comment.createdAt,
+    })),
+    ...data.chatSessions.slice(0, 2).map((session) => ({
+      type: isArabic ? "جلسة" : "Session",
+      title: session.title,
+      detail: `${session.userLabel} · ${formatNumber(session.messageCount, locale)} ${isArabic ? "رسائل" : "messages"}`,
+      createdAt: session.createdAt,
+    })),
+    ...data.pwaInstalls.slice(0, 2).map((install) => ({
+      type: isArabic ? "تثبيت" : "Install",
+      title: `${install.device} · ${install.browser}`,
+      detail: `${formatDate(install.createdAt, locale)} · ${formatLocationValue(install.location, unknownLocation)}`,
+      createdAt: install.createdAt,
+    })),
+  ];
+
+  return entries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 6);
 }
 
 function EmptyMetric({ label }: { label: string }) {
