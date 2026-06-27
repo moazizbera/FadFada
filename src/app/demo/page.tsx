@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { personas } from "../../lib/personas";
 
 const evidenceCards = [
@@ -41,9 +42,21 @@ const snapshotFacts = [
   "Non-clinical wellbeing boundaries with no emergency, medical, legal, or financial claims",
 ];
 
+const pitchBeats = [
+  { label: "Problem", text: "Arabic speakers often get generic AI answers that miss emotional tone, privacy, and cultural warmth." },
+  { label: "Solution", text: "FadFada turns a private vent into reflection, a small step, and optional artifacts without becoming clinical." },
+  { label: "Product", text: "Clean chat first; Profile holds growth memory; Admin holds proof, operations, gifts, and grants." },
+  { label: "Moat", text: "Persona continuity, Arabic voice polish, Story Mirror artifacts, and low-clutter emotional UX." },
+  { label: "Ask", text: "Judge the product by emotional clarity, demo readiness, safety boundaries, and Arabic-first execution." },
+];
+
 export default function DemoEvidencePage() {
   const freeCount = personas.filter((persona) => !persona.isPremium).length;
   const plusCount = personas.length - freeCount;
+  const [demoCommand, setDemoCommand] = useState("/story");
+  const [demoLanguage, setDemoLanguage] = useState("ar");
+  const [demoPersona, setDemoPersona] = useState("rawi");
+  const demoHref = useMemo(() => `/?demoCommand=${encodeURIComponent(demoCommand)}&lang=${demoLanguage}&persona=${demoPersona}`, [demoCommand, demoLanguage, demoPersona]);
 
   return (
     <main className="min-h-screen bg-ink px-5 pb-16 pt-24 text-bone/90">
@@ -122,6 +135,42 @@ export default function DemoEvidencePage() {
 
         <section className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.8fr_1.2fr]">
           <div>
+            <p className="ui-kicker text-gold">Founder mode</p>
+            <h2 className="mt-2 font-arserif text-4xl text-bone/92">Pitch rehearsal without opening another doc.</h2>
+            <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">A compact presenter script for the moments before a judge, investor, or teammate asks, “what is this really?”</p>
+          </div>
+          <div className="space-y-3">
+            {pitchBeats.map((beat) => (
+              <article key={beat.label} className="grid gap-3 border border-white/10 bg-white/[0.025] p-4 sm:grid-cols-[7rem_1fr]">
+                <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-gold/70">{beat.label}</p>
+                <p className="font-arsans text-sm leading-6 text-bone/65">{beat.text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <p className="ui-kicker text-gold">Shareable demo link</p>
+            <h2 className="mt-2 font-arserif text-4xl text-bone/92">Build the exact route you want to show.</h2>
+            <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">Choose a command, language, and persona. The app opens with the command staged so the presenter presses Enter.</p>
+          </div>
+          <div className="border border-gold/20 bg-gold/[0.025] p-5">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <DemoSelect label="Command" value={demoCommand} onChange={setDemoCommand} options={flows.map((flow) => flow.command)} />
+              <DemoSelect label="Language" value={demoLanguage} onChange={setDemoLanguage} options={["ar", "en"]} />
+              <DemoSelect label="Persona" value={demoPersona} onChange={setDemoPersona} options={["rawi", "omar", "malek", "mentor"]} />
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-white/10 pt-4">
+              <Link href={demoHref} className="ui-action bg-gold px-4 py-3 text-ink hover:bg-bone">Open link</Link>
+              <button type="button" onClick={() => navigator.clipboard?.writeText(`${window.location.origin}${demoHref}`)} className="ui-action border border-white/15 px-4 py-3 text-bone/80 hover:border-gold/45 hover:text-gold">Copy link</button>
+              <p className="min-w-0 break-all font-mono text-[10px] text-bone/35">{demoHref}</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.8fr_1.2fr]">
+          <div>
             <p className="ui-kicker text-gold">Demo keys</p>
             <h2 className="mt-2 font-arserif text-4xl text-bone/92">A judge can see the magic without hunting for it.</h2>
             <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">Each button opens the app and stages the command in chat. The presenter only presses Enter.</p>
@@ -169,5 +218,16 @@ function EvidenceStat({ label, value }: { label: string; value: string }) {
       <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35">{label}</p>
       <p className="mt-3 font-enserif text-5xl italic text-gold">{value}</p>
     </article>
+  );
+}
+
+function DemoSelect({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
+  return (
+    <label className="block">
+      <span className="mb-2 block font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35">{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="w-full border border-white/10 bg-ink px-3 py-3 font-mono text-xs text-bone outline-none focus:border-gold/50">
+        {options.map((option) => <option key={option} value={option}>{option}</option>)}
+      </select>
+    </label>
   );
 }

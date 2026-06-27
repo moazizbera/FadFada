@@ -251,6 +251,7 @@ const journeySnapshotStorageKey = "fadfada-journey-snapshots";
 const growthQuestStorageKey = "fadfada-growth-quests";
 const discountCodeStorageKey = "fadfada-discount-code";
 const voiceDialectStorageKey = "fadfada-voice-dialect";
+const offlineDraftStorageKey = "fadfada-offline-draft";
 const defaultExperienceConfiguration = {
   anonymousReflectionLimit: 5,
   signedGiftReflectionLimit: 15,
@@ -845,6 +846,8 @@ export function ChatWindow() {
   const [grantedPersonaIds, setGrantedPersonaIds] = useState<PersonaId[]>([]);
   const [experienceConfiguration, setExperienceConfiguration] = useState(defaultExperienceConfiguration);
   const [activeDiscountCode, setActiveDiscountCode] = useState("");
+  const [isOffline, setIsOffline] = useState(false);
+  const [offlineDraftSaved, setOfflineDraftSaved] = useState(false);
   const recorderRef = useRef<ISpeechRecognition | null>(null);
   const keepRecordingRef = useRef(false);
   const recordingRestartCountRef = useRef(0);
@@ -954,6 +957,20 @@ export function ChatWindow() {
     trackInteraction("starter_tap", { type: "secret_command_hint", command, language });
   }
 
+  function updateInput(value: string) {
+    setInput(value);
+    if (typeof window === "undefined") return;
+    if (isOffline && value.trim()) {
+      localStorage.setItem(offlineDraftStorageKey, value);
+      setOfflineDraftSaved(true);
+      return;
+    }
+    if (!value.trim()) {
+      localStorage.removeItem(offlineDraftStorageKey);
+      setOfflineDraftSaved(false);
+    }
+  }
+
   useEffect(() => {
     setMessages((current) => {
       if (current.length !== 1 || current[0].id !== "opening") return current;
@@ -1034,17 +1051,45 @@ export function ChatWindow() {
     const stagedCommand = cleanDemoCommand(params.get("demoCommand") || params.get("fadfadaCommand"));
     if (!stagedCommand) return;
 
-    setInput(stagedCommand);
+    const stagedLanguage = params.get("lang") === "en" || params.get("lang") === "ar" ? params.get("lang") as Language : null;
+    const stagedPersona = params.get("persona") as PersonaId | null;
+    if (stagedLanguage) setLanguage(stagedLanguage);
+    if (stagedPersona && personas.some((persona) => persona.id === stagedPersona)) setPersonaId(stagedPersona);
+
+    updateInput(stagedCommand);
     setToolsOpen(false);
     scrollToSection("chat");
     window.setTimeout(focusInput, 120);
     trackInteraction("starter_tap", { type: "demo_command_staged", command: stagedCommand, language });
     params.delete("demoCommand");
     params.delete("fadfadaCommand");
+    params.delete("lang");
+    params.delete("persona");
     const nextSearch = params.toString();
     const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
     window.history.replaceState(null, "", nextUrl);
-  }, [language]);
+  }, [language, setLanguage]);
+
+  useEffect(() => {
+    function refreshOnlineStatus() {
+      setIsOffline(!navigator.onLine);
+    }
+
+    refreshOnlineStatus();
+    window.addEventListener("online", refreshOnlineStatus);
+    window.addEventListener("offline", refreshOnlineStatus);
+
+    const storedDraft = localStorage.getItem(offlineDraftStorageKey);
+    if (storedDraft && !input.trim()) {
+      setInput(storedDraft);
+      setOfflineDraftSaved(true);
+    }
+
+    return () => {
+      window.removeEventListener("online", refreshOnlineStatus);
+      window.removeEventListener("offline", refreshOnlineStatus);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -1675,6 +1720,26 @@ export function ChatWindow() {
     const text = (overrideText ?? input).trim();
     if (!text || isThinking) return;
 
+    if (isOffline && !overrideText) {
+      localStorage.setItem(offlineDraftStorageKey, text);
+      setOfflineDraftSaved(true);
+      setMessages((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          text: language === "ar" ? "أنت غير متصل الآن. حفظت النص كمسودة محلية؛ عندما يعود الاتصال اضغط إرسال مرة أخرى." : "You are offline right now. I saved this as a local draft; when connection returns, press Send again.",
+          world,
+          language,
+          cadence: normalizeCadence("steady_calm", world),
+          personaId: activePersona.id,
+          personaName: language === "ar" ? activePersona.nameAr : activePersona.nameEn,
+          avatarPath: activePersona.avatarPath,
+        },
+      ]);
+      return;
+    }
+
     if (!overrideText && await runSecretCommand(text)) return;
 
     if (accessState !== "plus" && getUsedCredits() >= reflectionLimit) {
@@ -1687,7 +1752,9 @@ export function ChatWindow() {
     const requestWorld = overrideWorld ?? world;
     const requestPersona = overridePersona ?? activePersona;
     const personaContinuityPrompt = buildCompanionContinuityPrompt(requestPersona, messages, nextLanguage);
-    setInput("");
+    updateInput("");
+    localStorage.removeItem(offlineDraftStorageKey);
+    setOfflineDraftSaved(false);
     setIsThinking(true);
     setPaywallOpen(false);
 
@@ -2404,6 +2471,13 @@ export function ChatWindow() {
                 : "Recording did not start. Allow microphone access, then try again."}
           </p>
         ) : null}
+        {isOffline || offlineDraftSaved ? (
+          <p className="w-full rounded-lg border border-cyan-200/20 bg-cyan-200/10 px-3 py-2 font-arsans text-xs text-cyan-100" dir={language === "ar" ? "rtl" : "ltr"}>
+            {isOffline
+              ? language === "ar" ? "وضع بدون اتصال: اكتب الآن وسنحفظ المسودة محليًا حتى يعود الاتصال." : "Offline mode: write now and the draft stays local until connection returns."
+              : language === "ar" ? "مسودة بدون اتصال جاهزة للإرسال." : "Offline draft is ready to send."}
+          </p>
+        ) : null}
         <div className="flex w-full items-end gap-3">
         <button
           type="button"
@@ -2420,7 +2494,7 @@ export function ChatWindow() {
         <textarea
           ref={inputRef}
           value={input}
-          onChange={(event) => setInput(event.target.value)}
+          onChange={(event) => updateInput(event.target.value)}
           onKeyDown={handleComposerKeyDown}
           rows={1}
           dir={language === "ar" ? "rtl" : "ltr"}

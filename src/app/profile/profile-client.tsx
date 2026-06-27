@@ -64,6 +64,19 @@ type CompanionInsight = {
   latestText: string;
 };
 
+type ReflectionReelItem = {
+  before: string;
+  after: string;
+  world: string;
+  createdAt: string;
+};
+
+type CompanionRecommendation = {
+  name: string;
+  reason: string;
+  command: string;
+};
+
 type VoiceDialect = "ar-EG" | "ar-SA" | "ar-AE" | "ar-LB";
 
 type Profile = {
@@ -124,6 +137,8 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
   const companionInsights = buildCompanionInsights(savedMoments, language);
   const storyMirrorMoments = savedMoments.filter((moment) => moment.world === "story").slice(0, 4);
   const moodConstellation = buildMoodConstellation({ savedMoments, tinyPlans, journeySnapshots, growthQuests });
+  const reflectionReel = buildReflectionReel(savedMoments, journeySnapshots, language);
+  const companionRecommendations = buildCompanionRecommendations(journeyInsight.dominantWorlds, language);
 
   useEffect(() => {
     setSavedMoments(JSON.parse(localStorage.getItem("fadfada-saved-moments") || "[]") as SavedMoment[]);
@@ -340,6 +355,38 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
               {moodConstellation.length > 0 ? moodConstellation.map((point, index) => (
                 <span key={`${point.world}-${index}`} title={formatWorld(point.world, language)} className={`aspect-square rounded-full ${point.className}`} style={{ opacity: point.opacity }} />
               )) : <p className="col-span-full self-center font-arsans text-sm text-bone/42">{isArabic ? "احفظ لحظات وخططاً لتظهر الكوكبة." : "Save moments and plans to reveal the constellation."}</p>}
+            </div>
+          </div>
+        </section>
+
+        <section className="md:col-span-2 grid gap-4 lg:grid-cols-2">
+          <div className="border border-emerald-300/15 bg-emerald-300/[0.025] p-5">
+            <p className="ui-kicker text-emerald-200">{isArabic ? "شريط قبل / بعد" : "Before / after reel"}</p>
+            <h2 className="mt-2 font-arserif text-3xl text-bone/90">{isArabic ? "الأثر الذي تتركه الجلسات" : "The trace your sessions leave"}</h2>
+            <div className="mt-5 space-y-3">
+              {reflectionReel.length > 0 ? reflectionReel.map((item) => (
+                <article key={`${item.createdAt}-${item.world}`} className="border border-emerald-300/15 bg-black/10 p-4">
+                  <p className="font-arsans text-xs text-bone/38">{formatWorld(item.world, language)} · {new Date(item.createdAt).toLocaleDateString(isArabic ? "ar-EG" : "en-US")}</p>
+                  <p className="mt-3 font-arsans text-sm leading-6 text-bone/58" dir="auto"><span className="text-bone/35">{isArabic ? "قبل: " : "Before: "}</span>{item.before}</p>
+                  <p className="mt-2 font-arsans text-sm leading-6 text-emerald-100/75" dir="auto"><span className="text-emerald-200">{isArabic ? "بعد: " : "After: "}</span>{item.after}</p>
+                </article>
+              )) : <p className="font-arsans text-sm leading-7 text-bone/45">{isArabic ? "احفظ لقطة رحلة لتظهر هنا نتيجة الجلسة بدون كشف كل المحادثة." : "Save a journey snapshot to show the session outcome without exposing the full chat."}</p>}
+            </div>
+          </div>
+
+          <div className="border border-dusk/25 bg-dusk/[0.035] p-5">
+            <p className="ui-kicker text-dusk">{isArabic ? "اقتراح الرفيق التالي" : "Next companion suggestion"}</p>
+            <h2 className="mt-2 font-arserif text-3xl text-bone/90">{isArabic ? "من يستحق التجربة الآن" : "Who is worth trying next"}</h2>
+            <div className="mt-5 space-y-3">
+              {companionRecommendations.map((item) => (
+                <article key={item.command} className="grid grid-cols-[1fr_auto] gap-3 border border-white/10 bg-black/10 p-4">
+                  <span className="min-w-0">
+                    <span className="block font-arsans text-sm text-bone/82">{item.name}</span>
+                    <span className="mt-1 block font-arsans text-xs leading-5 text-bone/45">{item.reason}</span>
+                  </span>
+                  <Link href={`/?demoCommand=${encodeURIComponent(item.command)}`} className="ui-action self-center border border-dusk/35 px-3 py-2 text-dusk hover:bg-dusk hover:text-ink">{item.command}</Link>
+                </article>
+              ))}
             </div>
           </div>
         </section>
@@ -577,6 +624,37 @@ function buildCompanionInsights(savedMoments: SavedMoment[], language: "ar" | "e
   });
 
   return Array.from(companionMap.values()).sort((a, b) => b.count - a.count).slice(0, 4);
+}
+
+function buildReflectionReel(savedMoments: SavedMoment[], journeySnapshots: JourneySnapshot[], language: "ar" | "en"): ReflectionReelItem[] {
+  const snapshotItems = journeySnapshots.slice(0, 3).map((snapshot) => ({
+    before: cleanArtifactText(snapshot.theme).slice(0, 130),
+    after: cleanArtifactText(snapshot.nextStep).slice(0, 150),
+    world: snapshot.world,
+    createdAt: snapshot.createdAt,
+  }));
+
+  if (snapshotItems.length > 0) return snapshotItems;
+
+  return savedMoments.slice(0, 2).map((moment) => ({
+    before: language === "ar" ? "لحظة كانت تحتاج اسماً أهدأ." : "A moment that needed a calmer name.",
+    after: cleanArtifactText(moment.text).slice(0, 150),
+    world: moment.world,
+    createdAt: moment.savedAt,
+  }));
+}
+
+function buildCompanionRecommendations(dominantWorlds: JourneyInsight["dominantWorlds"], language: "ar" | "en"): CompanionRecommendation[] {
+  const topWorld = dominantWorlds[0]?.world || "calm";
+  const isArabic = language === "ar";
+  const primary = topWorld === "story"
+    ? { name: isArabic ? "راوية" : "Rawiya", reason: isArabic ? "لأن خيط الحكاية حاضر في رحلتك، جرّب تحويل الشعور إلى مشهد." : "Your story thread is active; try turning the feeling into a scene.", command: "/story" }
+    : topWorld === "build" || topWorld === "learning"
+      ? { name: isArabic ? "مالك" : "Malek", reason: isArabic ? "لأنك تجمع خطوات وخططاً، جرّب رفيقاً يحوّل الكلام إلى بناء." : "You are collecting steps and plans; try a companion who turns reflection into structure.", command: "/quest" }
+      : { name: isArabic ? "عمر" : "Omar", reason: isArabic ? "لأن الخيط يحتاج هدوءاً أولاً، ابدأ بجلسة قصيرة ثم احفظ لقطة." : "The thread needs calm first; start with a short reflection, then save a snapshot.", command: "/judge" };
+
+  const secondary = { name: isArabic ? "بطاقة إثبات" : "Proof Card", reason: isArabic ? "عندما يظهر أثر واضح، حوّله إلى بطاقة مشاركة لا تكشف خصوصيتك." : "When a useful outcome appears, turn it into a shareable proof card without exposing private text.", command: "/proof" };
+  return [primary, secondary];
 }
 
 function buildMoodConstellation(artifacts: { savedMoments: SavedMoment[]; tinyPlans: TinyPlan[]; journeySnapshots: JourneySnapshot[]; growthQuests: GrowthQuest[] }) {

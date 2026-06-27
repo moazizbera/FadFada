@@ -268,6 +268,7 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
   const labels = copy[language];
   const locale = language === "ar" ? "ar-EG" : "en-US";
   const conversionRate = data.totalVisitors > 0 ? `${Math.round((data.registeredUsers / data.totalVisitors) * 100)}%` : "0%";
+  const healthScore = buildAdminHealthScore(data, language);
   const metricRows = [
     [
       { label: labels.metrics.trackedVisits, value: formatNumber(data.totalVisitors, locale) },
@@ -333,6 +334,22 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
 
         {activeTab === "dashboard" ? (
           <>
+
+        <section className="grid gap-4 border-b border-gold/20 py-8 md:grid-cols-[0.7fr_1.3fr]">
+          <div className="border border-gold/25 bg-gold/[0.035] p-5">
+            <p className="ui-kicker text-gold">{language === "ar" ? "صحة المنتج" : "Product health"}</p>
+            <p className="mt-3 font-enserif text-6xl italic text-gold">{healthScore.score}</p>
+            <p className="mt-2 font-arsans text-sm text-bone/58">{healthScore.label}</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {healthScore.signals.map((signal) => (
+              <article key={signal.label} className="border border-white/10 bg-white/[0.025] p-4">
+                <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35">{signal.label}</p>
+                <p className="mt-2 font-arsans text-sm leading-6 text-bone/68">{signal.value}</p>
+              </article>
+            ))}
+          </div>
+        </section>
 
         <DashboardListSection kicker={labels.sections.liveKicker} title={labels.sections.liveTitle} description={labels.sections.liveDescription}>
           <div className="grid gap-3 md:grid-cols-4">
@@ -1087,6 +1104,26 @@ function buildNarrativeTimeline(data: AdminDashboardData, language: Locale, loca
   ];
 
   return entries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 6);
+}
+
+function buildAdminHealthScore(data: AdminDashboardData, language: Locale) {
+  const engagement = data.interactionTotals.starterTaps + data.interactionTotals.savedMoments + data.interactionTotals.shares + data.interactionTotals.capsules;
+  const community = data.registeredUsers + data.visitorComments.length + data.chatSessions.length;
+  const installSignal = data.interactionTotals.pwaInstalls + data.pwaInstalls.length;
+  const score = Math.min(100, Math.round(data.totalVisitors * 1.5 + engagement * 4 + community * 5 + installSignal * 6));
+  const isArabic = language === "ar";
+
+  return {
+    score,
+    label: isArabic
+      ? score >= 70 ? "الإشارات قوية ومتنوعه." : score >= 35 ? "الإشارات تتجمع بهدوء." : "ابدأ بجمع زيارات وتعليقات وجلسات أكثر."
+      : score >= 70 ? "Signals are strong and varied." : score >= 35 ? "Signals are quietly compounding." : "Collect more visits, comments, and sessions.",
+    signals: [
+      { label: isArabic ? "تفاعل" : "Engagement", value: String(engagement) },
+      { label: isArabic ? "مجتمع" : "Community", value: String(community) },
+      { label: isArabic ? "تثبيت" : "Install", value: String(installSignal) },
+    ],
+  };
 }
 
 function EmptyMetric({ label }: { label: string }) {
