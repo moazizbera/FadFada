@@ -151,8 +151,8 @@ const copy = {
       funnelTitle: "أحدث الملفات المسجلة",
       funnelDescription: "آخر الأعضاء، لغة الاستخدام، ومصدر التسجيل.",
       plansKicker: "توزيع الخطط",
-      plansTitle: "توزيع الخطط وسجل الدفع الداخلي",
-      plansDescription: "مزيج الخطط والمدفوعات المسجلة عبر الويبهوك داخل قاعدة البيانات.",
+      plansTitle: "توزيع الخطط",
+      plansDescription: "عدد الأعضاء حسب الخطة الحالية. الإيراد الحقيقي يظهر في لوحة مزود الدفع.",
       commentsKicker: "صوت الزوار",
       commentsTitle: "آخر تعليقات الزوار",
       commentsDescription: "ملاحظات قصيرة يرسلها الزوار من الصفحة الرئيسية.",
@@ -178,8 +178,7 @@ const copy = {
     unnamedProfile: "ملف بدون اسم",
     unknownLocation: "موقع غير معروف",
     userCount: "مستخدم",
-    monthlyRevenue: "مسجلة داخلياً",
-    paymentLedgerNote: "مصدر حقيقة الإيراد هو لوحة مزود الدفع. إذا كانت Lemon أو Stripe أو Paddle تعرض 0.00$ فالإيراد الحقيقي للفترة هو 0.00$ حتى لو وُجدت سجلات اختبار داخل التطبيق.",
+    paymentLedgerNote: "لا نعرض مبالغ الويبهوك الداخلية هنا لأنها قد تكون سجلات اختبار. مصدر حقيقة الإيراد هو لوحة مزود الدفع: إذا كانت تعرض 0.00$ فالإيراد الحقيقي للفترة هو 0.00$.",
     exportDescription: "يصدر بيانات الزوار والتسجيلات وتوزيع الخطط كملف مشفر للمراجعة والتحليل.",
     exportButton: "تصدير الملف",
     languageNames: { ar: "العربية", en: "الإنجليزية" },
@@ -213,8 +212,8 @@ const copy = {
       funnelTitle: "Recent registered profiles",
       funnelDescription: "Recent members, language preference, and registration origin.",
       plansKicker: "Commercial plan distribution",
-      plansTitle: "Plan distribution and internal payment ledger",
-      plansDescription: "Plan mix and webhook-recorded payments saved in the app database.",
+      plansTitle: "Plan distribution",
+      plansDescription: "Member count by current plan. Real revenue is verified in the payment vendor dashboard.",
       commentsKicker: "Visitor voice",
       commentsTitle: "Latest visitor comments",
       commentsDescription: "Short notes visitors submit from the home experience.",
@@ -240,8 +239,7 @@ const copy = {
     unnamedProfile: "Unlabeled profile",
     unknownLocation: "Unknown location",
     userCount: "users",
-    monthlyRevenue: "recorded internally",
-    paymentLedgerNote: "The payment vendor dashboard is the revenue source of truth. If Lemon, Stripe, or Paddle shows $0.00, real revenue for the period is $0.00 even if test records exist inside the app.",
+    paymentLedgerNote: "Internal webhook amounts are hidden here because they can include test records. The payment vendor dashboard is the revenue source of truth: if it shows $0.00, real revenue for the period is $0.00.",
     exportDescription: "Exports visitors, registrations, and plan distribution as an encrypted review file.",
     exportButton: "Export file",
     languageNames: { ar: "Arabic", en: "English" },
@@ -337,10 +335,9 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
         <DashboardListSection kicker={labels.sections.plansKicker} title={labels.sections.plansTitle} description={labels.sections.plansDescription}>
           <div className="space-y-6">
             {data.distribution.map((entry) => (
-              <div key={entry.tier} className="grid grid-cols-[6.5rem_1fr_auto] items-baseline gap-4">
+              <div key={entry.tier} className="grid grid-cols-[6.5rem_1fr] items-baseline gap-4">
                 <span className="font-arsans text-xs text-gold">{formatTier(entry.tier, language)}</span>
                 <span className="font-arsans text-3xl text-bone/90">{formatNumber(entry.userCount, locale)} {labels.userCount}</span>
-                <span className="font-arsans text-xs text-bone/50">{formatCurrency(entry.monthlyRevenueMinor, entry.currency, locale)} {labels.monthlyRevenue}</span>
               </div>
             ))}
             <p className="border-t border-white/10 pt-4 font-arsans text-xs leading-6 text-bone/45">{labels.paymentLedgerNote}</p>
