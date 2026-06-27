@@ -161,6 +161,9 @@ const copy = {
       pwaKicker: "تثبيت التطبيق",
       pwaTitle: "تثبيتات PWA والأجهزة",
       pwaDescription: "عدد التثبيتات ونوع الجهاز والمتصفح المستخدم.",
+      liveKicker: "الغرفة الحية",
+      liveTitle: "نبض اليوم في فضفضة",
+      liveDescription: "لقطة تشغيلية خفيفة تتجدد تلقائياً بدون ازدحام الرسوم.",
       avatarsKicker: "تقييم الرفقاء",
       avatarsTitle: "تقييمات صور الرفقاء",
       avatarsDescription: "متوسط النجوم وعدد تقييمات المستخدمين لكل صورة رفيق.",
@@ -224,6 +227,9 @@ const copy = {
       pwaKicker: "App installs",
       pwaTitle: "PWA installs and devices",
       pwaDescription: "Install count, device type, and browser used.",
+      liveKicker: "Live room",
+      liveTitle: "FadFada pulse today",
+      liveDescription: "A lightweight operations snapshot that refreshes automatically without crowding the dashboard.",
       avatarsKicker: "Companion quality",
       avatarsTitle: "Avatar star ratings",
       avatarsDescription: "Average stars and end-user rating count for each companion avatar.",
@@ -326,6 +332,20 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
 
         {activeTab === "dashboard" ? (
           <>
+
+        <DashboardListSection kicker={labels.sections.liveKicker} title={labels.sections.liveTitle} description={labels.sections.liveDescription}>
+          <div className="grid gap-3 md:grid-cols-4">
+            <LiveRoomTile label={labels.metrics.trackedVisits} value={formatNumber(data.totalVisitors, locale)} accent="bg-gold" />
+            <LiveRoomTile label={labels.metrics.registeredMembers} value={formatNumber(data.registeredUsers, locale)} accent="bg-emerald-300" />
+            <LiveRoomTile label={labels.metrics.visitorComments} value={formatNumber(data.interactionTotals.visitorComments, locale)} accent="bg-dusk" />
+            <LiveRoomTile label={labels.metrics.pwaInstalls} value={formatNumber(data.interactionTotals.pwaInstalls, locale)} accent="bg-cyan-200" />
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            <LiveSignal label={language === "ar" ? "آخر عضو" : "Latest member"} value={data.recentUsers[0]?.name || data.recentUsers[0]?.email || labels.unnamedProfile} detail={data.recentUsers[0] ? `${formatTier(data.recentUsers[0].activeTier, language)} · ${formatDate(data.recentUsers[0].createdAt, locale)}` : labels.emptySignups} />
+            <LiveSignal label={language === "ar" ? "آخر تعليق" : "Latest comment"} value={data.visitorComments[0]?.comment || labels.emptyComments} detail={data.visitorComments[0] ? formatDate(data.visitorComments[0].createdAt, locale) : ""} />
+            <LiveSignal label={language === "ar" ? "آخر جلسة" : "Latest session"} value={data.chatSessions[0]?.title || (language === "ar" ? "لا توجد جلسات" : "No sessions yet")} detail={data.chatSessions[0] ? `${data.chatSessions[0].userLabel} · ${formatNumber(data.chatSessions[0].messageCount, locale)} ${language === "ar" ? "رسائل" : "messages"}` : ""} />
+          </div>
+        </DashboardListSection>
 
         {metricRows.map((row, index) => (
           <section key={index} className="grid gap-4 border-b border-white/10 py-8 sm:grid-cols-3">
@@ -985,6 +1005,26 @@ function MetricCard({ label, value }: { label: string; value: string }) {
       <p className="font-arsans text-sm text-bone/70">{label}</p>
       <p className="mt-3 font-enserif text-3xl italic text-bone/95">{value}</p>
     </div>
+  );
+}
+
+function LiveRoomTile({ label, value, accent }: { label: string; value: string; accent: string }) {
+  return (
+    <article className="border border-white/10 bg-white/[0.025] p-4">
+      <span className={`block h-1 w-10 ${accent}`} />
+      <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35">{label}</p>
+      <p className="mt-2 font-enserif text-4xl italic text-bone/92">{value}</p>
+    </article>
+  );
+}
+
+function LiveSignal({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <article className="min-w-0 border border-white/10 bg-black/10 p-4">
+      <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-gold/70">{label}</p>
+      <p className="mt-2 truncate font-arsans text-sm text-bone/78" dir="auto">{value}</p>
+      {detail ? <p className="mt-2 truncate font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="auto">{detail}</p> : null}
+    </article>
   );
 }
 

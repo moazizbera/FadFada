@@ -162,11 +162,13 @@ function cleanVariation(value: number | undefined) {
 
 function buildStoryboardPrompt({ prompt, title, language }: { prompt: string; title: string; language: "ar" | "en" }) {
   return [
-    "Create one safe symbolic cinematic image for the FadFada emotional reflection storyboard.",
-    "The image should feel premium, calm, culturally respectful, and suitable for a wellbeing PWA.",
-    "Use metaphor, light, space, and posture instead of literal private details.",
+    "Create one safe symbolic cinematic image for the FadFada emotional reflection storyboard, like a single frame from a quiet emotional short film.",
+    "The image should feel premium, calm, culturally respectful, story-specific, and suitable for a wellbeing PWA.",
+    "Use metaphor, light, space, posture, and environmental detail instead of literal private details.",
+    "Keep one consistent unnamed protagonist or symbolic subject when the prompt implies a person, with continuity in silhouette, clothing tone, and emotional posture.",
+    "Represent the exact scene content. Do not replace it with generic books, open pages, libraries, stars, or random atmospheric stock imagery unless those objects are explicitly central.",
     "Avoid text, logos, watermarks, medical or therapy symbols, violence, gore, nudity, and celebrity likeness.",
-    "Make the composition work as a 16:9 storyboard frame with clear emotional atmosphere.",
+    "Make the composition work as a 16:9 storyboard frame with foreground, middle ground, background, and clear emotional atmosphere.",
     `Scene title: ${title}.`,
     `User language context: ${language}.`,
     `Scene prompt: ${prompt}.`,
@@ -239,10 +241,11 @@ function buildPromptImageFallbackUrl({ title, prompt, sceneNumber, variation, la
   const seed = hashText(`${title}:${prompt}:${sceneNumber}:${variation}`) % 1_000_000;
   const cinematicDirection = getPromptFallbackCinematicDirection(sceneNumber, variation);
   const visualPrompt = [
-    "Cinematic symbolic storyboard frame, emotionally faithful to the exact scene, not generic stock photography and not a random mood image.",
-    "Create the exact visual moment described in the scene prompt, with distinct setting, posture, light, and atmosphere.",
+    "Cinematic symbolic storyboard frame from a quiet emotional short film, emotionally faithful to the exact scene, not generic stock photography and not a random mood image.",
+    "Create the exact visual moment described in the scene prompt, with distinct setting, protagonist posture, light, atmosphere, and story-specific objects.",
+    "If a person or symbolic figure is implied, keep a single consistent unnamed protagonist with the same silhouette, clothing tone, and emotional posture across storyboard variations.",
     cinematicDirection,
-    "Premium film still, expressive composition, rich environmental detail, depth of field, dramatic but calm lighting, 16:9 widescreen, story concept art quality.",
+    "Premium film still, expressive composition, rich environmental detail, foreground middle ground background, depth of field, dramatic but calm lighting, 16:9 widescreen, story concept art quality.",
     "Avoid default open books, blank pages, generic libraries, generic star wallpapers, and decorative filler unless those objects are explicitly central to the prompt.",
     "No written text, no captions, no logos, no watermarks, no book unless the prompt explicitly asks for a book or manuscript.",
     language === "ar" ? "The scene prompt may be Arabic; interpret its meaning visually and do not draw Arabic text." : "Interpret the scene visually without adding text.",

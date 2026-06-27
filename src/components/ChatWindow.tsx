@@ -634,6 +634,21 @@ function resolveMessagePersona(message: ChatMessage, customPersona: Persona | nu
   return personas.find((persona) => persona.id === message.personaId) ?? personas.find((persona) => persona.id === "omar") ?? personas[0];
 }
 
+function buildCompanionContinuityPrompt(persona: Persona, messages: ChatMessage[], language: Language) {
+  const samePersonaReplies = messages
+    .filter((message) => message.role === "assistant" && message.personaId === persona.id && message.text.trim().length > 0)
+    .slice(-3)
+    .map((message) => message.text.replace(/\s+/g, " ").slice(0, 220));
+
+  if (samePersonaReplies.length === 0) return "";
+
+  const heading = language === "ar"
+    ? "استمرارية الرفيق: تذكر بلطف هذه الخيوط من ردودك السابقة مع نفس المستخدم، دون أن تقول إنك تملك ذاكرة دائمة ودون إعادة سردها حرفياً."
+    : "Companion continuity: gently carry these threads from your previous replies with this user, without claiming permanent memory and without repeating them verbatim.";
+
+  return `${heading}\n${samePersonaReplies.map((reply, index) => `${index + 1}. ${reply}`).join("\n")}`;
+}
+
 function inferCustomAvatarPath(description: string) {
   const loweredDescription = description.toLowerCase();
   if (/spark|energy|fire|حماس|نار|طاقة|سريع|نشط/.test(loweredDescription)) return "/profile-logos/spark.svg";
@@ -1626,6 +1641,7 @@ export function ChatWindow() {
     const nextLanguage = inferRequestedLanguage(text, language);
     const requestWorld = overrideWorld ?? world;
     const requestPersona = overridePersona ?? activePersona;
+    const personaContinuityPrompt = buildCompanionContinuityPrompt(requestPersona, messages, nextLanguage);
     setInput("");
     setIsThinking(true);
     setPaywallOpen(false);
@@ -1651,7 +1667,7 @@ export function ChatWindow() {
           currentWorld: requestWorld,
           currentLanguage: nextLanguage,
           userDisplayName: greetingName,
-          personaSystemPrompt: requestPersona.coreSystemPrompt,
+          personaSystemPrompt: [requestPersona.coreSystemPrompt, personaContinuityPrompt].filter(Boolean).join("\n\n"),
           behaviorStyle,
           softerMode: softerNext,
           recentMessages: buildRecentMessages(messages),
@@ -3329,6 +3345,7 @@ function PlanComparisonCard({ language, loading, status, onUpgrade }: { language
   const plusFeatures = isArabic
     ? ["متابعة أطول للتقدم", "ردود أعمق ومزايا أوسع", "رفيق مخصص وصور أفاتار أكثر", "حفظ أوسع للخطط واللحظات والكبسولات"]
     : ["Longer progress continuity", "Deeper answers and expanded tools", "Custom companion and more avatar generation", "Expanded plans, moments, and capsules"];
+  const premiumPreview = personas.filter((persona) => persona.isPremium).slice(0, 4);
 
   return (
     <section className="mt-5 w-full rounded-2xl border border-[#C9A86A]/25 bg-[#C9A86A]/[0.055] p-4 text-start shadow-2xl backdrop-blur" dir={isArabic ? "rtl" : "ltr"}>
@@ -3367,6 +3384,14 @@ function PlanComparisonCard({ language, loading, status, onUpgrade }: { language
       <p className="mt-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2 font-arsans text-xs leading-5 text-[#F7F3EC]/62">
         {isArabic ? "عند الضغط على الترقية سيتم فتح صفحة دفع آمنة لإكمال الاشتراك." : "When you press upgrade, secure checkout opens so the user can pay."}
       </p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-4">
+        {premiumPreview.map((persona) => (
+          <div key={persona.id} className="rounded-lg border border-white/10 bg-black/15 px-3 py-2">
+            <p className="truncate font-arsans text-xs text-[#C9A86A]">{isArabic ? persona.nameAr : persona.nameEn}</p>
+            <p className="mt-1 line-clamp-2 font-arsans text-[11px] leading-4 text-[#F7F3EC]/45">{isArabic ? persona.roleAr : persona.roleEn}</p>
+          </div>
+        ))}
+      </div>
       {status !== "idle" ? (
         <p className="mt-3 rounded-lg border border-red-200/25 bg-red-200/10 px-3 py-2 font-arsans text-xs leading-5 text-red-100">
           {status === "paused"

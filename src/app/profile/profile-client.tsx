@@ -44,6 +44,15 @@ type GrowthQuest = {
   createdAt: string;
 };
 
+type JourneyInsight = {
+  artifactCount: number;
+  completedQuestSteps: number;
+  dominantWorlds: Array<{ world: string; count: number }>;
+  reflectionScore: number;
+  streakSignal: string;
+  nextFocus: string;
+};
+
 type Profile = {
   id: string;
   name: string | null;
@@ -88,6 +97,7 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [billingStatus, setBillingStatus] = useState<"idle" | "opening" | "error">("idle");
   const [billingMessage, setBillingMessage] = useState("");
+  const journeyInsight = buildJourneyInsight({ savedMoments, tinyPlans, journeySnapshots, growthQuests }, language);
 
   useEffect(() => {
     setSavedMoments(JSON.parse(localStorage.getItem("fadfada-saved-moments") || "[]") as SavedMoment[]);
@@ -260,6 +270,33 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
           {status === "error" ? <p className="font-arsans text-sm text-red-200">{isArabic ? "لم يتم الحفظ. تأكد أن الروابط تبدأ باتصال آمن." : "Could not save. Make sure links use a secure address."}</p> : null}
         </form>
 
+        <section className="md:col-span-2 border border-dusk/25 bg-dusk/[0.035] p-5">
+          <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+            <div>
+              <p className="ui-kicker text-dusk">{isArabic ? "خريطة الرحلة" : "Journey map"}</p>
+              <h2 className="mt-2 font-arserif text-3xl text-bone/90">{isArabic ? "ما يتكرر في رحلتك" : "What keeps returning in your journey"}</h2>
+              <p className="mt-3 font-arsans text-sm leading-7 text-bone/58">{journeyInsight.nextFocus}</p>
+              <div className="mt-5 grid grid-cols-3 gap-3">
+                <InsightTile label={isArabic ? "أثر محفوظ" : "Artifacts"} value={journeyInsight.artifactCount.toLocaleString(isArabic ? "ar-EG" : "en-US")} />
+                <InsightTile label={isArabic ? "خطوات منجزة" : "Steps done"} value={journeyInsight.completedQuestSteps.toLocaleString(isArabic ? "ar-EG" : "en-US")} />
+                <InsightTile label={isArabic ? "مؤشر التقدم" : "Progress"} value={`${journeyInsight.reflectionScore}%`} />
+              </div>
+            </div>
+            <div className="space-y-4">
+              <p className="font-arsans text-sm text-bone/55">{journeyInsight.streakSignal}</p>
+              <div className="space-y-3">
+                {journeyInsight.dominantWorlds.length > 0 ? journeyInsight.dominantWorlds.map((entry) => (
+                  <div key={entry.world} className="grid grid-cols-[6rem_1fr_2.5rem] items-center gap-3">
+                    <span className="font-arsans text-xs text-bone/55">{formatWorld(entry.world, language)}</span>
+                    <span className="h-px bg-white/10"><span className="block h-px bg-dusk" style={{ width: `${Math.min(100, entry.count * 22)}%` }} /></span>
+                    <span className="text-right font-mono text-[10px] text-bone/38">{entry.count}</span>
+                  </div>
+                )) : <p className="font-arsans text-sm text-bone/42">{isArabic ? "ابدأ بحفظ لحظة أو خطة صغيرة لتظهر الخريطة." : "Save a moment or tiny plan to light up the map."}</p>}
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="md:col-span-2 border border-white/10 bg-white/[0.025] p-5">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -380,6 +417,49 @@ function ProfileInput({ label, value, onChange, dir = "auto" }: { label: string;
       <input value={value} onChange={(event) => onChange(event.target.value)} dir={dir} className="w-full border border-white/10 bg-black/20 px-3 py-3 font-arsans text-base text-bone outline-none transition-colors focus:border-gold/50" />
     </label>
   );
+}
+
+function InsightTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border border-white/10 bg-black/15 p-3">
+      <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35">{label}</p>
+      <p className="mt-2 font-enserif text-3xl italic text-bone/90">{value}</p>
+    </div>
+  );
+}
+
+function buildJourneyInsight(
+  artifacts: { savedMoments: SavedMoment[]; tinyPlans: TinyPlan[]; journeySnapshots: JourneySnapshot[]; growthQuests: GrowthQuest[] },
+  language: "ar" | "en"
+): JourneyInsight {
+  const worldCounts = new Map<string, number>();
+  const addWorld = (world: string) => worldCounts.set(world, (worldCounts.get(world) || 0) + 1);
+  artifacts.savedMoments.forEach((item) => addWorld(item.world));
+  artifacts.tinyPlans.forEach((item) => addWorld(item.world));
+  artifacts.journeySnapshots.forEach((item) => addWorld(item.world));
+  artifacts.growthQuests.forEach((item) => addWorld(item.world));
+
+  const artifactCount = artifacts.savedMoments.length + artifacts.tinyPlans.length + artifacts.journeySnapshots.length + artifacts.growthQuests.length;
+  const completedQuestSteps = artifacts.growthQuests.reduce((total, quest) => total + quest.days.filter((day) => day.done).length, 0);
+  const dominantWorlds = Array.from(worldCounts.entries())
+    .map(([world, count]) => ({ world, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 4);
+  const reflectionScore = Math.min(100, Math.round(artifactCount * 10 + completedQuestSteps * 7 + artifacts.journeySnapshots.length * 12));
+  const topWorld = dominantWorlds[0]?.world;
+
+  return {
+    artifactCount,
+    completedQuestSteps,
+    dominantWorlds,
+    reflectionScore,
+    streakSignal: language === "ar"
+      ? artifactCount > 0 ? "الخريطة لا تقيسك؛ هي فقط تريك أين يعود انتباهك." : "الخريطة هادئة الآن، وستبدأ مع أول لحظة تحفظها."
+      : artifactCount > 0 ? "The map does not judge you; it simply shows where attention keeps returning." : "The map is quiet for now; it starts with your first saved artifact.",
+    nextFocus: language === "ar"
+      ? topWorld ? `أكثر خيط ظاهر الآن هو ${formatWorld(topWorld, language)}. اجعل الخطوة القادمة صغيرة بما يكفي أن تبدأها اليوم.` : "احفظ لحظة، خطة، أو لقطة رحلة لتبدأ فضفضة في رسم نمطك الشخصي."
+      : topWorld ? `Your strongest current thread is ${formatWorld(topWorld, language)}. Keep the next step small enough to start today.` : "Save a moment, plan, or snapshot so FadFada can begin drawing your personal pattern.",
+  };
 }
 
 function formatTier(tier: string, language: "ar" | "en") {
