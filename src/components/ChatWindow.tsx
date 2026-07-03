@@ -257,6 +257,7 @@ const defaultExperienceConfiguration = {
   signedGiftReflectionLimit: 15,
   anonymousPersonaLimit: 4,
   signedPersonaLimit: 10,
+  avatarsEnabled: true,
 };
 const maxStoredMessages = 80;
 const fadfadaHomeActionEventName = "fadfada:home-action";
@@ -873,7 +874,7 @@ export function ChatWindow() {
   const accountImage = session?.user?.image || null;
   const sessionUser = session?.user as ({ id?: string; activeTier?: string; tokenBalance?: number } & Record<string, unknown>) | undefined;
   const accessState: AccessState = sessionUser?.activeTier === "PLUS" || sessionUser?.activeTier === "BUSINESS" ? "plus" : sessionUser?.id ? "signed" : "anonymous";
-  const { anonymousReflectionLimit, signedGiftReflectionLimit, anonymousPersonaLimit, signedPersonaLimit } = experienceConfiguration;
+  const { anonymousReflectionLimit, signedGiftReflectionLimit, anonymousPersonaLimit, signedPersonaLimit, avatarsEnabled } = experienceConfiguration;
   const signedReflectionAllowance = Math.max(signedGiftReflectionLimit, accountTokenBalance ?? sessionUser?.tokenBalance ?? signedGiftReflectionLimit);
   const reflectionLimit = accessState === "anonymous" ? anonymousReflectionLimit : accessState === "signed" ? signedReflectionAllowance : Number.POSITIVE_INFINITY;
   const usedReflections = accessState === "plus" ? 0 : trialCounter;
@@ -883,6 +884,10 @@ export function ChatWindow() {
     const limit = accessState === "signed" ? signedPersonaLimit : anonymousPersonaLimit;
     return Array.from(new Set([...personas.slice(0, limit).map((persona) => persona.id), ...grantedPersonaIds]));
   }, [accessState, anonymousPersonaLimit, grantedPersonaIds, signedPersonaLimit]);
+
+  useEffect(() => {
+    if (!avatarsEnabled) setPersonaOpen(false);
+  }, [avatarsEnabled]);
 
   function getUsedCredits() {
     const parsedCredits = Number(localStorage.getItem(getCreditStorageKey()) || "0");
@@ -1102,6 +1107,7 @@ export function ChatWindow() {
           signedGiftReflectionLimit: cleanConfigurationNumber(data.configuration?.signedGiftReflectionLimit, current.signedGiftReflectionLimit),
           anonymousPersonaLimit: cleanConfigurationNumber(data.configuration?.anonymousPersonaLimit, current.anonymousPersonaLimit),
           signedPersonaLimit: cleanConfigurationNumber(data.configuration?.signedPersonaLimit, current.signedPersonaLimit),
+          avatarsEnabled: data.configuration?.avatarsEnabled !== false,
         }));
       })
       .catch(() => undefined);
@@ -1223,6 +1229,7 @@ export function ChatWindow() {
     }
 
     if (action === "avatars") {
+      if (!avatarsEnabled) return;
       setToolsOpen(false);
       setPersonaOpen(true);
       void trackInteraction("starter_tap", { type: "top_menu_avatars", language });
@@ -1281,7 +1288,7 @@ export function ChatWindow() {
 
     window.addEventListener(fadfadaHomeActionEventName, handleAction);
     return () => window.removeEventListener(fadfadaHomeActionEventName, handleAction);
-  }, [language]);
+  }, [avatarsEnabled, language]);
 
   function showShareStatus(status: ShareStatus) {
     setShareStatus(status);
@@ -2143,6 +2150,7 @@ export function ChatWindow() {
         <button type="button" onClick={() => void startNewChatSession()} className="ui-action rounded-full border border-white/10 bg-black/15 px-3 py-2 text-xs text-[#F7F3EC]/70 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
           {language === "ar" ? "محادثة جديدة" : "New chat"}
         </button>
+        {avatarsEnabled ? (
         <button
           type="button"
           onClick={() => setPersonaOpen(true)}
@@ -2172,6 +2180,7 @@ export function ChatWindow() {
             <span className={`max-w-32 truncate text-[10px] text-[#C9A86A]/75 ${language === "ar" ? "font-arsans" : "font-ensans"}`}>{language === "ar" ? activePersona.roleAr : activePersona.roleEn}</span>
           </span>
         </button>
+        ) : null}
         <div className="flex items-center gap-2 sm:gap-4">
           <span className="font-arserif text-2xl text-[#F7F3EC]/95 sm:text-3xl">فضفضة</span>
         </div>
@@ -2219,7 +2228,7 @@ export function ChatWindow() {
             {language === "ar" ? "ابدأ الفضفضة" : "Start venting"}
           </button>
         </div>
-        <FirstMomentPanel language={language} onSelect={submitStarterMoment} onPersona={() => setPersonaOpen(true)} onDemo={() => {
+        <FirstMomentPanel language={language} onSelect={submitStarterMoment} onPersona={avatarsEnabled ? () => setPersonaOpen(true) : undefined} onDemo={() => {
           const scenario = judgeDemoScenarios[language][0];
           submitJudgeScenario(scenario.text, scenario.world, scenario.targetLanguage, scenario.personaId);
         }} />
@@ -2309,7 +2318,7 @@ export function ChatWindow() {
                   onShare={() => void runMomentAction(message.id, "share", () => shareMoment(message))}
                   onProof={() => void runMomentAction(message.id, "proof", () => shareProofCard(message))}
                   onDownload={() => void runMomentAction(message.id, "download", () => downloadCapsule(message))}
-                  onPersona={() => setPersonaOpen(true)}
+                  onPersona={avatarsEnabled ? () => setPersonaOpen(true) : undefined}
                   onHelpful={() => void runMomentAction(message.id, "helpful", () => sendFeedback(message, "helpful_feedback"))}
                   onSofter={() => void runMomentAction(message.id, "softer", () => sendFeedback(message, "softer_feedback"))}
                 />
@@ -2517,7 +2526,7 @@ export function ChatWindow() {
           scrollToSection("chat");
           window.setTimeout(focusInput, 120);
         }}
-        onPersona={() => setPersonaOpen(true)}
+        onPersona={avatarsEnabled ? () => setPersonaOpen(true) : undefined}
         onMenu={() => setToolsOpen(true)}
       />
 
@@ -3674,7 +3683,7 @@ function JudgeDemoCallout({ language, onRun }: { language: Language; onRun: () =
   );
 }
 
-function FirstMomentPanel({ language, onSelect, onPersona, onDemo }: { language: Language; onSelect: (text: string, world: WorldId) => void; onPersona: () => void; onDemo: () => void }) {
+function FirstMomentPanel({ language, onSelect, onPersona, onDemo }: { language: Language; onSelect: (text: string, world: WorldId) => void; onPersona?: () => void; onDemo: () => void }) {
   const isArabic = language === "ar";
   const moments = isArabic
     ? [
@@ -3697,9 +3706,11 @@ function FirstMomentPanel({ language, onSelect, onPersona, onDemo }: { language:
           <p className="ui-kicker text-[#C9A86A]/85">{isArabic ? "اختر البداية" : "Choose your start"}</p>
           <p className="mt-1 font-arsans text-sm leading-6 text-[#F7F3EC]/62">{isArabic ? "لا تفكر في صياغة مثالية. اختر ما تحتاجه الآن." : "No need to phrase it perfectly. Pick what you need now."}</p>
         </div>
+        {onPersona ? (
         <button type="button" onClick={onPersona} className="shrink-0 rounded-full border border-white/10 px-3 py-1.5 font-arsans text-[11px] text-[#F7F3EC]/58 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
           {isArabic ? "اختر رفيق" : "Pick companion"}
         </button>
+        ) : null}
       </div>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {moments.map((moment) => (
@@ -3998,7 +4009,7 @@ function BottomNav({
   accountImage: string | null;
   onHome: () => void;
   onChat: () => void;
-  onPersona: () => void;
+  onPersona?: () => void;
   onMenu: () => void;
 }) {
   const isArabic = language === "ar";
@@ -4017,10 +4028,12 @@ function BottomNav({
           <ChatIcon />
           <span className={labelClass}>{isArabic ? "المحادثة" : "Chat"}</span>
         </button>
+        {onPersona ? (
         <button type="button" onClick={onPersona} className={itemClass}>
           <PersonaIcon />
           <span className={labelClass}>{isArabic ? "الرفيق" : "Persona"}</span>
         </button>
+        ) : null}
         <button type="button" onClick={onMenu} className={itemClass}>
           <MenuIcon />
           <span className={labelClass}>{isArabic ? "القائمة" : "Menu"}</span>
@@ -4339,7 +4352,7 @@ function MomentActions({
   onShare: () => void;
   onProof: () => void;
   onDownload: () => void;
-  onPersona: () => void;
+  onPersona?: () => void;
   onHelpful: () => void;
   onSofter: () => void;
 }) {
@@ -4386,10 +4399,12 @@ function MomentActions({
         <ActionGlyph name="plan" />
         <span>{pendingAction === "plan" ? loadingLabel : isArabic ? "خطة" : "Plan"}</span>
       </button>
+      {onPersona ? (
       <button type="button" onClick={onPersona} className="ui-action inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-[#F7F3EC]/62 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
         <ActionGlyph name="persona" />
         <span>{isArabic ? "جرّب رفيق" : "Try companion"}</span>
       </button>
+      ) : null}
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
