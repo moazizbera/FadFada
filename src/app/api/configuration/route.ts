@@ -8,9 +8,10 @@ const defaultConfiguration = {
   signedGiftReflectionLimit: 15,
   anonymousPersonaLimit: 4,
   signedPersonaLimit: 10,
+  avatarsEnabled: true,
 };
 
-const configurationKeys = Object.keys(defaultConfiguration) as Array<keyof typeof defaultConfiguration>;
+const configurationNumberKeys = ["anonymousReflectionLimit", "signedGiftReflectionLimit", "anonymousPersonaLimit", "signedPersonaLimit"] as const;
 
 export async function GET() {
   const latestConfigEvent = await prisma.interactionEvent.findFirst({
@@ -35,12 +36,14 @@ function parseJson(value: string | null | undefined) {
 function cleanConfiguration(value: Record<string, unknown> | null) {
   const configuration = { ...defaultConfiguration };
 
-  for (const key of configurationKeys) {
+  for (const key of configurationNumberKeys) {
     const numberValue = Number(value?.[key]);
     if (Number.isFinite(numberValue)) {
       configuration[key] = Math.max(1, Math.min(200, Math.round(numberValue)));
     }
   }
+
+  configuration.avatarsEnabled = value?.avatarsEnabled !== false;
 
   return configuration;
 }

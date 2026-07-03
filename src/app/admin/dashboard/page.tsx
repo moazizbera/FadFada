@@ -380,6 +380,7 @@ async function buildDashboardData() {
     signedGiftReflectionLimit: metadataNumber(latestConfig, "signedGiftReflectionLimit") || 15,
     anonymousPersonaLimit: metadataNumber(latestConfig, "anonymousPersonaLimit") || 4,
     signedPersonaLimit: metadataNumber(latestConfig, "signedPersonaLimit") || 10,
+    avatarsEnabled: latestConfig.avatarsEnabled !== false,
   };
   const giftTotalsByUser = adminGiftEvents.reduce<Record<string, { giftCount: number; giftedTokens: number }>>((accumulator, event) => {
     const metadata = parseEventMetadata(event.metadataJson);

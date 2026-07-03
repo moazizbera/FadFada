@@ -3,4 +3,8 @@
 !.env.example
 node_modules
 .next
+.next-dev
 .vercel
+.git
+.tmp-mobile-review
+vercel.local-build.json

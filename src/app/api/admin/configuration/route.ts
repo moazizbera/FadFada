@@ -29,6 +29,13 @@ type AdminConfigurationRequest = {
 };
 
 const configNumberKeys = ["anonymousReflectionLimit", "signedGiftReflectionLimit", "anonymousPersonaLimit", "signedPersonaLimit"] as const;
+const defaultConfig = {
+  anonymousReflectionLimit: 5,
+  signedGiftReflectionLimit: 15,
+  anonymousPersonaLimit: 4,
+  signedPersonaLimit: 10,
+  avatarsEnabled: true,
+};
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -165,12 +172,14 @@ export async function POST(request: NextRequest) {
 
 function cleanConfig(value: Record<string, unknown> | undefined) {
   const source = value || {};
-  const config: Record<string, number> = {};
+  const config: Record<string, number | boolean> = {};
 
   for (const key of configNumberKeys) {
-    const fallback = key === "anonymousReflectionLimit" ? 5 : key === "signedGiftReflectionLimit" ? 15 : key === "anonymousPersonaLimit" ? 4 : 10;
+    const fallback = defaultConfig[key];
     config[key] = Math.max(1, Math.min(200, Math.round(Number(source[key]) || fallback)));
   }
+
+  config.avatarsEnabled = source.avatarsEnabled !== false;
 
   return config;
 }

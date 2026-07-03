@@ -13,6 +13,7 @@ export type AdminDashboardData = {
     signedGiftReflectionLimit: number;
     anonymousPersonaLimit: number;
     signedPersonaLimit: number;
+    avatarsEnabled: boolean;
   };
   totalVisitors: number;
   registeredUsers: number;
@@ -610,7 +611,7 @@ function ConfigurationPanel({ language, configuration }: { language: Locale; con
   const isArabic = language === "ar";
   const [form, setForm] = useState(configuration);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const fields: Array<{ key: keyof AdminDashboardData["configuration"]; ar: string; en: string; hintAr: string; hintEn: string }> = [
+  const fields: Array<{ key: Exclude<keyof AdminDashboardData["configuration"], "avatarsEnabled">; ar: string; en: string; hintAr: string; hintEn: string }> = [
     { key: "anonymousReflectionLimit", ar: "ردود الزائر", en: "Visitor replies", hintAr: "كم رد يحصل عليه غير المسجل قبل هدية التسجيل.", hintEn: "Replies before anonymous users are invited to sign in." },
     { key: "signedGiftReflectionLimit", ar: "هدية التسجيل", en: "Sign-in gift", hintAr: "عدد الردود المجانية بعد إنشاء حساب.", hintEn: "Free replies granted after sign-in." },
     { key: "anonymousPersonaLimit", ar: "رفقاء الزائر", en: "Visitor companions", hintAr: "عدد الرفقاء المتاحين بدون حساب.", hintEn: "Companions available without an account." },
@@ -637,6 +638,20 @@ function ConfigurationPanel({ language, configuration }: { language: Locale; con
     <section className="grid gap-8 py-10 md:grid-cols-[0.8fr_1.2fr]">
       <SectionIntro kicker={isArabic ? "قواعد التجربة" : "Experience rules"} title={isArabic ? "إعدادات الحدود والهدايا" : "Limits and gift configuration"} description={isArabic ? "اضبط الفرق بين الزائر، الحساب المجاني، وبلس بدون تعديل الكود." : "Control visitor, signed-in, and Plus thresholds without code edits."} />
       <form onSubmit={submit} className="rounded-2xl border border-gold/20 bg-gold/[0.045] p-4">
+        <label className="mb-3 flex items-start justify-between gap-4 rounded-xl border border-emerald-200/25 bg-emerald-200/[0.06] p-3">
+          <span>
+            <span className="block font-arsans text-sm text-bone/88">{isArabic ? "تفعيل الرفاق للجميع" : "Enable avatars globally"}</span>
+            <span className="mt-1 block font-arsans text-xs leading-5 text-bone/48">
+              {isArabic ? "يؤثر فقط على اختيار الرفاق في تجربة المستخدم العامة. إدارة رفاق المستخدمين تبقى فعالة في الأدمن." : "Affects only the public companion picker. Admin user avatar management stays active."}
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            checked={form.avatarsEnabled}
+            onChange={(event) => setForm((current) => ({ ...current, avatarsEnabled: event.target.checked }))}
+            className="mt-1 h-5 w-5 shrink-0 accent-[#C9A86A]"
+          />
+        </label>
         <div className="grid gap-3 sm:grid-cols-2">
           {fields.map((field) => (
             <label key={field.key} className="rounded-xl border border-white/10 bg-[#0E0D10]/72 p-3">
