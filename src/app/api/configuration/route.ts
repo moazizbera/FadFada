@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { personas } from "../../../lib/personas";
 import { prisma } from "../../../lib/prisma";
 
 export const runtime = "nodejs";
@@ -9,6 +10,7 @@ const defaultConfiguration = {
   anonymousPersonaLimit: 4,
   signedPersonaLimit: 10,
   avatarsEnabled: true,
+  blockedPersonaIds: [] as string[],
 };
 
 const configurationNumberKeys = ["anonymousReflectionLimit", "signedGiftReflectionLimit", "anonymousPersonaLimit", "signedPersonaLimit"] as const;
@@ -44,6 +46,14 @@ function cleanConfiguration(value: Record<string, unknown> | null) {
   }
 
   configuration.avatarsEnabled = value?.avatarsEnabled !== false;
+  configuration.blockedPersonaIds = cleanPersonaIds(value?.blockedPersonaIds);
 
   return configuration;
+}
+
+function cleanPersonaIds(value: unknown) {
+  const validPersonaIds = new Set(personas.map((persona) => persona.id));
+  return Array.from(new Set((Array.isArray(value) ? value : [])
+    .map((item) => typeof item === "string" ? item.trim().slice(0, 80) : "")
+    .filter((personaId) => validPersonaIds.has(personaId))));
 }

@@ -258,7 +258,16 @@ const defaultExperienceConfiguration = {
   anonymousPersonaLimit: 4,
   signedPersonaLimit: 10,
   avatarsEnabled: true,
+  blockedPersonaIds: [] as PersonaId[],
 };
+
+function cleanPersonaIdList(value: unknown) {
+  const validPersonaIds = new Set(personas.map((persona) => persona.id));
+  return Array.from(new Set((Array.isArray(value) ? value : [])
+    .map((item) => typeof item === "string" ? item.trim().slice(0, 80) : "")
+    .filter((personaId): personaId is PersonaId => validPersonaIds.has(personaId))));
+}
+
 const maxStoredMessages = 80;
 const fadfadaHomeActionEventName = "fadfada:home-action";
 
@@ -858,10 +867,14 @@ export function ChatWindow() {
 
   const activeWorld = worlds[world];
   const customPersona = useMemo(() => buildCustomPersona(customPersonaDraft), [customPersonaDraft]);
+  const blockedPersonaIds = experienceConfiguration.blockedPersonaIds ?? [];
+  const blockedPersonaIdSet = useMemo(() => new Set(blockedPersonaIds), [blockedPersonaIds]);
+  const globallyAvailablePersonas = useMemo(() => personas.filter((persona) => !blockedPersonaIdSet.has(persona.id)), [blockedPersonaIdSet]);
+  const fallbackPersona = globallyAvailablePersonas[0] ?? personas[0];
   const activePersona = useMemo(() => {
     if (personaId === "custom" && customPersona) return customPersona;
-    return personas.find((persona) => persona.id === personaId) ?? personas[0];
-  }, [customPersona, personaId]);
+    return globallyAvailablePersonas.find((persona) => persona.id === personaId) ?? fallbackPersona;
+  }, [customPersona, fallbackPersona, globallyAvailablePersonas, personaId]);
   const activeHeaderPresentation = getHeaderAvatarPresentation(activePersona);
   const personaAura = activeHeaderPresentation.auraHex;
   const activePersonaDisplayName = getHeaderDisplayName(activePersona, language);
@@ -880,14 +893,22 @@ export function ChatWindow() {
   const usedReflections = accessState === "plus" ? 0 : trialCounter;
   const remainingReflections = accessState === "plus" ? Number.POSITIVE_INFINITY : Math.max(0, reflectionLimit - usedReflections);
   const unlockedPersonaIds = useMemo<PersonaId[]>(() => {
-    if (accessState === "plus") return personas.map((persona) => persona.id);
+    if (accessState === "plus") return globallyAvailablePersonas.map((persona) => persona.id);
     const limit = accessState === "signed" ? signedPersonaLimit : anonymousPersonaLimit;
-    return Array.from(new Set([...personas.slice(0, limit).map((persona) => persona.id), ...grantedPersonaIds]));
-  }, [accessState, anonymousPersonaLimit, grantedPersonaIds, signedPersonaLimit]);
+    const limitedPersonaIds = globallyAvailablePersonas.slice(0, limit).map((persona) => persona.id);
+    const grantedAvailablePersonaIds = grantedPersonaIds.filter((personaIdValue) => !blockedPersonaIdSet.has(personaIdValue));
+    return Array.from(new Set([...limitedPersonaIds, ...grantedAvailablePersonaIds]));
+  }, [accessState, anonymousPersonaLimit, blockedPersonaIdSet, globallyAvailablePersonas, grantedPersonaIds, signedPersonaLimit]);
 
   useEffect(() => {
     if (!avatarsEnabled) setPersonaOpen(false);
   }, [avatarsEnabled]);
+
+  useEffect(() => {
+    if (personaId !== "custom" && !globallyAvailablePersonas.some((persona) => persona.id === personaId)) {
+      setPersonaId(fallbackPersona.id);
+    }
+  }, [fallbackPersona.id, globallyAvailablePersonas, personaId]);
 
   function getUsedCredits() {
     const parsedCredits = Number(localStorage.getItem(getCreditStorageKey()) || "0");
@@ -912,12 +933,12 @@ export function ChatWindow() {
   }
 
   function submitJudgeScenario(text: string, nextWorld: WorldId, targetLanguage: Language, nextPersonaId: PersonaId) {
-    const nextPersona = personas.find((persona) => persona.id === nextPersonaId) ?? activePersona;
-    setPersonaId(nextPersonaId);
+    const nextPersona = globallyAvailablePersonas.find((persona) => persona.id === nextPersonaId) ?? activePersona;
+    setPersonaId(nextPersona.id);
     setLanguage(targetLanguage);
     setWorld(nextWorld);
     setToolsOpen(false);
-    trackInteraction("starter_tap", { type: "judge_demo", world: nextWorld, language: targetLanguage, personaId: nextPersonaId });
+    trackInteraction("starter_tap", { type: "judge_demo", world: nextWorld, language: targetLanguage, personaId: nextPersona.id });
     scrollToSection("chat");
     void submitMessage(undefined, text, nextWorld, nextPersona);
   }
@@ -1059,7 +1080,7 @@ export function ChatWindow() {
     const stagedLanguage = params.get("lang") === "en" || params.get("lang") === "ar" ? params.get("lang") as Language : null;
     const stagedPersona = params.get("persona") as PersonaId | null;
     if (stagedLanguage) setLanguage(stagedLanguage);
-    if (stagedPersona && personas.some((persona) => persona.id === stagedPersona)) setPersonaId(stagedPersona);
+    if (stagedPersona && globallyAvailablePersonas.some((persona) => persona.id === stagedPersona)) setPersonaId(stagedPersona);
 
     updateInput(stagedCommand);
     setToolsOpen(false);
@@ -1094,7 +1115,7 @@ export function ChatWindow() {
       window.removeEventListener("online", refreshOnlineStatus);
       window.removeEventListener("offline", refreshOnlineStatus);
     };
-  }, []);
+  }, [globallyAvailablePersonas, language]);
 
   useEffect(() => {
     let active = true;
@@ -1108,6 +1129,7 @@ export function ChatWindow() {
           anonymousPersonaLimit: cleanConfigurationNumber(data.configuration?.anonymousPersonaLimit, current.anonymousPersonaLimit),
           signedPersonaLimit: cleanConfigurationNumber(data.configuration?.signedPersonaLimit, current.signedPersonaLimit),
           avatarsEnabled: data.configuration?.avatarsEnabled !== false,
+          blockedPersonaIds: cleanPersonaIdList(data.configuration?.blockedPersonaIds),
         }));
       })
       .catch(() => undefined);
@@ -1206,7 +1228,7 @@ export function ChatWindow() {
     setMessages(restoredMessages);
     setAnimatedAssistantMessageIds(getAssistantMessageIds(restoredMessages));
     if (sessionToOpen.activeWorld in worlds) setWorld(sessionToOpen.activeWorld as WorldId);
-    const nextPersona = personas.find((persona) => persona.id === sessionToOpen.activePersonaId);
+    const nextPersona = globallyAvailablePersonas.find((persona) => persona.id === sessionToOpen.activePersonaId);
     if (nextPersona) setPersonaId(nextPersona.id);
     setSessionStatus("idle");
     setToolsOpen(false);

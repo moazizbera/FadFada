@@ -14,6 +14,7 @@ export type AdminDashboardData = {
     anonymousPersonaLimit: number;
     signedPersonaLimit: number;
     avatarsEnabled: boolean;
+    blockedPersonaIds: string[];
   };
   totalVisitors: number;
   registeredUsers: number;
@@ -648,7 +649,7 @@ function ConfigurationPanel({ language, configuration }: { language: Locale; con
   const isArabic = language === "ar";
   const [form, setForm] = useState(configuration);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const fields: Array<{ key: Exclude<keyof AdminDashboardData["configuration"], "avatarsEnabled">; ar: string; en: string; hintAr: string; hintEn: string }> = [
+  const fields: Array<{ key: Exclude<keyof AdminDashboardData["configuration"], "avatarsEnabled" | "blockedPersonaIds">; ar: string; en: string; hintAr: string; hintEn: string }> = [
     { key: "anonymousReflectionLimit", ar: "ردود الزائر", en: "Visitor replies", hintAr: "كم رد يحصل عليه غير المسجل قبل هدية التسجيل.", hintEn: "Replies before anonymous users are invited to sign in." },
     { key: "signedGiftReflectionLimit", ar: "هدية التسجيل", en: "Sign-in gift", hintAr: "عدد الردود المجانية بعد إنشاء حساب.", hintEn: "Free replies granted after sign-in." },
     { key: "anonymousPersonaLimit", ar: "رفقاء الزائر", en: "Visitor companions", hintAr: "عدد الرفقاء المتاحين بدون حساب.", hintEn: "Companions available without an account." },
@@ -689,6 +690,38 @@ function ConfigurationPanel({ language, configuration }: { language: Locale; con
             className="mt-1 h-5 w-5 shrink-0 accent-[#C9A86A]"
           />
         </label>
+        <div className="mb-3 rounded-xl border border-red-200/20 bg-red-200/[0.045] p-3">
+          <div className="mb-3">
+            <p className="font-arsans text-sm text-bone/88">{isArabic ? "حجب رفاق بشكل عام" : "Globally blocked companions"}</p>
+            <p className="mt-1 font-arsans text-xs leading-5 text-bone/48">
+              {isArabic ? "أي رفيق يتم تحديده هنا يختفي من تجربة المستخدم العامة للجميع. فتح الرفاق لمستخدم محدد في تبويب الرفاق يبقى محفوظاً لكنه لا يتجاوز الحجب العام." : "Any companion selected here is hidden from the public experience for everyone. Per-user persona grants remain saved, but they do not override a global block."}
+            </p>
+          </div>
+          <div className="grid max-h-72 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
+            {personas.map((persona) => {
+              const blocked = form.blockedPersonaIds.includes(persona.id);
+              return (
+                <label key={persona.id} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${blocked ? "border-red-200/35 bg-red-200/[0.08]" : "border-white/10 bg-[#0E0D10]/72"}`}>
+                  <span className="min-w-0">
+                    <span className="block truncate font-arsans text-sm text-bone/84">{isArabic ? persona.nameAr : persona.nameEn}</span>
+                    <span className="block truncate font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="ltr">{persona.id}</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={blocked}
+                    onChange={(event) => setForm((current) => ({
+                      ...current,
+                      blockedPersonaIds: event.target.checked
+                        ? Array.from(new Set([...current.blockedPersonaIds, persona.id]))
+                        : current.blockedPersonaIds.filter((personaId) => personaId !== persona.id),
+                    }))}
+                    className="h-4 w-4 shrink-0 accent-red-200"
+                  />
+                </label>
+              );
+            })}
+          </div>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           {fields.map((field) => (
             <label key={field.key} className="rounded-xl border border-white/10 bg-[#0E0D10]/72 p-3">

@@ -420,6 +420,7 @@ async function buildDashboardData() {
     anonymousPersonaLimit: metadataNumber(latestConfig, "anonymousPersonaLimit") || 4,
     signedPersonaLimit: metadataNumber(latestConfig, "signedPersonaLimit") || 10,
     avatarsEnabled: latestConfig.avatarsEnabled !== false,
+    blockedPersonaIds: cleanPersonaIds(latestConfig.blockedPersonaIds),
   };
   const giftTotalsByUser = adminGiftEvents.reduce<Record<string, { giftCount: number; giftedTokens: number }>>((accumulator, event) => {
     const metadata = parseEventMetadata(event.metadataJson);
@@ -549,6 +550,13 @@ async function buildDashboardData() {
     auditSnapshot,
     encryptedAuditSnapshot: encryptAuditSnapshot(auditSnapshot),
   };
+}
+
+function cleanPersonaIds(value: unknown) {
+  const validPersonaIds = new Set(personas.map((persona) => persona.id));
+  return Array.from(new Set((Array.isArray(value) ? value : [])
+    .map((item) => typeof item === "string" ? item.trim().slice(0, 80) : "")
+    .filter((personaId) => validPersonaIds.has(personaId))));
 }
 
 export default async function AdminDashboardPage() {

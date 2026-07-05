@@ -35,6 +35,7 @@ const defaultConfig = {
   anonymousPersonaLimit: 4,
   signedPersonaLimit: 10,
   avatarsEnabled: true,
+  blockedPersonaIds: [] as string[],
 };
 
 export async function POST(request: NextRequest) {
@@ -172,7 +173,7 @@ export async function POST(request: NextRequest) {
 
 function cleanConfig(value: Record<string, unknown> | undefined) {
   const source = value || {};
-  const config: Record<string, number | boolean> = {};
+  const config: Record<string, number | boolean | string[]> = {};
 
   for (const key of configNumberKeys) {
     const fallback = defaultConfig[key];
@@ -180,8 +181,16 @@ function cleanConfig(value: Record<string, unknown> | undefined) {
   }
 
   config.avatarsEnabled = source.avatarsEnabled !== false;
+  config.blockedPersonaIds = cleanPersonaIds(source.blockedPersonaIds);
 
   return config;
+}
+
+function cleanPersonaIds(value: unknown) {
+  const validPersonaIds = new Set(personas.map((persona) => persona.id));
+  return Array.from(new Set((Array.isArray(value) ? value : [])
+    .map((item) => cleanText(item, 80))
+    .filter((personaId) => validPersonaIds.has(personaId))));
 }
 
 function cleanText(value: unknown, maxLength: number) {

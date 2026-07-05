@@ -11,6 +11,7 @@ type PersonaDrawerProps = {
   activePersona: PersonaId;
   language: Language;
   unlockedPersonaIds: PersonaId[];
+  blockedPersonaIds?: PersonaId[];
   customPersona: Persona | null;
   onClose: () => void;
   onSelect: (personaId: PersonaId) => void;
@@ -138,6 +139,7 @@ export function PersonaDrawer({
   activePersona,
   language,
   unlockedPersonaIds,
+  blockedPersonaIds = [],
   customPersona,
   onClose,
   onSelect,
@@ -153,10 +155,14 @@ export function PersonaDrawer({
   const [generatedAvatarCount, setGeneratedAvatarCount] = useState(0);
   const [avatarGenerationStatus, setAvatarGenerationStatus] = useState<"idle" | "generating" | "saved" | "limit" | "error">("idle");
   const isArabic = language === "ar";
+  const blockedPersonaIdSet = new Set(blockedPersonaIds);
   const personaSource = customPersona ? [...personas, customPersona] : personas;
   const selectorPersonas = selectorPersonaIds
     .map((personaId) => personas.find((persona) => persona.id === personaId))
-    .filter((persona): persona is Persona => Boolean(persona));
+    .filter((persona): persona is Persona => {
+      if (!persona) return false;
+      return !blockedPersonaIdSet.has(persona.id);
+    });
   const selectedPersona = personaSource.find((persona) => persona.id === activePersona) || selectorPersonas[0] || personaSource[0];
   const personaCards = selectorPersonas.map((persona) => {
     const presentation = getAvatarPresentation(persona);
