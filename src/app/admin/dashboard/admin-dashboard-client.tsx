@@ -25,6 +25,7 @@ export type AdminDashboardData = {
     softer: number;
     shares: number;
     visitorComments: number;
+    nameOnlyVisitors: number;
     pwaInstalls: number;
   };
   visitorsByRegion: Array<{ location: string; count: number }>;
@@ -38,6 +39,9 @@ export type AdminDashboardData = {
     tokenBalance: number;
     currentLanguage: string;
     createdAt: string;
+    registeredAt: string;
+    lastSignInAt: string | null;
+    lastChatStartedAt: string | null;
     location: string;
     giftCount: number;
     giftedTokens: number;
@@ -69,6 +73,13 @@ export type AdminDashboardData = {
     userCount: number;
     monthlyRevenueMinor: number;
     currency: string;
+  }>;
+  nameOnlyVisitors: Array<{
+    id: string;
+    name: string;
+    language: string;
+    location: string;
+    createdAt: string;
   }>;
   visitorComments: Array<{
     id: string;
@@ -141,6 +152,7 @@ const copy = {
       helpfulReplies: "ردود مفيدة",
       softerRequests: "طلبات تهدئة",
       visitorComments: "تعليقات الزوار",
+      nameOnlyVisitors: "زوار باسم فقط",
       pwaInstalls: "تثبيتات التطبيق",
     },
     sections: {
@@ -159,6 +171,9 @@ const copy = {
       commentsKicker: "صوت الزوار",
       commentsTitle: "آخر تعليقات الزوار",
       commentsDescription: "ملاحظات قصيرة يرسلها الزوار من الصفحة الرئيسية.",
+      nameOnlyKicker: "زوار بدون حساب",
+      nameOnlyTitle: "زوار سجلوا الاسم فقط",
+      nameOnlyDescription: "أشخاص بدأوا المحادثة باسم فقط ولم يسجلوا حساب بريد وكلمة مرور.",
       pwaKicker: "تثبيت التطبيق",
       pwaTitle: "تثبيتات PWA والأجهزة",
       pwaDescription: "عدد التثبيتات ونوع الجهاز والمتصفح المستخدم.",
@@ -178,6 +193,7 @@ const copy = {
     emptyVisits: "لا توجد زيارات مسجلة بعد",
     emptySignups: "لا توجد تسجيلات مسجلة بعد",
     emptyComments: "لا توجد تعليقات زوار بعد",
+    emptyNameOnlyVisitors: "لا يوجد زوار باسم فقط بعد",
     emptyInstalls: "لا توجد تثبيتات PWA بعد",
     emptyAvatarRatings: "لا توجد تقييمات صور بعد",
     emptyNotifications: "لا توجد تنبيهات منشورة بعد",
@@ -207,6 +223,7 @@ const copy = {
       helpfulReplies: "Helpful replies",
       softerRequests: "Softer requests",
       visitorComments: "Visitor comments",
+      nameOnlyVisitors: "Name-only visitors",
       pwaInstalls: "PWA installs",
     },
     sections: {
@@ -225,6 +242,9 @@ const copy = {
       commentsKicker: "Visitor voice",
       commentsTitle: "Latest visitor comments",
       commentsDescription: "Short notes visitors submit from the home experience.",
+      nameOnlyKicker: "Visitors without account",
+      nameOnlyTitle: "Name-only visitor registrations",
+      nameOnlyDescription: "People who started chat with only a name and have not created an email/password account.",
       pwaKicker: "App installs",
       pwaTitle: "PWA installs and devices",
       pwaDescription: "Install count, device type, and browser used.",
@@ -244,6 +264,7 @@ const copy = {
     emptyVisits: "No visits tracked yet",
     emptySignups: "No signups tracked yet",
     emptyComments: "No visitor comments yet",
+    emptyNameOnlyVisitors: "No name-only visitors yet",
     emptyInstalls: "No PWA installs yet",
     emptyAvatarRatings: "No avatar ratings yet",
     emptyNotifications: "No notifications published yet",
@@ -357,6 +378,7 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
             <LiveRoomTile label={labels.metrics.trackedVisits} value={formatNumber(data.totalVisitors, locale)} accent="bg-gold" />
             <LiveRoomTile label={labels.metrics.registeredMembers} value={formatNumber(data.registeredUsers, locale)} accent="bg-emerald-300" />
             <LiveRoomTile label={labels.metrics.visitorComments} value={formatNumber(data.interactionTotals.visitorComments, locale)} accent="bg-dusk" />
+            <LiveRoomTile label={labels.metrics.nameOnlyVisitors} value={formatNumber(data.interactionTotals.nameOnlyVisitors, locale)} accent="bg-amber-200" />
             <LiveRoomTile label={labels.metrics.pwaInstalls} value={formatNumber(data.interactionTotals.pwaInstalls, locale)} accent="bg-cyan-200" />
           </div>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
@@ -392,6 +414,21 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
           )) : <EmptyMetric label={labels.emptySignups} />}
         </DashboardListSection>
 
+        <DashboardListSection kicker={labels.sections.nameOnlyKicker} title={labels.sections.nameOnlyTitle} description={labels.sections.nameOnlyDescription}>
+          <div className="max-h-[24rem] space-y-4 overflow-y-auto pr-2 [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
+            {data.nameOnlyVisitors.length > 0 ? data.nameOnlyVisitors.map((visitor) => (
+              <article key={visitor.id} className="grid grid-cols-[1fr_auto] items-center gap-4 border-b border-white/10 pb-4">
+                <span className="min-w-0">
+                  <span className="block truncate font-ensans text-sm text-bone/90" dir="auto">{visitor.name}</span>
+                  <span className="mt-1 block font-arsans text-xs text-bone/35">{formatDate(visitor.createdAt, locale)} · {formatLanguage(visitor.language, language)}</span>
+                  <span className="mt-1 block truncate font-mono text-[10px] uppercase tracking-[0.08em] text-bone/30" dir="ltr">{formatLocationValue(visitor.location, labels.unknownLocation)}</span>
+                </span>
+                <span className="rounded-full border border-amber-200/25 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-amber-100/80">{language === "ar" ? "اسم فقط" : "Name only"}</span>
+              </article>
+            )) : <EmptyMetric label={labels.emptyNameOnlyVisitors} />}
+          </div>
+        </DashboardListSection>
+
         <DashboardListSection kicker={labels.sections.funnelKicker} title={labels.sections.funnelTitle} description={labels.sections.funnelDescription}>
           <div className="max-h-[28rem] space-y-4 overflow-y-auto pr-2 [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
             {data.recentUsers.map((user) => (
@@ -399,7 +436,7 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
                 <span className="grid h-9 w-9 place-items-center rounded-2xl border border-white/10 bg-slate-950 font-mono text-xs uppercase text-gold shadow-xl">{user.provider.slice(0, 1)}</span>
                 <span className="min-w-0">
                   <span className="block truncate font-ensans text-sm text-bone/90" dir="auto">{user.name || user.email || labels.unnamedProfile}</span>
-                  <span className="mt-1 block font-arsans text-xs text-bone/35">{formatDate(user.createdAt, locale)} · {formatLanguage(user.currentLanguage, language)}</span>
+                  <span className="mt-1 block font-arsans text-xs text-bone/35">{formatAdminUserDates(user, language, locale)} · {formatLanguage(user.currentLanguage, language)}</span>
                   <span className="mt-1 block truncate font-mono text-[10px] uppercase tracking-[0.08em] text-bone/30" dir="ltr">{formatLocationValue(user.location, labels.unknownLocation)}</span>
                 </span>
                 <span className="font-arsans text-xs text-gold">{formatTier(user.activeTier, language)}</span>
@@ -762,7 +799,7 @@ function PersonaAccessPanel({ language, locale, users }: { language: Locale; loc
               <div className="flex items-start justify-between gap-3 max-sm:flex-col">
                 <div className="min-w-0">
                   <p className="truncate font-ensans text-sm text-bone/90" dir="auto">{user.name || user.email || user.id}</p>
-                  <p className="mt-1 truncate font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="ltr">{user.email || "no email"} · {formatTier(user.activeTier, language)} · {formatDate(user.createdAt, locale)}</p>
+                  <p className="mt-1 truncate font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="ltr">{user.email || "no email"} · {formatTier(user.activeTier, language)} · {formatAdminUserDates(user, language, locale)}</p>
                 </div>
                 <MiniStat label={isArabic ? "مفتوح" : "Allowed"} value={formatNumber(user.grantedPersonaIds.length, locale)} />
               </div>
@@ -871,7 +908,7 @@ function UsersGiftPanel({ language, locale, users }: { language: Locale; locale:
             <article key={user.id} className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.025] p-4 sm:grid-cols-[1fr_auto]">
               <div className="min-w-0">
                 <p className="truncate font-ensans text-sm text-bone/90" dir="auto">{user.name || user.email || user.id}</p>
-                <p className="mt-1 truncate font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="ltr">{user.email || "no email"} · {user.provider} · {formatDate(user.createdAt, locale)}</p>
+                <p className="mt-1 truncate font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="ltr">{user.email || "no email"} · {user.provider} · {formatAdminUserDates(user, language, locale)}</p>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center sm:min-w-64">
                 <MiniStat label={isArabic ? "الخطة" : "Tier"} value={formatTier(user.activeTier, language)} />
@@ -1163,6 +1200,18 @@ function formatNumber(value: number, locale: string) {
 
 function formatDate(value: string, locale: string) {
   return new Intl.DateTimeFormat(locale, { month: "short", day: "2-digit", year: "numeric" }).format(new Date(value));
+}
+
+function formatAdminUserDates(user: AdminDashboardData["recentUsers"][number], language: Locale, locale: string) {
+  const labels = language === "ar"
+    ? { registered: "التسجيل", signed: "آخر دخول", chat: "آخر بدء محادثة" }
+    : { registered: "Registered", signed: "Last sign-in", chat: "Last chat start" };
+
+  return [
+    `${labels.registered}: ${formatDate(user.registeredAt || user.createdAt, locale)}`,
+    user.lastSignInAt ? `${labels.signed}: ${formatDate(user.lastSignInAt, locale)}` : null,
+    user.lastChatStartedAt ? `${labels.chat}: ${formatDate(user.lastChatStartedAt, locale)}` : null,
+  ].filter(Boolean).join(" · ");
 }
 
 function formatTime(value: Date, locale: string) {

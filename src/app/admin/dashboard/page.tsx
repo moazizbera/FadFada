@@ -14,9 +14,12 @@ type AdminSessionUser = {
   role?: "USER" | "ADMIN";
 };
 
+const regionDisplayNames = new Intl.DisplayNames(["en"], { type: "region" });
+
 type AuditSnapshot = {
   generatedAt: string;
   visitorsByRegion: Array<{ geographicRegion: string; count: number }>;
+  nameOnlyVisitors: Array<{ name: string; language: string; createdAt: string; geographicRegion: string }>;
   visitorComments: Array<{ comment: string; language: string; device: string; browser: string; createdAt: string; geographicRegion: string }>;
   pwaInstalls: Array<{ device: string; browser: string; platform: string; createdAt: string; geographicRegion: string }>;
   registrationFunnel: Array<{
@@ -41,10 +44,18 @@ function formatLocation(location: string | null | undefined) {
   if (!location || location === "unknown") return "";
 
   try {
-    return decodeURIComponent(location).trim();
+    return formatCountryOnlyLocation(decodeURIComponent(location).trim());
   } catch {
-    return location.trim();
+    return formatCountryOnlyLocation(location.trim());
   }
+}
+
+function formatCountryOnlyLocation(location: string) {
+  if (!/^[A-Z]{2}$/i.test(location)) return location;
+
+  const countryCode = location.toUpperCase();
+  const countryName = regionDisplayNames.of(countryCode) || countryCode;
+  return `${countryName} (country only)`;
 }
 
 function fallbackLocationLabel(location: string | null | undefined) {
@@ -99,6 +110,7 @@ const visiblePwaInstallWhere = {
     { metadataJson: { contains: "\"browser\":\"PowerShell\"" } },
   ],
 };
+const nameOnlyVisitorWhere = { eventType: "visitor_name_register" };
 
 function getAuditEncryptionKey() {
   return crypto.createHash("sha256").update(process.env.AUDIT_EXPORT_KEY || process.env.NEXTAUTH_SECRET || "fadfada-local-audit-key").digest();
@@ -124,7 +136,7 @@ async function buildDashboardData() {
   monthStart.setUTCDate(1);
   monthStart.setUTCHours(0, 0, 0, 0);
 
-  const [totalVisitors, registeredUsers, interactionCounts, visitorsByRegion, registrationsByRegionRaw, recentUsers, tierCounts, monthlyTransactions, visibleVisitorCommentCount, visiblePwaInstallCount, recentCommentEvents, pwaInstallEvents, avatarRatingEvents, adminNotifications, adminConfigEvents, adminGiftEvents, adminPersonaGrantEvents, adminPersonaGrantSetEvents, adminDiscountEvents, chatSessionEvents] = await Promise.all([
+  const [totalVisitors, registeredUsers, interactionCounts, visitorsByRegion, registrationsByRegionRaw, recentUsers, tierCounts, monthlyTransactions, visibleVisitorCommentCount, visiblePwaInstallCount, recentCommentEvents, nameOnlyVisitorEvents, pwaInstallEvents, avatarRatingEvents, adminNotifications, adminConfigEvents, adminGiftEvents, adminPersonaGrantEvents, adminPersonaGrantSetEvents, adminDiscountEvents, chatSessionEvents] = await Promise.all([
     prisma.visitorLog.count(),
     prisma.user.count({ where: registeredUserWhere }),
     prisma.interactionEvent.groupBy({
@@ -162,6 +174,17 @@ async function buildDashboardData() {
           select: { geographicRegion: true },
           take: 1,
         },
+        sessions: {
+          orderBy: { updatedAt: "desc" },
+          select: { updatedAt: true, createdAt: true },
+          take: 1,
+        },
+        interactionEvents: {
+          where: { eventType: "chat_session_snapshot" },
+          orderBy: { createdAt: "desc" },
+          select: { createdAt: true },
+          take: 1,
+        },
       },
     }),
     prisma.user.groupBy({
@@ -192,6 +215,11 @@ async function buildDashboardData() {
       where: visibleVisitorCommentWhere,
       orderBy: { createdAt: "desc" },
       take: 30,
+    }),
+    prisma.interactionEvent.findMany({
+      where: nameOnlyVisitorWhere,
+      orderBy: { createdAt: "desc" },
+      take: 50,
     }),
     prisma.interactionEvent.findMany({
       where: visiblePwaInstallWhere,
@@ -278,8 +306,19 @@ async function buildDashboardData() {
       (interactionCounts.find((entry) => entry.eventType === "app_share")?._count._all ?? 0) +
       (interactionCounts.find((entry) => entry.eventType === "moment_share")?._count._all ?? 0),
     visitorComments: visibleVisitorCommentCount,
+    nameOnlyVisitors: interactionCounts.find((entry) => entry.eventType === "visitor_name_register")?._count._all ?? 0,
     pwaInstalls: visiblePwaInstallCount,
   };
+  const nameOnlyVisitors = nameOnlyVisitorEvents.map((event) => {
+    const metadata = parseEventMetadata(event.metadataJson);
+    return {
+      id: event.id,
+      name: metadataString(metadata, "name", ""),
+      language: metadataString(metadata, "language", "unknown"),
+      location: fallbackLocationLabel(event.geographicRegion),
+      createdAt: event.createdAt.toISOString(),
+    };
+  }).filter((visitor) => visitor.name.length > 0);
   const visitorComments = recentCommentEvents.map((event) => {
     const metadata = parseEventMetadata(event.metadataJson);
     return {
@@ -454,6 +493,12 @@ async function buildDashboardData() {
       geographicRegion: entry.geographicRegion,
       count: entry._count._all,
     })),
+    nameOnlyVisitors: nameOnlyVisitors.map((visitor) => ({
+      name: visitor.name,
+      language: visitor.language,
+      createdAt: visitor.createdAt,
+      geographicRegion: visitor.location,
+    })),
     visitorComments: visitorComments.map((comment) => ({
       comment: comment.comment,
       language: comment.language,
@@ -490,6 +535,7 @@ async function buildDashboardData() {
     registrationsByRegion,
     recentUsers,
     distribution,
+    nameOnlyVisitors,
     visitorComments,
     pwaInstalls,
     pwaDeviceBreakdown,
@@ -517,7 +563,7 @@ export default async function AdminDashboardPage() {
     redirect("/admin/login");
   }
 
-  const { totalVisitors, registeredUsers, interactionTotals, visitorsByRegion, registrationsByRegion, recentUsers, distribution, visitorComments, pwaInstalls, pwaDeviceBreakdown, avatarRatings, recentNotifications, configuration, giftTotalsByUser, personaGrantsByUser, discountOffers, chatSessions, encryptedAuditSnapshot } = await buildDashboardData();
+  const { totalVisitors, registeredUsers, interactionTotals, visitorsByRegion, registrationsByRegion, recentUsers, distribution, nameOnlyVisitors, visitorComments, pwaInstalls, pwaDeviceBreakdown, avatarRatings, recentNotifications, configuration, giftTotalsByUser, personaGrantsByUser, discountOffers, chatSessions, encryptedAuditSnapshot } = await buildDashboardData();
   const auditHref = `data:application/json;base64,${Buffer.from(JSON.stringify(encryptedAuditSnapshot, null, 2)).toString("base64")}`;
   const dashboardData: AdminDashboardData = {
     configuration,
@@ -538,6 +584,9 @@ export default async function AdminDashboardPage() {
       tokenBalance: user.tokenBalance,
       currentLanguage: user.currentLanguage,
       createdAt: user.createdAt.toISOString(),
+      registeredAt: user.createdAt.toISOString(),
+      lastSignInAt: user.sessions[0]?.updatedAt.toISOString() || user.sessions[0]?.createdAt.toISOString() || null,
+      lastChatStartedAt: user.interactionEvents[0]?.createdAt.toISOString() || null,
       location: fallbackLocationLabel(user.registrationRegion || user.visitorLogs[0]?.geographicRegion),
       giftCount: giftTotalsByUser[user.id]?.giftCount || 0,
       giftedTokens: giftTotalsByUser[user.id]?.giftedTokens || 0,
@@ -546,6 +595,7 @@ export default async function AdminDashboardPage() {
     discountOffers,
     chatSessions,
     distribution,
+    nameOnlyVisitors,
     visitorComments,
     pwaInstalls,
     pwaDeviceBreakdown,
