@@ -6,7 +6,7 @@ import { prisma } from "../../../lib/prisma";
 
 export const runtime = "nodejs";
 
-const allowedEventTypes = new Set(["starter_tap", "moment_save", "tiny_plan", "moment_share", "app_share", "capsule_download", "helpful_feedback", "softer_feedback", "visitor_comment", "pwa_install", "avatar_rating", "avatar_generate"]);
+const allowedEventTypes = new Set(["starter_tap", "moment_save", "tiny_plan", "moment_share", "app_share", "capsule_download", "helpful_feedback", "softer_feedback", "visitor_comment", "visitor_name_register", "pwa_install", "avatar_rating", "avatar_generate"]);
 
 type EventRequestBody = {
   eventType?: string;

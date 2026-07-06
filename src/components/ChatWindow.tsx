@@ -197,7 +197,7 @@ const behaviorStyles: Record<BehaviorStyle, { ar: string; en: string; hintAr: st
   },
 };
 
-type InteractionEventType = "starter_tap" | "moment_save" | "tiny_plan" | "moment_share" | "app_share" | "capsule_download" | "helpful_feedback" | "softer_feedback" | "visitor_comment" | "avatar_rating";
+type InteractionEventType = "starter_tap" | "moment_save" | "tiny_plan" | "moment_share" | "app_share" | "capsule_download" | "helpful_feedback" | "softer_feedback" | "visitor_comment" | "visitor_name_register" | "avatar_rating";
 
 const worldLabels: Record<WorldId, { ar: string; en: string }> = {
   story: { ar: "حكاية", en: "Story" },
@@ -252,6 +252,7 @@ const growthQuestStorageKey = "fadfada-growth-quests";
 const discountCodeStorageKey = "fadfada-discount-code";
 const voiceDialectStorageKey = "fadfada-voice-dialect";
 const offlineDraftStorageKey = "fadfada-offline-draft";
+const visitorNameStorageKey = "fadfada-visitor-name";
 const defaultExperienceConfiguration = {
   anonymousReflectionLimit: 5,
   signedGiftReflectionLimit: 15,
@@ -807,6 +808,10 @@ export function ChatWindow() {
   const [personaId, setPersonaId] = useState<PersonaId>("omar");
   const [personaOpen, setPersonaOpen] = useState(false);
   const [input, setInput] = useState("");
+  const [visitorName, setVisitorName] = useState("");
+  const [visitorNameDraft, setVisitorNameDraft] = useState("");
+  const [visitorNameStatus, setVisitorNameStatus] = useState<"idle" | "saved" | "error">("idle");
+  const [nameGateMessage, setNameGateMessage] = useState(false);
   const [userId, setUserId] = useState("local-demo-user");
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -862,6 +867,7 @@ export function ChatWindow() {
   const keepRecordingRef = useRef(false);
   const recordingRestartCountRef = useRef(0);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
   const homeRef = useRef<HTMLElement | null>(null);
   const chatRef = useRef<HTMLElement | null>(null);
 
@@ -883,7 +889,9 @@ export function ChatWindow() {
   const conversationContinuity = useMemo(() => buildConversationContinuity(messages, language), [messages, language]);
   const latestAssistantMessage = useMemo(() => [...messages].reverse().find((message) => message.role === "assistant" && message.id !== "opening"), [messages]);
   const greetingName = useMemo(() => normalizeGreetingName(session?.user?.name || session?.user?.email), [session?.user?.email, session?.user?.name]);
-  const accountName = session?.user?.name || session?.user?.email || (language === "ar" ? "حسابي" : "Account");
+  const visitorDisplayName = useMemo(() => normalizeGreetingName(visitorName), [visitorName]);
+  const effectiveUserName = greetingName ?? visitorDisplayName;
+  const accountName = session?.user?.name || session?.user?.email || effectiveUserName || (language === "ar" ? "حسابي" : "Account");
   const accountImage = session?.user?.image || null;
   const sessionUser = session?.user as ({ id?: string; activeTier?: string; tokenBalance?: number } & Record<string, unknown>) | undefined;
   const accessState: AccessState = sessionUser?.activeTier === "PLUS" || sessionUser?.activeTier === "BUSINESS" ? "plus" : sessionUser?.id ? "signed" : "anonymous";
@@ -997,12 +1005,47 @@ export function ChatWindow() {
     }
   }
 
+  function registerVisitorName(cleanedName: string) {
+    localStorage.setItem(visitorNameStorageKey, cleanedName);
+    setVisitorName(cleanedName);
+    setVisitorNameDraft(cleanedName);
+    setVisitorNameStatus("saved");
+    setNameGateMessage(false);
+    void trackInteraction("visitor_name_register", {
+      name: cleanedName,
+      language,
+      device: getClientDeviceType(),
+      browser: getClientBrowserName(),
+    });
+  }
+
+  function saveVisitorName() {
+    const cleanedName = normalizeGreetingName(visitorNameDraft);
+    if (!cleanedName) {
+      setVisitorNameStatus("error");
+      setNameGateMessage(true);
+      window.setTimeout(() => nameInputRef.current?.focus(), 40);
+      return false;
+    }
+
+    registerVisitorName(cleanedName);
+    window.setTimeout(focusInput, 80);
+    return true;
+  }
+
   useEffect(() => {
     setMessages((current) => {
       if (current.length !== 1 || current[0].id !== "opening") return current;
-      return [{ ...current[0], text: buildOpeningMessage(language, greetingName), language }];
+      return [{ ...current[0], text: buildOpeningMessage(language, effectiveUserName), language }];
     });
-  }, [greetingName, language]);
+  }, [effectiveUserName, language]);
+
+  useEffect(() => {
+    const storedName = normalizeGreetingName(localStorage.getItem(visitorNameStorageKey));
+    if (!storedName) return;
+    setVisitorName(storedName);
+    setVisitorNameDraft(storedName);
+  }, []);
 
   useEffect(() => {
     if (!conversationHydrated) return;
@@ -1200,7 +1243,7 @@ export function ChatWindow() {
     localStorage.setItem(chatSessionIdStorageKey, nextSessionId);
     setActiveChatSessionId(nextSessionId);
     setAnimatedAssistantMessageIds([]);
-    setMessages([{ id: "opening", role: "assistant", text: buildOpeningMessage(language, greetingName), world: "calm", language, personaId: "omar", personaName: language === "ar" ? "عمر" : "Omar", avatarPath: "/avatars/omar.png" }]);
+    setMessages([{ id: "opening", role: "assistant", text: buildOpeningMessage(language, effectiveUserName), world: "calm", language, personaId: "omar", personaName: language === "ar" ? "عمر" : "Omar", avatarPath: "/avatars/omar.png" }]);
     setWorld("calm");
     setToolsOpen(false);
     window.setTimeout(focusInput, 120);
@@ -1224,7 +1267,7 @@ export function ChatWindow() {
 
     localStorage.setItem(chatSessionIdStorageKey, sessionItem.sessionId);
     setActiveChatSessionId(sessionToOpen.sessionId);
-    const restoredMessages: ChatMessage[] = sessionToOpen.messages.length > 0 ? sessionToOpen.messages : [{ id: "opening", role: "assistant", text: buildOpeningMessage(language, greetingName), world: "calm", language, personaId: "omar", personaName: language === "ar" ? "عمر" : "Omar", avatarPath: "/avatars/omar.png" }];
+    const restoredMessages: ChatMessage[] = sessionToOpen.messages.length > 0 ? sessionToOpen.messages : [{ id: "opening", role: "assistant", text: buildOpeningMessage(language, effectiveUserName), world: "calm", language, personaId: "omar", personaName: language === "ar" ? "عمر" : "Omar", avatarPath: "/avatars/omar.png" }];
     setMessages(restoredMessages);
     setAnimatedAssistantMessageIds(getAssistantMessageIds(restoredMessages));
     if (sessionToOpen.activeWorld in worlds) setWorld(sessionToOpen.activeWorld as WorldId);
@@ -1748,6 +1791,20 @@ export function ChatWindow() {
     event?.preventDefault();
     const text = (overrideText ?? input).trim();
     if (!text || isThinking) return;
+    const draftDisplayName = normalizeGreetingName(visitorNameDraft);
+    const requestUserDisplayName = effectiveUserName ?? draftDisplayName;
+
+    if (!requestUserDisplayName) {
+      setNameGateMessage(true);
+      setVisitorNameStatus("idle");
+      scrollToSection("chat");
+      window.setTimeout(() => nameInputRef.current?.focus(), 80);
+      return;
+    }
+
+    if (!effectiveUserName && draftDisplayName) {
+      registerVisitorName(draftDisplayName);
+    }
 
     if (isOffline && !overrideText) {
       localStorage.setItem(offlineDraftStorageKey, text);
@@ -1807,7 +1864,7 @@ export function ChatWindow() {
           messageText: text,
           currentWorld: requestWorld,
           currentLanguage: nextLanguage,
-          userDisplayName: greetingName,
+          userDisplayName: requestUserDisplayName,
           personaSystemPrompt: [requestPersona.coreSystemPrompt, personaContinuityPrompt].filter(Boolean).join("\n\n"),
           behaviorStyle,
           softerMode: softerNext,
@@ -2460,6 +2517,38 @@ export function ChatWindow() {
       ) : null}
 
       <form onSubmit={submitMessage} className="fixed inset-x-0 bottom-20 z-30 mx-auto flex max-w-2xl flex-col gap-2 px-4 pb-3 pt-4 backdrop-blur-xl">
+        {!effectiveUserName ? (
+          <div className="rounded-2xl border border-[#C9A86A]/25 bg-[#0E0D10]/90 p-3 shadow-xl" dir={language === "ar" ? "rtl" : "ltr"}>
+            <p className="font-arsans text-xs leading-5 text-[#F7F3EC]/68">
+              {language === "ar" ? "قبل ما نبدأ، اكتب اسمك أو الاسم الذي تحب أن نناديك به." : "Before we start, enter your name or what you would like to be called."}
+            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                ref={nameInputRef}
+                value={visitorNameDraft}
+                onChange={(event) => {
+                  setVisitorNameDraft(event.target.value);
+                  if (visitorNameStatus !== "idle") setVisitorNameStatus("idle");
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  event.preventDefault();
+                  saveVisitorName();
+                }}
+                maxLength={32}
+                dir="auto"
+                placeholder={language === "ar" ? "اسمك" : "Your name"}
+                className="min-h-10 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 font-arsans text-sm text-[#F7F3EC]/90 outline-none placeholder:text-[#F7F3EC]/28 focus:border-[#C9A86A]/55"
+              />
+              <button type="button" onClick={saveVisitorName} className="ui-action rounded-xl bg-[#C9A86A] px-3 py-2 font-arsans text-xs text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
+                {language === "ar" ? "حفظ" : "Save"}
+              </button>
+            </div>
+            {nameGateMessage || visitorNameStatus === "error" ? (
+              <p className="mt-2 font-arsans text-xs text-red-100/80">{language === "ar" ? "الاسم مطلوب قبل إرسال أي رسالة." : "A name is required before sending any message."}</p>
+            ) : null}
+          </div>
+        ) : null}
         {accessState !== "plus" ? (
           <>
             <div className="flex items-center justify-between gap-3 rounded-full border border-white/10 bg-[#0E0D10]/82 px-3 py-2 shadow-xl" dir={language === "ar" ? "rtl" : "ltr"}>
@@ -2557,6 +2646,7 @@ export function ChatWindow() {
         activePersona={personaId}
         language={language}
         unlockedPersonaIds={unlockedPersonaIds}
+        blockedPersonaIds={blockedPersonaIds}
         customPersona={customPersona}
         onClose={() => setPersonaOpen(false)}
         onSelect={selectPersona}

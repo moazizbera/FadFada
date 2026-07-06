@@ -700,11 +700,26 @@ function ConfigurationPanel({ language, configuration }: { language: Locale; con
           <div className="grid max-h-72 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
             {personas.map((persona) => {
               const blocked = form.blockedPersonaIds.includes(persona.id);
+              const personaIndex = personas.findIndex((item) => item.id === persona.id);
+              const tierLabels = !form.avatarsEnabled
+                ? [isArabic ? "كل الرفاق معطلون" : "All avatars disabled"]
+                : blocked
+                  ? [isArabic ? "محجوب للجميع" : "Blocked for everyone"]
+                  : [
+                      personaIndex < form.anonymousPersonaLimit ? (isArabic ? "زائر" : "Unregistered") : null,
+                      personaIndex < form.signedPersonaLimit ? (isArabic ? "حساب مجاني" : "Free account") : null,
+                      isArabic ? "بلس" : "Plus",
+                    ].filter((label): label is string => Boolean(label));
               return (
                 <label key={persona.id} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${blocked ? "border-red-200/35 bg-red-200/[0.08]" : "border-white/10 bg-[#0E0D10]/72"}`}>
                   <span className="min-w-0">
                     <span className="block truncate font-arsans text-sm text-bone/84">{isArabic ? persona.nameAr : persona.nameEn}</span>
                     <span className="block truncate font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="ltr">{persona.id}</span>
+                    <span className="mt-1 flex flex-wrap gap-1">
+                      {tierLabels.map((label) => (
+                        <span key={label} className={`rounded-full border px-2 py-0.5 font-arsans text-[10px] ${blocked || !form.avatarsEnabled ? "border-red-200/25 text-red-100/70" : "border-gold/20 text-gold/70"}`}>{label}</span>
+                      ))}
+                    </span>
                   </span>
                   <input
                     type="checkbox"
