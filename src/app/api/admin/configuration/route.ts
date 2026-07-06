@@ -201,7 +201,9 @@ function cleanPersonaIds(value: unknown) {
 
 function cleanPersonaIdsOrDefault(value: unknown, fallback: string[]) {
   if (!Array.isArray(value)) return fallback;
-  return cleanPersonaIds(value);
+  if (value.length === 0) return [];
+  const cleanedPersonaIds = cleanPersonaIds(value);
+  return cleanedPersonaIds.length > 0 ? cleanedPersonaIds : fallback;
 }
 
 function cleanText(value: unknown, maxLength: number) {
