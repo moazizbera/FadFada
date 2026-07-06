@@ -15,6 +15,9 @@ export type AdminDashboardData = {
     signedPersonaLimit: number;
     avatarsEnabled: boolean;
     blockedPersonaIds: string[];
+    anonymousPersonaIds: string[];
+    signedPersonaIds: string[];
+    plusPersonaIds: string[];
   };
   totalVisitors: number;
   registeredUsers: number;
@@ -649,7 +652,7 @@ function ConfigurationPanel({ language, configuration }: { language: Locale; con
   const isArabic = language === "ar";
   const [form, setForm] = useState(configuration);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const fields: Array<{ key: Exclude<keyof AdminDashboardData["configuration"], "avatarsEnabled" | "blockedPersonaIds">; ar: string; en: string; hintAr: string; hintEn: string }> = [
+  const fields: Array<{ key: Exclude<keyof AdminDashboardData["configuration"], "avatarsEnabled" | "blockedPersonaIds" | "anonymousPersonaIds" | "signedPersonaIds" | "plusPersonaIds">; ar: string; en: string; hintAr: string; hintEn: string }> = [
     { key: "anonymousReflectionLimit", ar: "ردود الزائر", en: "Visitor replies", hintAr: "كم رد يحصل عليه غير المسجل قبل هدية التسجيل.", hintEn: "Replies before anonymous users are invited to sign in." },
     { key: "signedGiftReflectionLimit", ar: "هدية التسجيل", en: "Sign-in gift", hintAr: "عدد الردود المجانية بعد إنشاء حساب.", hintEn: "Free replies granted after sign-in." },
     { key: "anonymousPersonaLimit", ar: "رفقاء الزائر", en: "Visitor companions", hintAr: "عدد الرفقاء المتاحين بدون حساب.", hintEn: "Companions available without an account." },
@@ -672,6 +675,23 @@ function ConfigurationPanel({ language, configuration }: { language: Locale; con
     }
   }
 
+  function toggleTierPersona(tierKey: "anonymousPersonaIds" | "signedPersonaIds" | "plusPersonaIds", personaId: string, checked: boolean) {
+    setForm((current) => {
+      const nextTierIds = checked
+        ? Array.from(new Set([...current[tierKey], personaId]))
+        : current[tierKey].filter((item) => item !== personaId);
+      const nextForm = { ...current, [tierKey]: nextTierIds };
+      const globallyBlocked = !nextForm.anonymousPersonaIds.includes(personaId) && !nextForm.signedPersonaIds.includes(personaId) && !nextForm.plusPersonaIds.includes(personaId);
+
+      return {
+        ...nextForm,
+        blockedPersonaIds: globallyBlocked
+          ? Array.from(new Set([...nextForm.blockedPersonaIds, personaId]))
+          : nextForm.blockedPersonaIds.filter((item) => item !== personaId),
+      };
+    });
+  }
+
   return (
     <section className="grid gap-8 py-10 md:grid-cols-[0.8fr_1.2fr]">
       <SectionIntro kicker={isArabic ? "قواعد التجربة" : "Experience rules"} title={isArabic ? "إعدادات الحدود والهدايا" : "Limits and gift configuration"} description={isArabic ? "اضبط الفرق بين الزائر، الحساب المجاني، وبلس بدون تعديل الكود." : "Control visitor, signed-in, and Plus thresholds without code edits."} />
@@ -692,47 +712,40 @@ function ConfigurationPanel({ language, configuration }: { language: Locale; con
         </label>
         <div className="mb-3 rounded-xl border border-red-200/20 bg-red-200/[0.045] p-3">
           <div className="mb-3">
-            <p className="font-arsans text-sm text-bone/88">{isArabic ? "حجب رفاق بشكل عام" : "Globally blocked companions"}</p>
+            <p className="font-arsans text-sm text-bone/88">{isArabic ? "إتاحة الرفاق حسب نوع المستخدم" : "Avatar availability by user tier"}</p>
             <p className="mt-1 font-arsans text-xs leading-5 text-bone/48">
-              {isArabic ? "أي رفيق يتم تحديده هنا يختفي من تجربة المستخدم العامة للجميع. فتح الرفاق لمستخدم محدد في تبويب الرفاق يبقى محفوظاً لكنه لا يتجاوز الحجب العام." : "Any companion selected here is hidden from the public experience for everyone. Per-user persona grants remain saved, but they do not override a global block."}
+              {isArabic ? "حدد لكل رفيق هل يظهر للزائر، الحساب المجاني، أو بلس. إذا أغلقت الثلاثة يختفي الرفيق من التجربة العامة للجميع." : "Choose whether each avatar appears for visitors, free accounts, or Plus. Turning off all three hides that avatar from the public experience for everyone."}
             </p>
           </div>
           <div className="grid max-h-72 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
             {personas.map((persona) => {
               const blocked = form.blockedPersonaIds.includes(persona.id);
-              const personaIndex = personas.findIndex((item) => item.id === persona.id);
-              const tierLabels = !form.avatarsEnabled
-                ? [isArabic ? "كل الرفاق معطلون" : "All avatars disabled"]
-                : blocked
-                  ? [isArabic ? "محجوب للجميع" : "Blocked for everyone"]
-                  : [
-                      personaIndex < form.anonymousPersonaLimit ? (isArabic ? "زائر" : "Unregistered") : null,
-                      personaIndex < form.signedPersonaLimit ? (isArabic ? "حساب مجاني" : "Free account") : null,
-                      isArabic ? "بلس" : "Plus",
-                    ].filter((label): label is string => Boolean(label));
+              const tierControls = [
+                { key: "anonymousPersonaIds" as const, label: isArabic ? "زائر" : "Visitor" },
+                { key: "signedPersonaIds" as const, label: isArabic ? "مجاني" : "Free" },
+                { key: "plusPersonaIds" as const, label: isArabic ? "بلس" : "Plus" },
+              ];
               return (
-                <label key={persona.id} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${blocked ? "border-red-200/35 bg-red-200/[0.08]" : "border-white/10 bg-[#0E0D10]/72"}`}>
+                <div key={persona.id} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${blocked || !form.avatarsEnabled ? "border-red-200/35 bg-red-200/[0.08]" : "border-white/10 bg-[#0E0D10]/72"}`}>
                   <span className="min-w-0">
                     <span className="block truncate font-arsans text-sm text-bone/84">{isArabic ? persona.nameAr : persona.nameEn}</span>
                     <span className="block truncate font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="ltr">{persona.id}</span>
-                    <span className="mt-1 flex flex-wrap gap-1">
-                      {tierLabels.map((label) => (
-                        <span key={label} className={`rounded-full border px-2 py-0.5 font-arsans text-[10px] ${blocked || !form.avatarsEnabled ? "border-red-200/25 text-red-100/70" : "border-gold/20 text-gold/70"}`}>{label}</span>
-                      ))}
-                    </span>
+                    {blocked ? <span className="mt-1 block font-arsans text-[10px] text-red-100/70">{isArabic ? "محجوب للجميع" : "Blocked for everyone"}</span> : null}
                   </span>
-                  <input
-                    type="checkbox"
-                    checked={blocked}
-                    onChange={(event) => setForm((current) => ({
-                      ...current,
-                      blockedPersonaIds: event.target.checked
-                        ? Array.from(new Set([...current.blockedPersonaIds, persona.id]))
-                        : current.blockedPersonaIds.filter((personaId) => personaId !== persona.id),
-                    }))}
-                    className="h-4 w-4 shrink-0 accent-red-200"
-                  />
-                </label>
+                  <div className="grid shrink-0 grid-cols-3 gap-2">
+                    {tierControls.map((tier) => (
+                      <label key={tier.key} className="flex flex-col items-center gap-1 font-arsans text-[10px] text-bone/58">
+                        <input
+                          type="checkbox"
+                          checked={form[tier.key].includes(persona.id)}
+                          onChange={(event) => toggleTierPersona(tier.key, persona.id, event.target.checked)}
+                          className="h-4 w-4 accent-[#C9A86A]"
+                        />
+                        <span>{tier.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               );
             })}
           </div>

@@ -36,6 +36,9 @@ const defaultConfig = {
   signedPersonaLimit: 10,
   avatarsEnabled: true,
   blockedPersonaIds: [] as string[],
+  anonymousPersonaIds: personas.slice(0, 4).map((persona) => persona.id),
+  signedPersonaIds: personas.slice(0, 10).map((persona) => persona.id),
+  plusPersonaIds: personas.map((persona) => persona.id),
 };
 
 export async function POST(request: NextRequest) {
@@ -182,6 +185,9 @@ function cleanConfig(value: Record<string, unknown> | undefined) {
 
   config.avatarsEnabled = source.avatarsEnabled !== false;
   config.blockedPersonaIds = cleanPersonaIds(source.blockedPersonaIds);
+  config.anonymousPersonaIds = cleanPersonaIdsOrDefault(source.anonymousPersonaIds, personas.slice(0, Number(config.anonymousPersonaLimit)).map((persona) => persona.id));
+  config.signedPersonaIds = cleanPersonaIdsOrDefault(source.signedPersonaIds, personas.slice(0, Number(config.signedPersonaLimit)).map((persona) => persona.id));
+  config.plusPersonaIds = cleanPersonaIdsOrDefault(source.plusPersonaIds, personas.map((persona) => persona.id));
 
   return config;
 }
@@ -191,6 +197,11 @@ function cleanPersonaIds(value: unknown) {
   return Array.from(new Set((Array.isArray(value) ? value : [])
     .map((item) => cleanText(item, 80))
     .filter((personaId) => validPersonaIds.has(personaId))));
+}
+
+function cleanPersonaIdsOrDefault(value: unknown, fallback: string[]) {
+  if (!Array.isArray(value)) return fallback;
+  return cleanPersonaIds(value);
 }
 
 function cleanText(value: unknown, maxLength: number) {

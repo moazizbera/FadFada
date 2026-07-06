@@ -260,6 +260,9 @@ const defaultExperienceConfiguration = {
   signedPersonaLimit: 10,
   avatarsEnabled: true,
   blockedPersonaIds: [] as PersonaId[],
+  anonymousPersonaIds: personas.slice(0, 4).map((persona) => persona.id),
+  signedPersonaIds: personas.slice(0, 10).map((persona) => persona.id),
+  plusPersonaIds: personas.map((persona) => persona.id),
 };
 
 function cleanPersonaIdList(value: unknown) {
@@ -267,6 +270,11 @@ function cleanPersonaIdList(value: unknown) {
   return Array.from(new Set((Array.isArray(value) ? value : [])
     .map((item) => typeof item === "string" ? item.trim().slice(0, 80) : "")
     .filter((personaId): personaId is PersonaId => validPersonaIds.has(personaId))));
+}
+
+function cleanPersonaIdListOrDefault(value: unknown, fallback: PersonaId[]) {
+  if (!Array.isArray(value)) return fallback;
+  return cleanPersonaIdList(value);
 }
 
 const maxStoredMessages = 80;
@@ -895,18 +903,19 @@ export function ChatWindow() {
   const accountImage = session?.user?.image || null;
   const sessionUser = session?.user as ({ id?: string; activeTier?: string; tokenBalance?: number } & Record<string, unknown>) | undefined;
   const accessState: AccessState = sessionUser?.activeTier === "PLUS" || sessionUser?.activeTier === "BUSINESS" ? "plus" : sessionUser?.id ? "signed" : "anonymous";
-  const { anonymousReflectionLimit, signedGiftReflectionLimit, anonymousPersonaLimit, signedPersonaLimit, avatarsEnabled } = experienceConfiguration;
+  const { anonymousReflectionLimit, signedGiftReflectionLimit, anonymousPersonaLimit, signedPersonaLimit, avatarsEnabled, anonymousPersonaIds, signedPersonaIds, plusPersonaIds } = experienceConfiguration;
   const signedReflectionAllowance = Math.max(signedGiftReflectionLimit, accountTokenBalance ?? sessionUser?.tokenBalance ?? signedGiftReflectionLimit);
   const reflectionLimit = accessState === "anonymous" ? anonymousReflectionLimit : accessState === "signed" ? signedReflectionAllowance : Number.POSITIVE_INFINITY;
   const usedReflections = accessState === "plus" ? 0 : trialCounter;
   const remainingReflections = accessState === "plus" ? Number.POSITIVE_INFINITY : Math.max(0, reflectionLimit - usedReflections);
   const unlockedPersonaIds = useMemo<PersonaId[]>(() => {
-    if (accessState === "plus") return globallyAvailablePersonas.map((persona) => persona.id);
-    const limit = accessState === "signed" ? signedPersonaLimit : anonymousPersonaLimit;
-    const limitedPersonaIds = globallyAvailablePersonas.slice(0, limit).map((persona) => persona.id);
-    const grantedAvailablePersonaIds = grantedPersonaIds.filter((personaIdValue) => !blockedPersonaIdSet.has(personaIdValue));
-    return Array.from(new Set([...limitedPersonaIds, ...grantedAvailablePersonaIds]));
-  }, [accessState, anonymousPersonaLimit, blockedPersonaIdSet, globallyAvailablePersonas, grantedPersonaIds, signedPersonaLimit]);
+    const tierPersonaIds = accessState === "plus" ? plusPersonaIds : accessState === "signed" ? signedPersonaIds : anonymousPersonaIds;
+    const tierPersonaIdSet = new Set(tierPersonaIds);
+    const allowedTierPersonaIds = globallyAvailablePersonas.map((persona) => persona.id).filter((personaIdValue) => tierPersonaIdSet.has(personaIdValue));
+    if (accessState !== "signed") return allowedTierPersonaIds;
+    const grantedAvailablePersonaIds = grantedPersonaIds.filter((personaIdValue) => tierPersonaIdSet.has(personaIdValue) && !blockedPersonaIdSet.has(personaIdValue));
+    return Array.from(new Set([...allowedTierPersonaIds, ...grantedAvailablePersonaIds]));
+  }, [accessState, anonymousPersonaIds, blockedPersonaIdSet, globallyAvailablePersonas, grantedPersonaIds, plusPersonaIds, signedPersonaIds]);
 
   useEffect(() => {
     if (!avatarsEnabled) setPersonaOpen(false);
@@ -917,6 +926,11 @@ export function ChatWindow() {
       setPersonaId(fallbackPersona.id);
     }
   }, [fallbackPersona.id, globallyAvailablePersonas, personaId]);
+
+  useEffect(() => {
+    if (personaId === "custom" || unlockedPersonaIds.includes(personaId)) return;
+    setPersonaId(unlockedPersonaIds[0] ?? fallbackPersona.id);
+  }, [fallbackPersona.id, personaId, unlockedPersonaIds]);
 
   function getUsedCredits() {
     const parsedCredits = Number(localStorage.getItem(getCreditStorageKey()) || "0");
@@ -941,7 +955,9 @@ export function ChatWindow() {
   }
 
   function submitJudgeScenario(text: string, nextWorld: WorldId, targetLanguage: Language, nextPersonaId: PersonaId) {
-    const nextPersona = globallyAvailablePersonas.find((persona) => persona.id === nextPersonaId) ?? activePersona;
+    const nextPersona = globallyAvailablePersonas.find((persona) => persona.id === nextPersonaId && unlockedPersonaIds.includes(persona.id))
+      ?? globallyAvailablePersonas.find((persona) => persona.id === unlockedPersonaIds[0])
+      ?? activePersona;
     setPersonaId(nextPersona.id);
     setLanguage(targetLanguage);
     setWorld(nextWorld);
@@ -1173,6 +1189,9 @@ export function ChatWindow() {
           signedPersonaLimit: cleanConfigurationNumber(data.configuration?.signedPersonaLimit, current.signedPersonaLimit),
           avatarsEnabled: data.configuration?.avatarsEnabled !== false,
           blockedPersonaIds: cleanPersonaIdList(data.configuration?.blockedPersonaIds),
+          anonymousPersonaIds: cleanPersonaIdListOrDefault(data.configuration?.anonymousPersonaIds, personas.slice(0, cleanConfigurationNumber(data.configuration?.anonymousPersonaLimit, current.anonymousPersonaLimit)).map((persona) => persona.id)),
+          signedPersonaIds: cleanPersonaIdListOrDefault(data.configuration?.signedPersonaIds, personas.slice(0, cleanConfigurationNumber(data.configuration?.signedPersonaLimit, current.signedPersonaLimit)).map((persona) => persona.id)),
+          plusPersonaIds: cleanPersonaIdListOrDefault(data.configuration?.plusPersonaIds, personas.map((persona) => persona.id)),
         }));
       })
       .catch(() => undefined);
@@ -1836,7 +1855,10 @@ export function ChatWindow() {
 
     const nextLanguage = inferRequestedLanguage(text, language);
     const requestWorld = overrideWorld ?? world;
-    const requestPersona = overridePersona ?? activePersona;
+    const candidatePersona = overridePersona ?? activePersona;
+    const requestPersona = candidatePersona.id === "custom" || unlockedPersonaIds.includes(candidatePersona.id)
+      ? candidatePersona
+      : globallyAvailablePersonas.find((persona) => persona.id === unlockedPersonaIds[0]) ?? fallbackPersona;
     const personaContinuityPrompt = buildCompanionContinuityPrompt(requestPersona, messages, nextLanguage);
     updateInput("");
     localStorage.removeItem(offlineDraftStorageKey);

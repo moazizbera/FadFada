@@ -421,6 +421,9 @@ async function buildDashboardData() {
     signedPersonaLimit: metadataNumber(latestConfig, "signedPersonaLimit") || 10,
     avatarsEnabled: latestConfig.avatarsEnabled !== false,
     blockedPersonaIds: cleanPersonaIds(latestConfig.blockedPersonaIds),
+    anonymousPersonaIds: cleanPersonaIdsOrDefault(latestConfig.anonymousPersonaIds, personas.slice(0, metadataNumber(latestConfig, "anonymousPersonaLimit") || 4).map((persona) => persona.id)),
+    signedPersonaIds: cleanPersonaIdsOrDefault(latestConfig.signedPersonaIds, personas.slice(0, metadataNumber(latestConfig, "signedPersonaLimit") || 10).map((persona) => persona.id)),
+    plusPersonaIds: cleanPersonaIdsOrDefault(latestConfig.plusPersonaIds, personas.map((persona) => persona.id)),
   };
   const giftTotalsByUser = adminGiftEvents.reduce<Record<string, { giftCount: number; giftedTokens: number }>>((accumulator, event) => {
     const metadata = parseEventMetadata(event.metadataJson);
@@ -557,6 +560,11 @@ function cleanPersonaIds(value: unknown) {
   return Array.from(new Set((Array.isArray(value) ? value : [])
     .map((item) => typeof item === "string" ? item.trim().slice(0, 80) : "")
     .filter((personaId) => validPersonaIds.has(personaId))));
+}
+
+function cleanPersonaIdsOrDefault(value: unknown, fallback: string[]) {
+  if (!Array.isArray(value)) return fallback;
+  return cleanPersonaIds(value);
 }
 
 export default async function AdminDashboardPage() {
