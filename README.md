@@ -22,6 +22,14 @@ Suggested external description:
 
 FadFada is not a medical, therapeutic, emergency, legal, financial, or crisis-support service.
 
+## Reader Guide
+
+This README is written for three audiences:
+
+- **Product Owners:** understand the product promise, user journeys, module boundaries, monetization rules, and roadmap tradeoffs.
+- **Analysts and Operators:** understand the admin dashboard, telemetry, events, conversion signals, avatar controls, and payment-source-of-truth rules.
+- **Developers:** understand the architecture, source ownership, API routes, Prisma models, runtime configuration, deployment flow, and safety constraints.
+
 ## Core Features
 
 - Arabic/English bilingual interface with RTL/LTR support.
@@ -50,6 +58,44 @@ FadFada is not a medical, therapeutic, emergency, legal, financial, or crisis-su
 
 FadFada is organized around two main modules: the user-facing Chat module and the operator-facing Admin module.
 
+### Screens And Ownership Map
+
+| Screen / module | Primary users | Purpose | Main implementation |
+|---|---|---|---|
+| Public app shell | Visitors, signed users, Plus users | Language direction, global navigation, account entry, PWA update handling, notifications | `src/components/AppShell.tsx` |
+| Chat experience | Visitors, signed users, Plus users | Main emotional reflection, companion selection, messages, voice, worlds, saved artifacts, and name gate | `src/components/ChatWindow.tsx` |
+| Companion drawer | Visitors, signed users, Plus users | Browse avatars, see available companions, select persona, rate avatars, manage custom persona | `src/components/PersonaDrawer.tsx` |
+| Tools dialog | Visitors, signed users, Plus users | Daily Pulse, worlds, prompts, demo keys, plan comparison, about/product info, visitor comments | `src/components/ChatWindow.tsx` internal panels |
+| Profile | Signed users | Saved moments, snapshots, quests, tiny plans, identity, profile image/logo, social links | `src/app/profile/profile-client.tsx` |
+| Pricing | Visitors and buyers | Explain paid plan and checkout entry | `src/app/pricing/page.tsx`, `src/components/PaddleCheckoutLauncher.tsx` |
+| Admin dashboard | Admins, analysts, operators | Metrics, visitors, users, avatar ratings, gifts, grants, discounts, global runtime configuration, audit export | `src/app/admin/dashboard/page.tsx`, `src/app/admin/dashboard/admin-dashboard-client.tsx` |
+| Admin login | Admins | Protected sign-in entry for admin users | `src/app/admin/login/page.tsx` |
+| Legal pages | Users, payment reviewers | Privacy, terms, refund policy, payment-provider review support | `src/app/privacy`, `src/app/terms`, `src/app/refund` |
+| API layer | App, Admin, webhooks | Reflection, profile, chat sessions, runtime config, telemetry, payments, notifications, visitor logging | `src/app/api/**` |
+
+### Product Owner Reference
+
+- The product promise is not “many avatars”; it is **many useful response modes** that visibly change how the user is heard or helped.
+- Visitor access should demonstrate immediate value with a small set of emotionally distinct companions.
+- Free signed access should expand trust and retention through more companions, saved sessions, and profile continuity.
+- Plus should emphasize specialist depth: business, AI, health literacy, creative production, strategy, engineering, and advanced learning.
+- Admin runtime controls let the product owner test which avatars belong in Visitor, Free, or Plus without changing code.
+
+### Analyst Reference
+
+- Use Admin dashboard counts for product behavior: visitors, registered users, starter taps, saved moments, shares, comments, PWA installs, avatar ratings, name-only visitors, and chat session summaries.
+- Use `visitor_name_register` to evaluate whether the name gate is being completed before chat starts.
+- Use `avatar_rating` and tier availability changes together to decide which avatars attract users, which confuse users, and which should move between Visitor, Free, and Plus.
+- Use payment-provider dashboards as the revenue source of truth. Internal transaction rows are entitlement/debug records, not financial reporting.
+
+### Developer Reference
+
+- Public runtime configuration is read from `/api/configuration` and saved by Admin through `/api/admin/configuration`.
+- Avatar tier access is data-driven through `anonymousPersonaIds`, `signedPersonaIds`, and `plusPersonaIds`.
+- The chat must always enforce runtime config client-side before rendering or sending with a companion.
+- The source persona registry is `src/lib/personas.ts`; do not duplicate persona behavior in README or UI code without updating the registry.
+- The active visual environment is applied in `src/components/ChatWindow.tsx` through persona environment profiles and world gradients.
+
 ### Chat Module
 
 The Chat module is the primary product experience. It is owned mainly by `src/components/ChatWindow.tsx`, with shell behavior from `src/components/AppShell.tsx`, companion selection from `src/components/PersonaDrawer.tsx`, and animated response rendering from `src/components/TypewriterSync.tsx`.
@@ -63,6 +109,7 @@ Chat responsibilities:
 - Support signed-user chat sessions through `/api/chat-sessions`: new session, silent/manual save, lightweight history list, and full selected-session restore.
 - Restore old assistant messages instantly instead of replaying the typewriter animation for every previous message.
 - Enforce access behavior for anonymous, signed free, Plus, Business, gifted, and lifetime Plus users.
+- Require a visitor or account display name before the first chat message, so conversation context and admin name-only visitor signals are meaningful.
 
 ### Admin Module
 
@@ -73,6 +120,7 @@ Admin responsibilities:
 - Show dashboard metrics for visits, registered members, conversion, starter taps, saved moments, shares, capsule downloads, feedback, comments, installs, geographic sources, plan distribution, PWA installs, and avatar ratings.
 - Auto-refresh admin charts and lists every 30 seconds while the admin page is visible, and refresh again when the tab regains focus.
 - Manage runtime experience limits: anonymous reflection limit, signed gift reflection limit, anonymous persona limit, and signed persona limit.
+- Manage global avatar availability with a top-level enable/disable switch plus per-avatar tier checkboxes for Visitor, Free account, and Plus.
 - Inspect users, token balances, active tiers, locations, gifts, and granted persona access.
 - Grant token gifts that increment `User.tokenBalance`.
 - Grant specific blocked/premium personas to signed users.
@@ -88,98 +136,85 @@ Admin revenue rule:
 
 ## Companion And Avatar System
 
-The companion system is the emotional and behavioral engine of FadFada. The current source roster contains 26 personas, and the visible companion drawer currently includes all 26.
+The companion system is the emotional and behavioral engine of FadFada. It is designed so avatars are not cosmetic skins over the same chatbot. Every companion changes the user's perceived room, response style, pacing, vocabulary, confidence level, and next-step shape.
 
-Personas are grouped into two families:
+Personas are grouped into two strategic families:
 
-- `يسمعك` / `Listens with you`: for presence, comfort, grief, dismissal, storytelling, and emotional containment.
-- `يبنيك` / `Helps you build`: for planning, learning, strategy, creativity, business, legal/business framing, and execution.
+- `يسمعك` / `Listens with you`: presence-first companions for comfort, grief, dismissal, storytelling, poetry, and emotional containment.
+- `يبنيك` / `Helps you build`: action-first companions for execution, learning, strategy, creativity, startup work, sports performance, science, and technical planning.
 
 Important registry files:
 
-- `src/lib/personas.ts` is the source of truth for persona metadata, prompts, voice config, avatar paths, premium flags, and world mapping.
-- `src/components/PersonaDrawer.tsx` controls which personas are visible in the drawer.
-- `src/components/ChatWindow.tsx` applies the active persona to the chat, visual environment, voice, and demo flows.
+- `src/lib/personas.ts` is the source of truth for persona metadata, prompts, voice config, avatar paths, premium flags, and default world mapping.
+- `src/components/ChatWindow.tsx` applies the selected persona to chat behavior, active environment, voice, protected tier access, demo flows, and message persistence.
+- `src/components/PersonaDrawer.tsx` renders the companion selector, rating UI, and custom avatar form.
+- `src/app/api/configuration/route.ts` exposes public runtime avatar availability.
+- `src/app/api/admin/configuration/route.ts` saves admin runtime avatar availability.
 
-Avatar behavior:
+### Avatar Access Model
 
-- Every primary persona has a stable ID, Arabic/English name, role, family, avatar path, glow color, access level, primary world, fallback worlds, voice configuration, and system behavior.
-- Assistant messages preserve their original `personaId`, `personaName`, `avatarPath`, and `world`.
-- User profile image/logo appears in account and chat surfaces where available.
+Avatar access is runtime-controlled from Admin. This means product owners can change avatar availability without a code release.
+
+- `avatarsEnabled`: global on/off switch for the public companion picker.
+- `anonymousPersonaIds`: avatar IDs enabled for unregistered visitors.
+- `signedPersonaIds`: avatar IDs enabled for signed free users.
+- `plusPersonaIds`: avatar IDs enabled for Plus users.
+- `blockedPersonaIds`: derived/global hidden list. If all three tier checkboxes are off for an avatar, that avatar is hidden from the public experience for everyone.
+
+Important behavior rules:
+
+- Admin shows three checkboxes beside every avatar: Visitor, Free, and Plus.
+- The checkboxes reflect the saved config, not hardcoded labels.
+- Old configs still load safely by deriving tier lists from previous numeric limits only when explicit tier lists do not exist.
+- Per-user grants remain recorded in Admin, but the global/tier availability rules are still the public experience gate.
+- Assistant messages preserve their original `personaId`, `personaName`, `avatarPath`, and `world`, so old conversations do not visually change after switching avatars.
 - Avatar ratings are stored as interaction events and summarized in Admin.
-- Custom avatar generation is handled by `/api/avatar/generate`; when image model access is unavailable, the app returns a local generated fallback.
 
-### Persona Roster
+### What Changes When A User Picks An Avatar
 
-| ID | English name | Arabic name | Family | Access | Primary world | English role | Arabic role | Avatar path |
-|---|---|---|---|---|---|---|---|---|
-| `omar` | Omar | عمر | listen | Free | calm | Grounding Friend | الصديق المُنصت والداعم الوجداني | `/avatars/omar.png` |
-| `sami` | Uncle Sami | عم سامي | listen | Free | faith | Wise Literary Elder | المستشار الروحي واللغوي الخبير | `/avatars/sami.png` |
-| `maryam` | Maryam | مريم | listen | Free | calm | The Sister-Energy Ally | الأخت اللي تسمعك من غير ما تقول 'العادة كذا' | `/avatars/maryam.png` |
-| `nema` | Khalti Ne'ma | خالتي نعمة | listen | Free | calm | The Unhurried Anchor | اللي تسمعك وتسكتك بفنجان شاي، مش بنصيحة | `/avatars/nema.png` |
-| `sanad` | Sanad | سند | listen | Free | grief | The Pillar in Loss | يقف جنبك في الفقد، من غير عجلة ومن غير كلام جاهز | `/avatars/sanad.png` |
-| `rawi` | Rawiya | راوية | listen | Free | story | Story Play Companion | رفيقة الحكاية واللعب التخيلي | `/avatars/rawi.png` |
-| `poetry_bot` | Al-Mutanabbi AI | المتنبي الرقمي | listen | Plus | poetry | Cosmic Wordsmith | مُحاكي الشعر العربي وصياغة القوافي | `/avatars/mutanabbi.svg` |
-| `layl` | DJ Layl | دي جي ليل | listen | Plus | poetry | Late-Night Sonic Companion | رفيق الليل والبوح الهادئ بالصوت | `/avatars/layl.png` |
-| `nora` | Nora | نورا | build | Free | build | High-Velocity Action Coach | مُدربة الأداء وهندسة التنفيذ العملي | `/avatars/nora.png` |
-| `kareem` | Captain Kareem | كابتن كريم | build | Free | celebration | World Cup Tactical Strategist | مُخطط الأداء النفسي والرياضي للمونديال | `/avatars/kareem.png` |
-| `malik` | Malik GamerX | مالك | build | Free | learning | Esports Ally & Gaming Mentor | مُوجّه الألعاب والرياضات الإلكترونية والاحتراق | `/avatars/malik.png` |
-| `malik_alt` | Malik (Calm Mode) | مالك (الوضع الهادئ) | listen | Free | calm | Digital Balance Guide | مُوجّه الاسترخاء الرقمي وموازنة الحياة | `/avatars/malik_.png` |
-| `logoz` | Logoz | لغز | build | Free | learning | The Puzzle Dissolver | مفكك العقد ومحلل الألغاز والمشاكل الغامضة | `/avatars/logoz.png` |
-| `sheikh` | The Silicon Sheikh | مهندس المليار | build | Plus | build | Tech Unicorn Founder | مُخطط تمويل الشركات المليارية والاستراتيجية | `/avatars/sheikh.png` |
-| `grandmaster` | The Grandmaster | الأستاذ الكبير | build | Plus | build | Wealth & Startup Architect | مستشار الثروة وبناء الإمبراطوريات التجارية | `/avatars/grandmaster.png` |
-| `zein` | Professor Zein | بروفيسور زين | build | Plus | learning | AI Prompt & Research Scientist | عالم أبحاث وهندسة الأوامر الذكية | `/avatars/zein.png` |
-| `screenwriter` | The Screenwriter | المخرج الرقمي | build | Plus | story | Cinematic Storyteller | مُخطط السيناريو والحبكة والإنتاج الإبداعي | `/avatars/screenwriter.png` |
-| `dania` | Counselor Dania | المستشارة دانية | build | Plus | build | Venture Legal Strategist | مُستشارة حماية الشركات وعقود الملكية | `/avatars/dania.png` |
-| `adam` | Coach Adam | الكوتش آدم | build | Plus | learning | Nutritional Alchemist | مُخطط التغذية الكيميائية والأداء العصبي | `/avatars/adam.png` |
-| `ryan` | Dr. Ryan | دكتور ريان | build | Plus | learning | Bio-Hacker & Longevity Optimizer | المهندس الحيوي ومُخطط طول العمر والجهد | `/avatars/ryan.png` |
-| `layan` | Dr. Layan | دكتورة ليان | build | Plus | learning | Medical & Bio-Science Innovator | مُخطط أبحاث الصحة والعلوم الحيوية | `/avatars/layan.png` |
-| `wamda` | Wamda | ومضة | build | Plus | build | The Innovation Spark | مُولد الأفكار الإبداعية ومحفز العصف الذهني | `/avatars/wamda.png` |
-| `radar` | Radar | رادار | build | Plus | build | The Strategy Radar | المحلل الاستراتيجي ومتوقع المخاطر والفرص | `/avatars/radar.png` |
-| `sarah` | Commander Sarah | كابتن سارة | build | Plus | story | Aerospace & Astronomy Guide | مُخطط علوم الفضاء والفلك والفيزياء | `/avatars/sarah.png` |
-| `sarah_alt` | Sarah (Academic Mode) | سارة (الوضع الأكاديمي) | build | Plus | learning | Cosmic Research Director | مُوجّهة الأبحاث الكونية المتقدمة | `/avatars/sarah_.png` |
-| `tareq` | Tareq | طارق | build | Plus | build | Structural Engineering Architect | مُخطط البرمجة وهندسة الروبوتات الذكية | `/avatars/tareq.png` |
+For visitors and signed users, each avatar is meant to answer differently in four visible ways:
 
-### Persona Behavior And Roles
+- **Response personality:** how the companion speaks, challenges, comforts, asks questions, or structures action.
+- **Real answer shape:** whether the reply becomes validation, a short pause, a checklist, a research blueprint, a story scene, a poem, a risk audit, or a training plan.
+- **Layout and theme:** the active room changes through avatar glow, world gradient, typography, typewriter cadence, and ambient animation.
+- **Commercial promise:** visitors can feel the difference early; signed and Plus users unlock deeper specialist companions with clearer jobs.
 
-Every companion has a narrow behavioral job. The goal is not to make one generic chatbot with many names; the chosen companion should visibly change the user's emotional context, response style, and next-step shape.
+### Avatar Roster, Roles, Response Personality, And Theme
 
-Listen-family behavior:
+| ID | Avatar | Tier intent | Primary role | Real response behavior | Layout/theme personality |
+|---|---|---|---|---|---|
+| `omar` | Omar / عمر | Visitor, Free, Plus by default | Grounding friend | Validates first, reflects in warm everyday language, asks one gentle clarifying question, and ends with a small grounding step. Best for first-time visitors who just need to be heard. | Calm world, sage glow, soft sans typography, steady typewriter pace. Feels close, human, and safe. |
+| `sami` | Uncle Sami / عم سامي | Visitor, Free, Plus by default | Wise literary elder | Answers with elegant Arabic or literary English, uses proverbs and cultural wisdom, gives spiritual reassurance without fatwa or preaching. | Faith/calm atmosphere, muted gold glow, Arabic serif typography, slower reflective cadence. |
+| `maryam` | Maryam / مريم | Visitor, Free, Plus by default | Protective sister-energy ally | Protects the user's feeling when they were dismissed or minimized. Does not rush to defend the other side. Helps the user feel believed before widening perspective. | Warm calm atmosphere, terracotta/sage feeling, soft conversational typography. |
+| `nema` | Khalti Ne'ma / خالتي نعمة | Visitor, Free, Plus by default | Unhurried anchor | Rarely gives direct advice. Creates domestic comfort: tea, quiet room, open window, small pause. Useful when the user wants presence, not analysis. | Tea-like warm gold, literary slow cadence, quiet visual weight. |
+| `sanad` | Sanad / سند | Free and Plus by default | Pillar in loss | Very short, quiet grief support. Avoids silver linings, cliches, and rushed healing. Gives permission to be still. | Grief/stillness world, dusk-gray glow, spacious line height, minimal text, slow cadence. |
+| `rawi` | Rawiya / راوية | Free and Plus by default | Story Play companion | Turns a feeling into safe symbolic scenes, Story Mirror panels, inner cast, mini play, or one image prompt while keeping the emotion central. | Story world, terracotta glow, serif text, slower dramatic reveal. |
+| `nora` | Nora / نورا | Free and Plus by default | High-velocity action coach | Converts confusion into immediate checklists, micro-steps, priorities, and execution language. Low fluff, high momentum. | Build world, brisk animation, kinetic aura, action-oriented spacing. |
+| `kareem` | Captain Kareem / كابتن كريم | Free and Plus by default | Sports performance strategist | Uses football and tournament energy to explain pressure, teamwork, confidence, and daily performance tactics. | Celebration/build feel, green field glow, fast encouraging cadence. |
+| `malik` | Malik GamerX / مالك | Free and Plus by default | Esports ally and gaming mentor | Uses gaming language to explain burnout, leveling, streaming, discipline, and screen-life balance. | Digital cyan glow, mono typography, gaming/tech atmosphere. |
+| `malik_alt` | Malik Calm Mode / مالك الوضع الهادئ | Free and Plus by default | Digital balance guide | Helps overstimulated users decompress from screens, code, content, gaming, and online pressure. | Cool cyan calm mode, slower relaxed text, detox atmosphere. |
+| `logoz` | Logoz / لغز | Plus by default, configurable | Puzzle dissolver | Investigates unclear problems through sharp Socratic questions. Does not hand over lazy answers; helps the user connect the pieces. | Puzzle/research room, violet glow, mono analytical typography. |
+| `sheikh` | The Silicon Sheikh / مهندس المليار | Plus by default | Tech unicorn founder | Audits SaaS ideas, funding logic, pitch structure, scale-up routes, and growth frameworks. | Capital/build room, violet glow, mono executive tone. |
+| `grandmaster` | The Grandmaster / الأستاذ الكبير | Plus by default | Wealth and startup architect | Gives strict strategy, macro scaling logic, asset thinking, and venture-building structure. | Architect/build room, premium violet glow, formal strategic cadence. |
+| `zein` | Professor Zein / بروفيسور زين | Plus by default | AI prompt and research scientist | Translates complex AI, automation, papers, and multi-agent workflows into research blueprints and prompt structures. | Learning/research room, emerald glow, mono technical text. |
+| `poetry_bot` | Al-Mutanabbi AI / المتنبي الرقمي | Plus by default | Classical Arabic wordsmith | Converts feelings into elevated Arabic verse and rhymed literary expression. Best for users who want beauty, not advice. | Poetry room, green-gold glow, serif/literary pacing. |
+| `screenwriter` | The Screenwriter / المخرج الرقمي | Plus by default | Cinematic storyteller | Builds hooks, scenes, arcs, and narrative structures from user ideas or feelings. More production-minded than Rawiya. | Story room, magenta/terracotta glow, cinematic cadence. |
+| `dania` | Counselor Dania / المستشارة دانية | Plus by default | Venture legal strategist | Explains contracts, IP, governance, term sheets, and legal structure in clear non-lawyer language with safety disclaimers. | Build/learning room, blue glow, precise structured text. |
+| `adam` | Coach Adam / الكوتش آدم | Plus by default | Nutrition and performance planner | Builds training, nutrition, routine, and high-stress performance plans while avoiding diagnosis. | Learning/build room, gold energy, practical coaching rhythm. |
+| `ryan` | Dr. Ryan / دكتور ريان | Plus by default | Bio-hacker and longevity optimizer | Explains sleep, stress resilience, routine metrics, and longevity habits as education, not medical advice. | Learning room, orange glow, calm science tone. |
+| `layan` | Dr. Layan / دكتورة ليان | Plus by default | Medical and bioscience explainer | Decodes medical research and bioscience papers into accessible health literacy without diagnosis. | Learning room, pink glow, careful clinical-research framing. |
+| `wamda` | Wamda / ومضة | Plus by default | Innovation spark | Generates five or more non-linear ideas, hooks, and creative options when the user is blocked. | Build/celebration/story crossover, gold spark energy, fast ideation. |
+| `radar` | Radar / رادار | Plus by default | Strategy radar | Stress-tests ideas, finds hidden risks, runs SWOT-style checks, and exposes bottlenecks before execution. | Build room, cyan analytical glow, crisp risk-audit format. |
+| `layl` | DJ Layl / دي جي ليل | Plus by default | Late-night sonic companion | Helps with sound, mood, track structure, creative audio identity, and late-night expression. | Poetry/celebration mood, cyan glow, rhythmic language. |
+| `sarah` | Commander Sarah / كابتن سارة | Plus by default | Aerospace and astronomy guide | Teaches space, physics, astronomy, and cosmic imagination through immersive explanations. | Story/learning room, violet glow, expansive science wonder. |
+| `sarah_alt` | Sarah Academic Mode / سارة الوضع الأكاديمي | Plus by default | Cosmic research director | Structures advanced physics papers, formulas, datasets, and academic research plans. | Learning room, indigo glow, focused academic cadence. |
+| `tareq` | Tareq / طارق | Plus by default | Engineering and robotics architect | Reviews code, robotics logic, serverless workflows, and engineering systems with practical debugging steps. | Build/learning room, green glow, technical mono-oriented clarity. |
 
-- Omar validates, grounds, and stays close without over-explaining.
-- Uncle Sami brings literary Arabic wisdom, gentle spiritual grounding, and proverbs without issuing religious rulings.
-- Maryam is protective sister energy for dismissal, minimization, and everyday invalidation.
-- Khalti Ne'ma is slow, domestic, quiet comfort with almost no analytical advice unless repeatedly asked.
-- Sanad is deliberately quiet grief presence, with no forced silver linings or rushed healing.
-- Rawiya transforms feelings into symbolic scenes, mini plays, and Story Mirror panels while staying emotionally focused.
-- Al-Mutanabbi AI turns emotional moments into elevated Arabic verse.
-- DJ Layl supports late-night sonic, audio, music, and mood-expression work.
-- Malik Calm Mode focuses on digital decompression and screen-life balance.
-
-Build-family behavior:
-
-- Nora turns emotion or confusion into immediate micro-steps.
-- Captain Kareem maps sports psychology and tournament energy into daily performance.
-- Malik GamerX supports gaming, streaming, esports, digital discipline, and anti-burnout.
-- Logoz investigates mysteries, bugs, bottlenecks, and mental puzzles through sharp questions.
-- The Silicon Sheikh helps with SaaS, funding logic, pitches, and scale-up roadmaps.
-- The Grandmaster focuses on business strategy, wealth architecture, and macro scaling logic.
-- Professor Zein structures AI prompts, research, automation, and complex technical learning.
-- The Screenwriter helps with story structure, narrative hooks, and cinematic thinking.
-- Counselor Dania explains contracts, IP, governance, and startup legal structure in non-lawyer language.
-- Coach Adam supports nutrition, training, routines, and performance planning without medical diagnosis.
-- Dr. Ryan supports longevity, sleep, stress resilience, and performance optimization without medical diagnosis.
-- Dr. Layan explains health and bioscience research accessibly without medical diagnosis.
-- Wamda generates creative ideas, hooks, and non-linear options.
-- Radar stress-tests ideas, risks, SWOT, and hidden bottlenecks.
-- Commander Sarah teaches space, astronomy, physics, and immersive science imagination.
-- Sarah Academic Mode structures advanced cosmic research, formulas, and datasets.
-- Tareq supports software, robotics, engineering, debugging, and serverless workflows.
-
-Global behavior rules:
+### Global Persona Behavior Rules
 
 - Arabic-first when Arabic is used; English remains fully supported.
 - Keep reflection supportive, non-clinical, and culturally close.
+- The first layer is always fit-to-moment: comfort before advice for Listen avatars, structure before motivation for Build avatars.
 - End meaningful responses with one small next step when appropriate.
 - Do not claim to be a doctor, therapist, lawyer, financial advisor, or emergency responder.
 - For medical, legal, financial, or regulated topics, provide general educational framing and encourage qualified professional support when needed.
@@ -326,6 +361,7 @@ Tracked event examples:
 - `helpful_feedback`
 - `softer_feedback`
 - `visitor_comment`
+- `visitor_name_register`
 - `pwa_install`
 - `avatar_rating`
 - `avatar_generate`
@@ -409,6 +445,27 @@ Stack:
 - Stripe checkout fallback
 - Paddle integration scaffolding
 - Vercel deployment
+
+Runtime architecture flow:
+
+1. The browser loads the App Router page and hydrates `AppShell` and `ChatWindow`.
+2. `ChatWindow` fetches `/api/configuration` to hydrate reflection limits, global avatar enablement, and tier-specific avatar lists.
+3. The user must provide a name before the first chat message. The name is stored locally and tracked with `visitor_name_register`.
+4. When the user submits a message, `ChatWindow` chooses the active persona, world, recent context, behavior style, and user display name.
+5. `/api/reflect` builds the AI request using Gemini / Vertex AI when available, with local fallback behavior when needed.
+6. The assistant response returns text, world, cadence, resources, and safety/paywall hints.
+7. `ChatWindow` renders the response with the selected persona's saved avatar, role, environment, cadence, and actions.
+8. User actions such as saves, shares, feedback, avatar ratings, comments, and name registration are sent to `/api/events`.
+9. Signed-user sessions are stored through `/api/chat-sessions`; profile and token state are read through `/api/profile`.
+10. Admin reads aggregated Prisma data server-side, saves runtime configuration as `admin_app_config` events, and can grant gifts, persona access, discounts, notifications, and audit exports.
+
+Data architecture:
+
+- Relational identity and account state live in Prisma/Postgres through `User`, `Account`, `Session`, and `VerificationToken`.
+- Flexible analytics and admin configuration live in `InteractionEvent` JSON metadata.
+- Visit metadata lives in `VisitorLog`.
+- Payment webhook records live in `Transaction`, but payment dashboards remain the financial source of truth.
+- Local user artifacts such as saved moments, tiny plans, journey snapshots, quests, and visitor display name are stored in browser `localStorage` unless explicitly saved through account/session flows.
 
 Important source areas:
 
@@ -553,8 +610,10 @@ Production is deployed on Vercel.
 Reliable production deploy command used during the hackathon build:
 
 ```bash
-npx --yes vercel@54.15.1 deploy --prod
+npx --yes vercel@54.20.1 deploy --prod --yes --force --archive=tgz --no-wait
 ```
+
+Normal Vercel deploys from the Windows environment have previously produced `UNKNOWN` / `0ms` deployments. Archive upload mode is the reliable production path for this workspace.
 
 The live production alias is:
 
