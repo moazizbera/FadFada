@@ -4,6 +4,11 @@ FadFada is an Arabic-first bilingual emotional reflection and personal growth PW
 
 Live app: https://fad-fada.vercel.app
 
+Production snapshot:
+- Latest verified release: `0.1.68-676b5d1`.
+- Current companion model: 32-avatar professional expert system.
+- Production AI provider: Vertex AI / Gemini 2.5 Flash when configured, with local fallback behavior.
+
 ## Current Status
 
 FadFada is in public beta. The core experience is free while live checkout configuration, hackathon materials, and early user feedback are finalized.
@@ -47,7 +52,7 @@ This README is written for three audiences:
 - Journey Snapshots for saved progress summaries.
 - 3-Day FadFada Quests with progress tracking and buddy/share text.
 - Proof Cards that turn a response into a share-ready before/after artifact.
-- Story Mirror mode with Rawiya for users who process feelings through story, play, symbolic scenes, and gentle roleplay.
+- Story and expression modes for users who process feelings through story, poetry, symbolic scenes, and gentle roleplay.
 - Early Believer Badge for follower growth and launch sharing.
 - Follower-ready launch posts and judge-ready pitch text.
 - Profile page with saved moments, snapshots, quests, tiny plans, public identity, profile logo/image, and social links.
@@ -78,7 +83,7 @@ FadFada is organized around two main modules: the user-facing Chat module and th
 - The product promise is not “many avatars”; it is **many useful response modes** that visibly change how the user is heard or helped.
 - Visitor access should demonstrate immediate value with a small set of emotionally distinct companions.
 - Free signed access should expand trust and retention through more companions, saved sessions, and profile continuity.
-- Plus should emphasize specialist depth: business, AI, health literacy, creative production, strategy, engineering, and advanced learning.
+- Plus should emphasize specialist depth across business strategy, execution, analysis, creativity, growth discipline, exploration, and life-direction guidance.
 - Admin runtime controls let the product owner test which avatars belong in Visitor, Free, or Plus without changing code.
 
 ### Analyst Reference
@@ -138,10 +143,23 @@ Admin revenue rule:
 
 The companion system is the emotional and behavioral engine of FadFada. It is designed so avatars are not cosmetic skins over the same chatbot. Every companion changes the user's perceived room, response style, pacing, vocabulary, confidence level, and next-step shape.
 
-Personas are grouped into two strategic families:
+Personas are organized in two layers: runtime families for product access and eight expert intent classes for response behavior.
+
+Runtime families:
 
 - `يسمعك` / `Listens with you`: presence-first companions for comfort, grief, dismissal, storytelling, poetry, and emotional containment.
 - `يبنيك` / `Helps you build`: action-first companions for execution, learning, strategy, creativity, startup work, sports performance, science, and technical planning.
+
+Expert intent classes:
+
+- Strategy & Business
+- Execution & Productivity
+- Emotional & Personal
+- Creativity & Content
+- Thinking & Analysis
+- Growth & Discipline
+- Exploration & Brainstorming
+- Clarity & Life Direction
 
 Important registry files:
 
@@ -312,7 +330,7 @@ Share/growth commands:
 - `/pitch`, `/judge-pitch`, `/deck` or `/ملخص`, `/عرض-سريع`: copies/shares a 60-second judge pitch.
 - `/launch`, `/follow`, `/thread` or `/منشور`, `/تابع`: copies/shares a follower-ready launch post.
 - `/badge`, `/believer`, `/early` or `/شارة`, `/مؤمن`: creates an Early Believer Badge post.
-- `/story`, `/play`, `/scene` or `/حكاية`, `/مشهد`, `/لعب`: switches to Rawiya and turns the latest feeling into a compact Story Mirror.
+- `/story`, `/play`, `/scene` or `/حكاية`, `/مشهد`, `/لعب`: switches to the story/poetry companion and turns the latest feeling into a compact Story Mirror.
 - `/capsule`, `/memory` or `/كبسولة`, `/ذكرى`: downloads the latest Moment Capsule.
 - `/quest`, `/3days` or `/تحدي`, `/رحلة`: starts a 3-Day FadFada Quest.
 
@@ -392,7 +410,7 @@ Tracked event examples:
 
 Story Mirror is the main visual storytelling feature:
 
-- Rawiya can turn a feeling into symbolic story panels.
+- The story/poetry companion can turn a feeling into symbolic story panels.
 - The receipt/story card extracts explicit story shots from assistant text when present.
 - If no explicit shot exists, the app builds symbolic fallback shots from the reflection.
 - The Story Mirror Board fetches images from `/api/storyboard/image` with no-store caching.
