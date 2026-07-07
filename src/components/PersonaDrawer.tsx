@@ -33,42 +33,12 @@ const customAvatarOptions = [
   { path: "/profile-logos/terracotta.svg", ar: "دافئ", en: "Warm" },
 ];
 
-const selectorPersonaIds = [
-  "omar",
-  "sami",
-  "maryam",
-  "nema",
-  "sanad",
-  "rawi",
-  "poetry_bot",
-  "layl",
-  "nora",
-  "kareem",
-  "malik",
-  "malik_alt",
-  "sheikh",
-  "grandmaster",
-  "zein",
-  "logoz",
-  "screenwriter",
-  "dania",
-  "adam",
-  "ryan",
-  "layan",
-  "wamda",
-  "radar",
-  "sarah",
-  "sarah_alt",
-  "tareq",
-] as const;
-type SelectorPersonaId = (typeof selectorPersonaIds)[number];
-
 const personaNeedRecommendations: Array<{ id: PersonaId; ar: string; en: string; hintAr: string; hintEn: string }> = [
   { id: "omar", ar: "اسمعني", en: "Listen", hintAr: "حضور هادئ", hintEn: "Calm presence" },
   { id: "nora", ar: "خطوة عملية", en: "Plan", hintAr: "تنفيذ سريع", hintEn: "Action steps" },
   { id: "rawi", ar: "حكاية", en: "Story", hintAr: "مسافة رمزية", hintEn: "Symbolic distance" },
   { id: "sami", ar: "طمأنينة", en: "Comfort", hintAr: "حكمة ناعمة", hintEn: "Gentle wisdom" },
-  { id: "logoz", ar: "حل لغز", en: "Solve", hintAr: "أسئلة ذكية", hintEn: "Sharp questions" },
+  { id: "sarah", ar: "وضوح", en: "Clarity", hintAr: "تبسيط هادئ", hintEn: "Calm simplifier" },
 ];
 
 type AvatarPresentation = {
@@ -78,26 +48,8 @@ type AvatarPresentation = {
   auraHex: string;
 };
 
-const avatarPresentationById: Partial<Record<SelectorPersonaId, AvatarPresentation>> = {
-  omar: { avatarPath: "/avatars/omar.png", nameAr: "عمر", nameEn: "Omar", auraHex: "#5C7C6B" },
-  sami: { avatarPath: "/avatars/sami.png", nameAr: "عم سامي", nameEn: "Uncle Sami", auraHex: "#C9A86A" },
-  nora: { avatarPath: "/avatars/nora.png", nameAr: "نورا", nameEn: "Nora", auraHex: "#8B7BB8" },
-  kareem: { avatarPath: "/avatars/kareem.png", nameAr: "كابتن كريم", nameEn: "Captain Kareem", auraHex: "#22C55E" },
-  malik: { avatarPath: "/avatars/malik.png", nameAr: "مالك", nameEn: "Malik GamerX", auraHex: "#06B6D4" },
-  sheikh: { avatarPath: "/avatars/sheikh.png", nameAr: "مهندس المليار", nameEn: "The Silicon Sheikh", auraHex: "#A855F7" },
-  zein: { avatarPath: "/avatars/zein.png", nameAr: "بروفيسور زين", nameEn: "Professor Zein", auraHex: "#22C55E" },
-  screenwriter: { avatarPath: "/avatars/screenwriter.png", nameAr: "المخرج الرقمي", nameEn: "The Screenwriter", auraHex: "#A855F7" },
-  layl: { avatarPath: "/avatars/layl.png", nameAr: "دي جي ليل", nameEn: "DJ Layl", auraHex: "#06B6D4" },
-  rawi: { avatarPath: "/avatars/rawi.png", nameAr: "راوية", nameEn: "Rawiya", auraHex: "#D4724A" },
-};
-
-function isSelectorPersonaId(value: string): value is SelectorPersonaId {
-  return selectorPersonaIds.includes(value as SelectorPersonaId);
-}
-
 function getAvatarPresentation(persona: Persona): AvatarPresentation {
-  const presentation = isSelectorPersonaId(persona.id) ? avatarPresentationById[persona.id] : undefined;
-  return presentation ?? { avatarPath: persona.avatarPath, nameAr: persona.nameAr, nameEn: persona.nameEn, auraHex: persona.glowColorHex };
+  return { avatarPath: persona.avatarPath, nameAr: persona.nameAr, nameEn: persona.nameEn, auraHex: persona.glowColorHex };
 }
 
 function getPersonaDisplayName(persona: Persona, language: Language) {
@@ -157,12 +109,7 @@ export function PersonaDrawer({
   const isArabic = language === "ar";
   const blockedPersonaIdSet = new Set(blockedPersonaIds);
   const personaSource = customPersona ? [...personas, customPersona] : personas;
-  const selectorPersonas = selectorPersonaIds
-    .map((personaId) => personas.find((persona) => persona.id === personaId))
-    .filter((persona): persona is Persona => {
-      if (!persona) return false;
-      return !blockedPersonaIdSet.has(persona.id);
-    });
+  const selectorPersonas = personaSource.filter((persona) => !blockedPersonaIdSet.has(persona.id));
   const selectedPersona = personaSource.find((persona) => persona.id === activePersona) || selectorPersonas[0] || personaSource[0];
   const personaCards = selectorPersonas.map((persona) => {
     const presentation = getAvatarPresentation(persona);
@@ -362,6 +309,24 @@ export function PersonaDrawer({
             </section>
           ))}
         </div>
+
+        {selectedPersona ? (
+          <div className="mt-4 rounded-2xl border border-[#C9A86A]/25 bg-[#C9A86A]/[0.055] p-4" dir={isArabic ? "rtl" : "ltr"}>
+            <div className="flex items-center justify-between gap-3 max-sm:flex-col max-sm:items-stretch">
+              <div className="min-w-0 text-start">
+                <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-sm font-semibold text-bone/90`}>
+                  {isArabic ? "جاهز تبدأ مع هذا الرفيق؟" : "Ready to start with this companion?"}
+                </p>
+                <p className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 truncate text-xs text-bone/48`}>
+                  {getPersonaDisplayName(selectedPersona, language)} · {getPersonaRole(selectedPersona, language)}
+                </p>
+              </div>
+              <button type="button" onClick={onClose} className="ui-action rounded-xl bg-[#C9A86A] px-4 py-3 text-xs text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
+                {isArabic ? "ابدأ المحادثة" : "Start conversation"}
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {selectedPersona ? (
           <div className="mt-4 border border-white/10 bg-white/[0.03] p-4">

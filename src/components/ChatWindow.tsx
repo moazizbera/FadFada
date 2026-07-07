@@ -1120,7 +1120,11 @@ export function ChatWindow() {
     }
 
     registerVisitorName(cleanedName);
-    window.setTimeout(focusInput, 80);
+    if (avatarsEnabled) {
+      window.setTimeout(() => setPersonaOpen(true), 120);
+    } else {
+      window.setTimeout(focusInput, 80);
+    }
     return true;
   }
 
