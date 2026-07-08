@@ -295,6 +295,61 @@ const starterMoments: Record<Language, Array<{ label: string; text: string; worl
   ],
 };
 
+const visitorChallengeMoments: Record<Language, Array<{ badge: string; title: string; description: string; text: string; world: WorldId; personaId: PersonaId }>> = {
+  ar: [
+    {
+      badge: "30 ثانية",
+      title: "اعرف رفيقك المناسب",
+      description: "اختبار سريع يحوّل حالتك إلى رفيق وخطوة واضحة.",
+      text: "اسألني 3 أسئلة قصيرة لتعرف أي رفيق في فضفضة يناسبني الآن، ثم اختر لي الرفيق المناسب وخطوة واحدة أبدأ بها.",
+      world: "calm",
+      personaId: "noor_companion",
+    },
+    {
+      badge: "شاركها",
+      title: "حوّل شعورك إلى بطاقة",
+      description: "رد جاهز يتحول بسهولة إلى لقطة مشاركة أو قصة.",
+      text: "حوّل شعوري الحالي إلى بطاقة قصيرة قابلة للمشاركة: عنوان قوي، جملة صادقة، وخطوة صغيرة. اجعلها دافئة وغير محرجة.",
+      world: "story",
+      personaId: "rawi",
+    },
+    {
+      badge: "هاكاثون",
+      title: "اصنع خطة دقيقة الآن",
+      description: "للزوار الذين يريدون قيمة عملية من أول دقيقة.",
+      text: "لدي هدف مهم هذا الأسبوع. اسألني سؤالاً واحداً فقط إذا احتجت، ثم أعطني خطة 3 خطوات قابلة للتنفيذ خلال 24 ساعة.",
+      world: "build",
+      personaId: "nora",
+    },
+  ],
+  en: [
+    {
+      badge: "30 sec",
+      title: "Find your companion",
+      description: "A quick match that turns your state into the right avatar and one step.",
+      text: "Ask me 3 short questions to find which FadFada companion fits me right now, then choose the companion and give me one first step.",
+      world: "calm",
+      personaId: "noor_companion",
+    },
+    {
+      badge: "Shareable",
+      title: "Turn a feeling into a card",
+      description: "A response visitors can turn into a share moment or story.",
+      text: "Turn my current feeling into a short shareable card: a strong title, one honest sentence, and one small step. Keep it warm, not embarrassing.",
+      world: "story",
+      personaId: "rawi",
+    },
+    {
+      badge: "Hackathon",
+      title: "Build a tiny action plan",
+      description: "For visitors who want practical value in the first minute.",
+      text: "I have an important goal this week. Ask me only one question if needed, then give me a 3-step plan I can execute in the next 24 hours.",
+      world: "build",
+      personaId: "nora",
+    },
+  ],
+};
+
 const judgeDemoScenarios: Record<Language, Array<{ label: string; companion: string; personaId: PersonaId; text: string; world: WorldId; targetLanguage: Language }>> = {
   ar: [
     { label: "مريم تسمعك", companion: "مريم", personaId: "maryam", text: "حد قريب مني قلل من اللي حاسه وقال لي العادة كذا. أنا مش محتاج حد يبرر له، محتاج أحس إن إحساسي مفهوم.", world: "calm", targetLanguage: "ar" },
@@ -1027,6 +1082,17 @@ export function ChatWindow() {
     setWorld(nextWorld);
     trackInteraction("starter_tap", { world: nextWorld, language });
     void submitMessage(undefined, text, nextWorld);
+  }
+
+  function submitVisitorChallenge(text: string, nextWorld: WorldId, nextPersonaId: PersonaId) {
+    const nextPersona = globallyAvailablePersonas.find((persona) => persona.id === nextPersonaId && unlockedPersonaIds.includes(persona.id))
+      ?? globallyAvailablePersonas.find((persona) => persona.id === unlockedPersonaIds[0])
+      ?? activePersona;
+    setPersonaId(nextPersona.id);
+    setWorld(nextWorld);
+    trackInteraction("starter_tap", { type: "visitor_challenge", world: nextWorld, language, personaId: nextPersona.id });
+    scrollToSection("chat");
+    void submitMessage(undefined, text, nextWorld, nextPersona);
   }
 
   function submitJudgeScenario(text: string, nextWorld: WorldId, targetLanguage: Language, nextPersonaId: PersonaId) {
@@ -2378,6 +2444,7 @@ export function ChatWindow() {
             : "A calm Arabic/English space: write what is inside, then open the menu when you need a companion, a step, or a saved moment."}
         </p>
         <TrustChipRow language={language} />
+        <VisitorChallengeDeck language={language} onRun={submitVisitorChallenge} />
         {plusWelcomeOpen ? (
           <PlusWelcomeCard
             language={language}
@@ -3813,6 +3880,48 @@ function TrustChipRow({ language }: { language: Language }) {
         </span>
       ))}
     </div>
+  );
+}
+
+function VisitorChallengeDeck({ language, onRun }: { language: Language; onRun: (text: string, world: WorldId, personaId: PersonaId) => void }) {
+  const isArabic = language === "ar";
+
+  return (
+    <section className="mt-5 w-full rounded-2xl border border-[#C9A86A]/25 bg-[#C9A86A]/[0.055] p-3 text-start shadow-2xl backdrop-blur" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="flex items-start justify-between gap-3 px-1">
+        <div className="min-w-0">
+          <p className="ui-kicker text-[#C9A86A]/90">{isArabic ? "تحدي الزائر" : "Visitor challenge"}</p>
+          <h2 className="mt-1 font-arui text-xl font-semibold leading-7 text-[#F7F3EC]/94">
+            {isArabic ? "اختر تجربة تجذبك في أول دقيقة" : "Pick a one-minute experience"}
+          </h2>
+          <p className="mt-1 font-arsans text-sm leading-6 text-[#F7F3EC]/55">
+            {isArabic ? "زر واحد يكشف للزائر قيمة فضفضة فوراً: رفيق، قصة، أو خطة." : "One tap shows the value fast: companion match, story card, or action plan."}
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full border border-[#C9A86A]/30 bg-black/20 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#C9A86A]" dir="ltr">
+          Live
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        {visitorChallengeMoments[language].map((challenge) => (
+          <button
+            key={challenge.title}
+            type="button"
+            onClick={() => onRun(challenge.text, challenge.world, challenge.personaId)}
+            className="group min-h-36 rounded-xl border border-white/10 bg-black/18 p-3 text-start transition-all hover:-translate-y-0.5 hover:border-[#C9A86A]/50 hover:bg-[#C9A86A]/10"
+          >
+            <span className="inline-flex rounded-full border border-[#C9A86A]/25 bg-[#C9A86A]/10 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#C9A86A]/85" dir="ltr">
+              {challenge.badge}
+            </span>
+            <span className="mt-3 block font-arsans text-sm font-semibold leading-5 text-[#F7F3EC]/90">{challenge.title}</span>
+            <span className="mt-2 block font-arsans text-xs leading-5 text-[#F7F3EC]/48">{challenge.description}</span>
+            <span className="mt-3 inline-flex font-arsans text-[11px] text-[#C9A86A]/78 transition-colors group-hover:text-[#F7F3EC]">
+              {isArabic ? "ابدأ الآن" : "Start now"}
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
