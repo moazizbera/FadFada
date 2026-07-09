@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SessionProvider, signOut, useSession } from "next-auth/react";
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { NotificationCenter } from "./NotificationCenter";
 import { PwaUpdateManager } from "./PwaUpdateManager";
 
@@ -125,6 +125,7 @@ function GlobalHeader() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountProfile, setAccountProfile] = useState<AccountProfile | null>(null);
   const [activeAdminTab, setActiveAdminTab] = useState("dashboard");
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const isArabic = language === "ar";
   const nextLanguageLabel = isArabic ? "EN" : "AR";
   const authenticatedImage = accountProfile?.image || session?.user?.image;
@@ -194,6 +195,29 @@ function GlobalHeader() {
     return () => window.removeEventListener("popstate", syncActiveAdminTab);
   }, [isAdminArea, pathname]);
 
+  useEffect(() => {
+    if (!accountOpen) return;
+
+    function closeAccountMenuOnOutsidePointer(event: MouseEvent | TouchEvent) {
+      const target = event.target;
+      if (!(target instanceof Node) || accountMenuRef.current?.contains(target)) return;
+      setAccountOpen(false);
+    }
+
+    function closeAccountMenuOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setAccountOpen(false);
+    }
+
+    document.addEventListener("mousedown", closeAccountMenuOnOutsidePointer);
+    document.addEventListener("touchstart", closeAccountMenuOnOutsidePointer);
+    document.addEventListener("keydown", closeAccountMenuOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeAccountMenuOnOutsidePointer);
+      document.removeEventListener("touchstart", closeAccountMenuOnOutsidePointer);
+      document.removeEventListener("keydown", closeAccountMenuOnEscape);
+    };
+  }, [accountOpen]);
+
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#0E0D10]/78 text-bone/90 shadow-2xl backdrop-blur-xl" dir={direction}>
       <div className={`mx-auto flex h-16 items-center justify-between gap-2 px-3 sm:px-4 ${isAdminArea ? "max-w-6xl" : "max-w-3xl"}`}>
@@ -250,7 +274,7 @@ function GlobalHeader() {
         {status === "loading" ? (
           <span className="h-8 w-8 rounded-2xl border border-white/10 bg-slate-950/70 shadow-xl" aria-hidden="true" />
         ) : session?.user ? (
-          <div className="relative">
+          <div ref={accountMenuRef} className="relative">
             <button type="button" onClick={() => setAccountOpen((open) => !open)} className="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-slate-950/82 p-1 pr-2 shadow-xl transition-colors hover:border-gold/45" aria-label={`Open account menu for ${authenticatedName}`} aria-expanded={accountOpen}>
               <span className="relative h-8 w-8 overflow-hidden rounded-xl bg-slate-950">
                 {authenticatedImage ? <Image src={authenticatedImage} alt={authenticatedName} fill sizes="32px" className="object-cover" unoptimized /> : <span className="grid h-full w-full place-items-center font-ensans text-xs text-bone/90">{authenticatedName.slice(0, 1).toUpperCase()}</span>}

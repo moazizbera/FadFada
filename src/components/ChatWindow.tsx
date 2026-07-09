@@ -996,6 +996,7 @@ export function ChatWindow() {
   const [sessionStatus, setSessionStatus] = useState<"idle" | "saving" | "saved" | "loading" | "error">("idle");
   const [animatedAssistantMessageIds, setAnimatedAssistantMessageIds] = useState<string[]>([]);
   const [accountTokenBalance, setAccountTokenBalance] = useState<number | null>(null);
+  const [accountActiveTier, setAccountActiveTier] = useState<string | null>(null);
   const [grantedPersonaIds, setGrantedPersonaIds] = useState<PersonaId[]>([]);
   const [experienceConfiguration, setExperienceConfiguration] = useState(defaultExperienceConfiguration);
   const [activeDiscountCode, setActiveDiscountCode] = useState("");
@@ -1032,7 +1033,8 @@ export function ChatWindow() {
   const accountName = session?.user?.name || session?.user?.email || effectiveUserName || (language === "ar" ? "حسابي" : "Account");
   const accountImage = session?.user?.image || null;
   const sessionUser = session?.user as ({ id?: string; activeTier?: string; tokenBalance?: number } & Record<string, unknown>) | undefined;
-  const accessState: AccessState = sessionUser?.activeTier === "PLUS" || sessionUser?.activeTier === "BUSINESS" ? "plus" : sessionUser?.id ? "signed" : "anonymous";
+  const effectiveAccountTier = accountActiveTier ?? sessionUser?.activeTier ?? null;
+  const accessState: AccessState = effectiveAccountTier === "PLUS" || effectiveAccountTier === "BUSINESS" ? "plus" : sessionUser?.id ? "signed" : "anonymous";
   const { anonymousReflectionLimit, signedGiftReflectionLimit, anonymousPersonaLimit, signedPersonaLimit, avatarsEnabled, anonymousPersonaIds, signedPersonaIds, plusPersonaIds } = experienceConfiguration;
   const signedReflectionAllowance = Math.max(signedGiftReflectionLimit, accountTokenBalance ?? sessionUser?.tokenBalance ?? signedGiftReflectionLimit);
   const reflectionLimit = accessState === "anonymous" ? anonymousReflectionLimit : accessState === "signed" ? signedReflectionAllowance : Number.POSITIVE_INFINITY;
@@ -1042,8 +1044,8 @@ export function ChatWindow() {
     const tierPersonaIds = accessState === "plus" ? plusPersonaIds : accessState === "signed" ? signedPersonaIds : anonymousPersonaIds;
     const tierPersonaIdSet = new Set(tierPersonaIds);
     const allowedTierPersonaIds = globallyAvailablePersonas.map((persona) => persona.id).filter((personaIdValue) => tierPersonaIdSet.has(personaIdValue));
-    if (accessState !== "signed") return allowedTierPersonaIds;
-    const grantedAvailablePersonaIds = grantedPersonaIds.filter((personaIdValue) => tierPersonaIdSet.has(personaIdValue) && !blockedPersonaIdSet.has(personaIdValue));
+    if (accessState === "anonymous") return allowedTierPersonaIds;
+    const grantedAvailablePersonaIds = grantedPersonaIds.filter((personaIdValue) => !blockedPersonaIdSet.has(personaIdValue));
     return Array.from(new Set([...allowedTierPersonaIds, ...grantedAvailablePersonaIds]));
   }, [accessState, anonymousPersonaIds, blockedPersonaIdSet, globallyAvailablePersonas, grantedPersonaIds, plusPersonaIds, signedPersonaIds]);
 
@@ -1238,18 +1240,21 @@ export function ChatWindow() {
   }, [accessState, sessionUser?.id]);
 
   useEffect(() => {
-    if (accessState !== "signed" || !sessionUser?.id) {
+    if (!sessionUser?.id) {
       setAccountTokenBalance(null);
+      setAccountActiveTier(null);
+      setGrantedPersonaIds([]);
       return;
     }
 
     let active = true;
     fetch("/api/profile")
-      .then((response) => response.ok ? response.json() as Promise<{ profile?: { tokenBalance?: number; grantedPersonaIds?: PersonaId[] } }> : null)
+      .then((response) => response.ok ? response.json() as Promise<{ profile?: { activeTier?: string | null; tokenBalance?: number; grantedPersonaIds?: PersonaId[] } }> : null)
       .then((data) => {
         if (!active) return;
         const tokenBalance = Number(data?.profile?.tokenBalance);
         setAccountTokenBalance(Number.isFinite(tokenBalance) ? tokenBalance : null);
+        setAccountActiveTier(typeof data?.profile?.activeTier === "string" ? data.profile.activeTier : null);
         setGrantedPersonaIds(Array.isArray(data?.profile?.grantedPersonaIds) ? data.profile.grantedPersonaIds.filter((personaIdValue) => personas.some((persona) => persona.id === personaIdValue)) : []);
       })
       .catch(() => undefined);
@@ -1257,7 +1262,7 @@ export function ChatWindow() {
     return () => {
       active = false;
     };
-  }, [accessState, sessionUser?.id]);
+  }, [sessionUser?.id]);
 
   useEffect(() => {
     if (accessState === "anonymous") return;
