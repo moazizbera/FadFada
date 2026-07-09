@@ -4369,12 +4369,13 @@ function BottomNav({
 }) {
   const isArabic = language === "ar";
   const accountInitial = accountName.trim().slice(0, 1).toUpperCase() || (isArabic ? "ح" : "A");
-  const itemClass = "flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-bone/62 transition-colors hover:bg-white/[0.05] hover:text-[#C9A86A]";
+  const navPositionClass = isArabic ? "md:left-3" : "md:right-3";
+  const itemClass = "flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-bone/62 transition-colors hover:bg-white/[0.05] hover:text-[#C9A86A] md:h-14 md:w-14 md:flex-none md:justify-center md:px-1.5 md:py-2";
   const labelClass = `${isArabic ? "font-arsans" : "font-ensans"} text-[11px] leading-none`;
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-2xl border-t border-white/10 bg-[#0E0D10]/92 px-3 pb-[max(0.7rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-18px_40px_rgba(0,0,0,0.35)] backdrop-blur-2xl" dir={isArabic ? "rtl" : "ltr"} aria-label={isArabic ? "تنقل التطبيق" : "App navigation"}>
-      <div className="grid grid-cols-5 gap-1 rounded-2xl border border-white/10 bg-white/[0.025] p-1">
+    <nav className={`fixed inset-x-0 bottom-0 z-40 mx-auto max-w-2xl border-t border-white/10 bg-[#0E0D10]/92 px-3 pb-[max(0.7rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-18px_40px_rgba(0,0,0,0.35)] backdrop-blur-2xl md:inset-x-auto md:bottom-auto md:top-1/2 md:max-w-none md:-translate-y-1/2 md:border-t-0 md:bg-transparent md:px-0 md:pb-0 md:pt-0 md:shadow-none md:backdrop-blur-none ${navPositionClass}`} dir={isArabic ? "rtl" : "ltr"} aria-label={isArabic ? "تنقل التطبيق" : "App navigation"}>
+      <div className={`grid ${onPersona ? "grid-cols-5" : "grid-cols-4"} gap-1 rounded-2xl border border-white/10 bg-white/[0.025] p-1 md:flex md:flex-col md:rounded-2xl md:bg-[#0E0D10]/82 md:shadow-[0_18px_54px_rgba(0,0,0,0.38)] md:backdrop-blur-2xl`}>
         <button type="button" onClick={onHome} className={itemClass}>
           <HomeIcon />
           <span className={labelClass}>{isArabic ? "الرئيسية" : "Home"}</span>
