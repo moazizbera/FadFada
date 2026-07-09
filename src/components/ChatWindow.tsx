@@ -1009,6 +1009,7 @@ export function ChatWindow() {
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const homeRef = useRef<HTMLElement | null>(null);
   const chatRef = useRef<HTMLElement | null>(null);
+  const pendingVisitorChallengeFocusRef = useRef<"composer" | "name" | null>(null);
 
   const activeWorld = worlds[world];
   const customPersona = useMemo(() => buildCustomPersona(customPersonaDraft), [customPersonaDraft]);
@@ -1094,10 +1095,9 @@ export function ChatWindow() {
     setPersonaId(nextPersona.id);
     setWorld(nextWorld);
     setToolsOpen(false);
+    pendingVisitorChallengeFocusRef.current = hasDisplayName ? "composer" : "name";
     trackInteraction("starter_tap", { type: "visitor_challenge", world: nextWorld, language, personaId: nextPersona.id });
-    chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     void submitMessage(undefined, text, nextWorld, nextPersona);
-    if (hasDisplayName) window.setTimeout(focusInput, 160);
   }
 
   function submitJudgeScenario(text: string, nextWorld: WorldId, targetLanguage: Language, nextPersonaId: PersonaId) {
@@ -1137,6 +1137,26 @@ export function ChatWindow() {
   function focusInput() {
     inputRef.current?.focus();
     inputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function focusVisitorChallengeChat() {
+    const target = pendingVisitorChallengeFocusRef.current;
+    if (!target) return;
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" });
+
+        if (target === "composer") {
+          inputRef.current?.focus({ preventScroll: true });
+        } else {
+          nameInputRef.current?.focus({ preventScroll: true });
+        }
+
+        pendingVisitorChallengeFocusRef.current = null;
+      });
+    });
   }
 
   function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -1205,6 +1225,10 @@ export function ChatWindow() {
       return [{ ...current[0], text: buildOpeningMessage(language, effectiveUserName), language }];
     });
   }, [effectiveUserName, language]);
+
+  useEffect(() => {
+    focusVisitorChallengeChat();
+  }, [messages.length, nameGateMessage]);
 
   useEffect(() => {
     const storedName = normalizeGreetingName(localStorage.getItem(visitorNameStorageKey));
