@@ -1090,11 +1090,14 @@ export function ChatWindow() {
     const nextPersona = globallyAvailablePersonas.find((persona) => persona.id === nextPersonaId && unlockedPersonaIds.includes(persona.id))
       ?? globallyAvailablePersonas.find((persona) => persona.id === unlockedPersonaIds[0])
       ?? activePersona;
+    const hasDisplayName = Boolean(effectiveUserName ?? normalizeGreetingName(visitorNameDraft));
     setPersonaId(nextPersona.id);
     setWorld(nextWorld);
+    setToolsOpen(false);
     trackInteraction("starter_tap", { type: "visitor_challenge", world: nextWorld, language, personaId: nextPersona.id });
-    scrollToSection("chat");
+    chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     void submitMessage(undefined, text, nextWorld, nextPersona);
+    if (hasDisplayName) window.setTimeout(focusInput, 160);
   }
 
   function submitJudgeScenario(text: string, nextWorld: WorldId, targetLanguage: Language, nextPersonaId: PersonaId) {
