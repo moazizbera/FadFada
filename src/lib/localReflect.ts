@@ -54,6 +54,13 @@ export function reflectLocally(input: ReflectInput): ReflectOutput {
     };
   }
 
+  if (isReadyMarketingAssetRequest(text, input.recentMessages)) {
+    return {
+      world: "build",
+      replyText: buildReadyMarketingAssetReply(language),
+    };
+  }
+
   if (isArabicFollowUp(text)) {
     const previousTopic = inferPreviousTopic(input.recentMessages);
 
@@ -190,6 +197,96 @@ function inferIntent(text: string): LocalIntent {
   if (sadnessPattern.test(text)) return "sadness";
   if (decisionPattern.test(text)) return "decision";
   return "general";
+}
+
+function isReadyMarketingAssetRequest(text: string, recentMessages: ReflectInput["recentMessages"]): boolean {
+  const normalizedText = text.toLowerCase();
+  const recentText = (recentMessages ?? []).map((message) => message.text).join(" ").toLowerCase();
+  const wantsFinalAsset = /بوست|post|presentation|برزنتيشن|برزيناشين|كاروسيل|carousel|انشر|publish|upload|ارفع|ارفعها|جاهز|ready|مش عايز شرح|لا اريد شرح|without explanation/.test(normalizedText);
+  const marketingContext = /تسويق|marketing|content|محتوى|لينكد|linkedin|فضفضة|fadfada/.test(`${normalizedText} ${recentText}`);
+  return wantsFinalAsset && marketingContext;
+}
+
+function buildReadyMarketingAssetReply(language: "ar" | "en") {
+  if (language === "ar") {
+    return [
+      "بوست لينكد إن جاهز للنشر:",
+      "",
+      "هل ضغط العمل يأخذ من طاقتك أكثر مما يعطيك؟",
+      "",
+      "أحياناً لا نحتاج نصيحة طويلة. نحتاج مساحة آمنة نقول فيها ما يحدث داخلنا بدون حكم، ثم نخرج بفكرة أوضح وخطوة أهدأ.",
+      "",
+      "فضفضة مساحة عربية/إنجليزية تساعدك تتكلم، ترتب أفكارك، وتحوّل الضغط إلى وضوح وخطوة عملية. سواء كنت تمر بضغط مهني، قرار صعب، مذاكرة، مشروع، أو حتى تحتاج مستشاراً في جانب من جوانب الحياة، فضفضة تبدأ معك من السؤال الحقيقي وتنتهي بشيء يمكن استخدامه.",
+      "",
+      "ابدأ الآن: اكتب ما يشغلك، واختر المسار المناسب لك.",
+      "",
+      "#فضفضة #الصحة_النفسية #ضغط_العمل #لينكدإن #الذكاء_العاطفي #الإنتاجية #تطوير_الذات #الرفاهية_المهنية",
+      "",
+      "برزنتيشن/كاروسيل لينكد إن جاهز:",
+      "",
+      "الشريحة 1: هل تحمل ضغط العمل وحدك؟",
+      "فضفضة تساعدك تخرجه من رأسك إلى مساحة آمنة وواضحة.",
+      "",
+      "الشريحة 2: المشكلة",
+      "الضغط لا يبقى في المكتب. يدخل في النوم، التركيز، العلاقات، والقرارات.",
+      "",
+      "الشريحة 3: ما الذي تحتاجه فعلاً؟",
+      "ليس كلاماً عاماً. تحتاج أن تتكلم، ترتب الفكرة، وتخرج بخطوة قابلة للتنفيذ.",
+      "",
+      "الشريحة 4: ماذا تقدم فضفضة؟",
+      "رفقاء واستشاريون للحياة والعمل والدراسة والمال والعلاقات، بالعربية والإنجليزية.",
+      "",
+      "الشريحة 5: أمثلة لما يمكنك طلبه",
+      "خطة مقابلة عمل، بوست تسويقي، حل مشكلة تقنية، قرار مالي، رسالة صعبة، أو خطة مذاكرة.",
+      "",
+      "الشريحة 6: النتيجة",
+      "تخرج من المحادثة بوضوح، قائمة خطوات، نص جاهز، أو قرار مرتب.",
+      "",
+      "الشريحة 7: جرّبها الآن",
+      "اكتب جملة واحدة: ما الشيء الذي تحتاج أن تفضفض عنه اليوم؟",
+      "",
+      "ملاحظات تصميم قصيرة: خلفية هادئة داكنة، لون ذهبي للعناوين، أيقونة محادثة بسيطة، وكل شريحة لا تزيد عن سطرين."
+    ].join("\n");
+  }
+
+  return [
+    "Ready-to-publish LinkedIn post:",
+    "",
+    "Is work pressure taking more from you than it gives back?",
+    "",
+    "Sometimes you do not need a long lecture. You need a safe place to say what is happening inside, organize the noise, and leave with one clearer next step.",
+    "",
+    "FadFada is an Arabic/English space that helps you talk, think, and turn pressure into clarity and action. Whether you are dealing with work stress, a difficult decision, studying, a project, or a practical life question, FadFada starts from the real question and helps you leave with something usable.",
+    "",
+    "Start now: write what is on your mind and choose the path that fits you.",
+    "",
+    "#FadFada #MentalHealth #WorkStress #LinkedIn #EmotionalIntelligence #Productivity #SelfDevelopment #WorkplaceWellbeing",
+    "",
+    "Ready LinkedIn carousel/presentation:",
+    "",
+    "Slide 1: Carrying work pressure alone?",
+    "FadFada helps you move it from your head into a safe, clear space.",
+    "",
+    "Slide 2: The problem",
+    "Pressure does not stay at work. It affects sleep, focus, relationships, and decisions.",
+    "",
+    "Slide 3: What you actually need",
+    "Not generic advice. You need to speak, organize the thought, and leave with a practical next step.",
+    "",
+    "Slide 4: What FadFada gives you",
+    "Companions and consultants for life, work, study, money, and relationships in Arabic and English.",
+    "",
+    "Slide 5: What you can ask for",
+    "Interview prep, marketing copy, tech help, a money decision, a difficult message, or a study plan.",
+    "",
+    "Slide 6: The outcome",
+    "Leave with clarity, a checklist, ready copy, or a better-structured decision.",
+    "",
+    "Slide 7: Try it now",
+    "Write one sentence: what do you need to get off your mind today?",
+    "",
+    "Brief design notes: calm dark background, gold headline color, simple chat icon, max two lines per slide."
+  ].join("\n");
 }
 
 function buildControlledReply(text: string, intent: LocalIntent, language: "ar" | "en") {
