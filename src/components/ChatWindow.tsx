@@ -350,6 +350,131 @@ const visitorChallengeMoments: Record<Language, Array<{ badge: string; title: st
   ],
 };
 
+type ConsultantScenario = {
+  badge: string;
+  title: string;
+  description: string;
+  output: string;
+  text: string;
+  world: WorldId;
+  personaId: PersonaId;
+};
+
+const consultantScenarios: Record<Language, ConsultantScenario[]> = {
+  ar: [
+    {
+      badge: "قانون",
+      title: "افهم موقفك القانوني",
+      description: "رتّب العقد أو المشكلة قبل الذهاب لمحامٍ.",
+      output: "مخاطر + أسئلة للمحامي",
+      text: "تصرف كمستشار معلومات قانونية عام، وليس بديلاً عن محامٍ مرخص. اسألني أولاً عن البلد ونوع المشكلة إذا لم أوضحها، ثم ساعدني في ترتيب الموقف إلى: 1) ملخص بسيط، 2) نقاط الخطر، 3) مستندات أحتاج جمعها، 4) أسئلة دقيقة أسألها لمحامٍ مختص. لا تعطيني فتوى قانونية نهائية.",
+      world: "build",
+      personaId: "dania",
+    },
+    {
+      badge: "IT",
+      title: "حل مشكلة تقنية",
+      description: "برمجة، أخطاء، سيرفرات، أدوات، أو اختيار تقنية.",
+      output: "تشخيص + خطوات إصلاح",
+      text: "تصرف كمستشار IT عملي. اسألني عن البيئة والخطأ والهدف إذا لم أوضحها، ثم أعطني تشخيصاً منظماً: السبب المحتمل، خطوات فحص سريعة، حل أول، وحل احتياطي. اجعل الرد مناسباً لشخص يريد إنجاز المشكلة لا درساً طويلاً.",
+      world: "learning",
+      personaId: "tareq",
+    },
+    {
+      badge: "Math",
+      title: "مدرس رياضيات خطوة بخطوة",
+      description: "افهم المسألة بدل حفظ الإجابة فقط.",
+      output: "شرح + تدريب صغير",
+      text: "تصرف كمدرس رياضيات صبور. اطلب مني نص المسألة أو صوّرها بالكلام، ثم حلها خطوة بخطوة مع سبب كل خطوة. بعد الحل، أعطني سؤالاً مشابهاً بسيطاً لأتأكد أنني فهمت.",
+      world: "learning",
+      personaId: "sarah_alt",
+    },
+    {
+      badge: "تجارة",
+      title: "راجع فكرة مشروعك",
+      description: "سعر، جمهور، منافسين، ومخاطر قبل التنفيذ.",
+      output: "نموذج ربح + خطة اختبار",
+      text: "تصرف كمستشار تجارة ومشاريع. اسألني عن المنتج والعميل والسعر الحالي إذا لم أوضحها، ثم أعطني مراجعة عملية: العميل المناسب، عرض القيمة، طريقة التسعير، أكبر 3 مخاطر، وتجربة اختبار خلال 48 ساعة.",
+      world: "build",
+      personaId: "grandmaster",
+    },
+    {
+      badge: "Career",
+      title: "جهّز قرارك المهني",
+      description: "CV، مقابلة، عرض عمل، أو تغيير مسار.",
+      output: "قرار + خطوة اليوم",
+      text: "تصرف كمستشار مهني عملي. اسألني عن وضعي الحالي والهدف إذا لم أوضحه، ثم ساعدني في اختيار الخطوة التالية: تحليل الخيارات، المخاطر، رسالة أو CV pitch مختصر، وخطوة واحدة أعملها اليوم.",
+      world: "build",
+      personaId: "nora",
+    },
+    {
+      badge: "صحة",
+      title: "افهم معلومة صحية بأمان",
+      description: "تبسيط أبحاث وأعراض عامة بدون تشخيص.",
+      output: "فهم + متى تسأل مختصاً",
+      text: "تصرف كمرشد تثقيف صحي عام، وليس طبيباً ولا بديلاً عن رعاية طبية. ساعدني أفهم المعلومة أو السؤال الصحي بلغة بسيطة، واذكر علامات تستدعي التواصل مع طبيب أو طوارئ، ولا تقدم تشخيصاً أو وصفة علاجية.",
+      world: "learning",
+      personaId: "layan",
+    },
+  ],
+  en: [
+    {
+      badge: "Law",
+      title: "Understand a legal situation",
+      description: "Organize a contract or issue before speaking to a lawyer.",
+      output: "Risks + lawyer questions",
+      text: "Act as a general legal information guide, not a substitute for a licensed lawyer. First ask my country/jurisdiction and issue type if I did not provide them, then organize the situation into: 1) plain summary, 2) risk points, 3) documents to collect, and 4) precise questions to ask a qualified lawyer. Do not give a final legal opinion.",
+      world: "build",
+      personaId: "dania",
+    },
+    {
+      badge: "IT",
+      title: "Fix a technical problem",
+      description: "Code, bugs, servers, tools, or choosing a stack.",
+      output: "Diagnosis + fix steps",
+      text: "Act as a practical IT consultant. Ask about my environment, error, and goal if I did not provide them, then give a structured diagnosis: likely cause, quick checks, first fix, and backup fix. Keep it useful for someone trying to solve the problem now.",
+      world: "learning",
+      personaId: "tareq",
+    },
+    {
+      badge: "Math",
+      title: "Learn math step by step",
+      description: "Understand the problem instead of memorizing the answer.",
+      output: "Explanation + mini drill",
+      text: "Act as a patient math tutor. Ask me for the problem statement if I did not provide it, then solve it step by step with the reason behind each step. After the solution, give me one similar small practice question to confirm I understood.",
+      world: "learning",
+      personaId: "sarah_alt",
+    },
+    {
+      badge: "Commerce",
+      title: "Review a business idea",
+      description: "Pricing, audience, competitors, and risks before execution.",
+      output: "Profit logic + test plan",
+      text: "Act as a commerce and business consultant. Ask me about the product, customer, and current price if I did not provide them, then give a practical review: best customer, value proposition, pricing logic, top 3 risks, and one 48-hour validation experiment.",
+      world: "build",
+      personaId: "grandmaster",
+    },
+    {
+      badge: "Career",
+      title: "Prepare a career decision",
+      description: "CV, interview, job offer, or career switch.",
+      output: "Decision + today step",
+      text: "Act as a practical career consultant. Ask about my current situation and goal if I did not provide them, then help me choose the next move: option analysis, risks, a short CV/interview pitch, and one action I can take today.",
+      world: "build",
+      personaId: "nora",
+    },
+    {
+      badge: "Health",
+      title: "Understand health info safely",
+      description: "Simplify research and general symptoms without diagnosis.",
+      output: "Clarity + when to ask a pro",
+      text: "Act as a general health literacy guide, not a doctor or a replacement for medical care. Help me understand the health question in simple language, mention signs that mean I should contact a clinician or emergency services, and do not provide diagnosis or treatment prescriptions.",
+      world: "learning",
+      personaId: "layan",
+    },
+  ],
+};
+
 const judgeDemoScenarios: Record<Language, Array<{ label: string; companion: string; personaId: PersonaId; text: string; world: WorldId; targetLanguage: Language }>> = {
   ar: [
     { label: "مريم تسمعك", companion: "مريم", personaId: "maryam", text: "حد قريب مني قلل من اللي حاسه وقال لي العادة كذا. أنا مش محتاج حد يبرر له، محتاج أحس إن إحساسي مفهوم.", world: "calm", targetLanguage: "ar" },
@@ -1097,6 +1222,19 @@ export function ChatWindow() {
     setToolsOpen(false);
     pendingVisitorChallengeFocusRef.current = hasDisplayName ? "composer" : "name";
     trackInteraction("starter_tap", { type: "visitor_challenge", world: nextWorld, language, personaId: nextPersona.id });
+    void submitMessage(undefined, text, nextWorld, nextPersona);
+  }
+
+  function submitConsultantScenario(text: string, nextWorld: WorldId, nextPersonaId: PersonaId, consultantBadge: string) {
+    const nextPersona = globallyAvailablePersonas.find((persona) => persona.id === nextPersonaId && unlockedPersonaIds.includes(persona.id))
+      ?? globallyAvailablePersonas.find((persona) => persona.id === unlockedPersonaIds[0])
+      ?? activePersona;
+    const hasDisplayName = Boolean(effectiveUserName ?? normalizeGreetingName(visitorNameDraft));
+    setPersonaId(nextPersona.id);
+    setWorld(nextWorld);
+    setToolsOpen(false);
+    pendingVisitorChallengeFocusRef.current = hasDisplayName ? "composer" : "name";
+    trackInteraction("starter_tap", { type: "consultant_hub", consultant: consultantBadge, world: nextWorld, language, personaId: nextPersona.id });
     void submitMessage(undefined, text, nextWorld, nextPersona);
   }
 
@@ -2477,6 +2615,7 @@ export function ChatWindow() {
         </p>
         <TrustChipRow language={language} />
         <VisitorChallengeDeck language={language} onRun={submitVisitorChallenge} />
+        <ConsultantHub language={language} onRun={submitConsultantScenario} />
         {plusWelcomeOpen ? (
           <PlusWelcomeCard
             language={language}
@@ -3953,6 +4092,51 @@ function VisitorChallengeDeck({ language, onRun }: { language: Language; onRun: 
           </button>
         ))}
       </div>
+    </section>
+  );
+}
+
+function ConsultantHub({ language, onRun }: { language: Language; onRun: (text: string, world: WorldId, personaId: PersonaId, consultantBadge: string) => void }) {
+  const isArabic = language === "ar";
+
+  return (
+    <section className="mt-5 w-full rounded-2xl border border-cyan-100/25 bg-cyan-100/[0.055] p-3 text-start shadow-2xl backdrop-blur" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="ui-kicker text-cyan-100/85">{isArabic ? "مركز الاستشارات" : "Consultant hub"}</p>
+          <h2 className="mt-1 font-arui text-xl font-semibold leading-7 text-[#F7F3EC]/94">
+            {isArabic ? "ادخل بالسؤال العملي الذي يحتاجه الناس" : "Start with the practical help people need"}
+          </h2>
+          <p className="mt-1 max-w-2xl font-arsans text-sm leading-6 text-[#F7F3EC]/56">
+            {isArabic ? "قانون، تقنية، رياضيات، تجارة، مهنة، وصحة عامة. كل اختيار يبدأ بسؤال ذكي ثم يخرج بخطوات قابلة للتنفيذ." : "Law, IT, math, commerce, career, and general health literacy. Each choice starts with the right question and ends with usable next steps."}
+          </p>
+        </div>
+        <span className="w-fit shrink-0 rounded-full border border-cyan-100/25 bg-black/20 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-cyan-100" dir="ltr">
+          Useful
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {consultantScenarios[language].map((scenario) => (
+          <button
+            key={scenario.title}
+            type="button"
+            onClick={() => onRun(scenario.text, scenario.world, scenario.personaId, scenario.badge)}
+            className="group flex min-h-40 flex-col rounded-xl border border-white/10 bg-black/18 p-3 text-start transition-all hover:-translate-y-0.5 hover:border-cyan-100/45 hover:bg-cyan-100/10"
+          >
+            <span className="inline-flex w-fit rounded-full border border-cyan-100/25 bg-cyan-100/10 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-cyan-100/85" dir="ltr">
+              {scenario.badge}
+            </span>
+            <span className="mt-3 block font-arsans text-sm font-semibold leading-5 text-[#F7F3EC]/90">{scenario.title}</span>
+            <span className="mt-2 block font-arsans text-xs leading-5 text-[#F7F3EC]/50">{scenario.description}</span>
+            <span className="mt-auto pt-4 font-arsans text-[11px] text-cyan-100/75 transition-colors group-hover:text-[#F7F3EC]">
+              {scenario.output}
+            </span>
+          </button>
+        ))}
+      </div>
+      <p className="mt-3 px-1 font-arsans text-[11px] leading-5 text-[#F7F3EC]/42">
+        {isArabic ? "التخصصات الحساسة تقدم معلومات عامة وتنظيماً للأسئلة، وليست بديلاً عن محامٍ أو طبيب أو مستشار مالي مرخص." : "Sensitive domains provide general information and better questions, not a replacement for a licensed lawyer, clinician, or financial professional."}
+      </p>
     </section>
   );
 }
