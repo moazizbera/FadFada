@@ -361,6 +361,144 @@ type ConsultantScenario = {
   personaId: PersonaId;
 };
 
+type LifeProjectTemplate = {
+  badge: string;
+  title: string;
+  description: string;
+  bring: string;
+  artifacts: string[];
+  text: string;
+  world: WorldId;
+  personaId: PersonaId;
+};
+
+const lifeProjectTemplates: Record<Language, LifeProjectTemplate[]> = {
+  ar: [
+    {
+      badge: "Interview",
+      title: "Sprint مقابلة عمل",
+      description: "حوّل إعلان الوظيفة إلى خطة إجابات وتدريب سريع.",
+      bring: "الصق إعلان الوظيفة وملخص خبرتك.",
+      artifacts: ["Pitch", "أسئلة متوقعة", "تدريب 15 دقيقة"],
+      text: "ابدأ معي كمشروع مقابلة عمل سريع. اسألني عن إعلان الوظيفة وخبرتي إذا لم أرفقهما، ثم ابنِ لي: 1) pitch مختصر، 2) أقوى 5 نقاط مناسبة للوظيفة، 3) أسئلة مقابلة متوقعة مع إجابات نموذجية بصوتي، 4) تدريب 15 دقيقة قبل المقابلة، 5) خطوة واحدة أعملها الآن.",
+      world: "build",
+      personaId: "nora",
+    },
+    {
+      badge: "Business",
+      title: "اختبار فكرة مشروع",
+      description: "قبل ما تبني، اختبر العميل والسعر والمخاطر.",
+      bring: "اكتب المنتج والعميل والسعر المتوقع.",
+      artifacts: ["عرض قيمة", "مخاطر", "اختبار 48 ساعة"],
+      text: "ابدأ معي كمشروع اختبار فكرة تجارية. اسألني عن المنتج والعميل والسعر إذا لم أوضحها، ثم أخرج لي: 1) عرض قيمة واضح، 2) العميل الأول الأنسب، 3) طريقة تسعير أولية، 4) أكبر 3 مخاطر، 5) تجربة تحقق خلال 48 ساعة برسالة جاهزة أرسلها لعميل محتمل.",
+      world: "build",
+      personaId: "dr_fahad",
+    },
+    {
+      badge: "Message",
+      title: "رسالة صعبة بدون توتر",
+      description: "اكتب رداً محترماً يضع حدوداً ولا يصعّد المشكلة.",
+      bring: "الصق ما حدث وما تريد قوله.",
+      artifacts: ["فهم", "3 ردود", "حدود"],
+      text: "ابدأ معي كمشروع صياغة رسالة صعبة. اسألني عن العلاقة وما حدث والهدف إذا لم أوضحها، ثم أعطني: 1) قراءة هادئة للموقف، 2) حدود يجب حمايتها، 3) ثلاث صيغ للرد: لطيفة، مباشرة، وحازمة، 4) جملة لا يجب قولها، 5) خطوة بعد الإرسال.",
+      world: "calm",
+      personaId: "layla_eq",
+    },
+    {
+      badge: "Study",
+      title: "إنقاذ مذاكرة قبل الامتحان",
+      description: "خطة واقعية حسب الوقت المتبقي ونقاط الضعف.",
+      bring: "اكتب المادة والموعد وما لا تفهمه.",
+      artifacts: ["جدول", "أولويات", "اختبار صغير"],
+      text: "ابدأ معي كمشروع إنقاذ مذاكرة. اسألني عن المادة والموعد والمستوى إذا لم أوضحها، ثم أخرج لي: 1) ترتيب الأولويات، 2) جدول مذاكرة واقعي حتى الموعد، 3) طريقة فهم لكل جزء صعب، 4) اختبار صغير، 5) أول جلسة أبدأها الآن.",
+      world: "learning",
+      personaId: "professor_zain",
+    },
+    {
+      badge: "Money",
+      title: "إعادة ضبط الميزانية",
+      description: "قرار مالي أو مصروفات كثيرة تتحول لخطة أرقام واضحة.",
+      bring: "اكتب الدخل والمصاريف والقرار الحالي.",
+      artifacts: ["خريطة أرقام", "تقليل خطر", "خطة أسبوع"],
+      text: "ابدأ معي كمشروع إعادة ضبط ميزانية تعليمي عام، وليس نصيحة مالية مرخصة. اسألني عن الدخل والمصاريف والهدف إذا لم أوضحها، ثم أعطني: 1) خريطة أرقام بسيطة، 2) أين يتسرب المال، 3) مقارنة القرار الحالي، 4) مخاطر يجب تجنبها، 5) خطة أسبوع واحد.",
+      world: "build",
+      personaId: "khalid_investor",
+    },
+    {
+      badge: "Launch",
+      title: "حزمة إطلاق محتوى",
+      description: "حوّل منتجك أو فكرتك إلى منشورات ورسالة بيع.",
+      bring: "اكتب المنتج والجمهور والمنصة.",
+      artifacts: ["زوايا", "5 منشورات", "CTA"],
+      text: "ابدأ معي كمشروع إطلاق محتوى. اسألني عن المنتج والجمهور والمنصة إذا لم أوضحها، ثم أخرج لي: 1) زاوية تموضع واحدة، 2) 5 أفكار منشورات، 3) نص منشور جاهز، 4) CTA واضح، 5) اختبار سريع لمعرفة أي زاوية تعمل أفضل.",
+      world: "build",
+      personaId: "maya_creator",
+    },
+  ],
+  en: [
+    {
+      badge: "Interview",
+      title: "Job interview sprint",
+      description: "Turn a job post into answers, proof points, and a quick rehearsal.",
+      bring: "Paste the job post and your experience summary.",
+      artifacts: ["Pitch", "Likely questions", "15-min rehearsal"],
+      text: "Start this as a job interview sprint. Ask me for the job post and my experience if I did not provide them, then build: 1) a short interview pitch, 2) my strongest 5 proof points for the role, 3) likely interview questions with answers in my voice, 4) a 15-minute rehearsal plan, and 5) one action to do now.",
+      world: "build",
+      personaId: "nora",
+    },
+    {
+      badge: "Business",
+      title: "Business idea test",
+      description: "Validate the customer, price, and risk before building too much.",
+      bring: "Write the product, customer, and expected price.",
+      artifacts: ["Value prop", "Risks", "48-hour test"],
+      text: "Start this as a business idea test. Ask me about the product, customer, and price if I did not provide them, then give me: 1) a clear value proposition, 2) the best first customer, 3) initial pricing logic, 4) the top 3 risks, and 5) a 48-hour validation experiment with a ready message to send to a potential customer.",
+      world: "build",
+      personaId: "dr_fahad",
+    },
+    {
+      badge: "Message",
+      title: "Difficult message builder",
+      description: "Write a respectful reply that sets boundaries without escalating.",
+      bring: "Paste what happened and what you want to say.",
+      artifacts: ["Clarity", "3 replies", "Boundaries"],
+      text: "Start this as a difficult message project. Ask me about the relationship, what happened, and the goal if I did not provide them, then give me: 1) a calm read of the situation, 2) boundaries to protect, 3) three reply versions: warm, direct, and firm, 4) one sentence not to send, and 5) the next step after sending.",
+      world: "calm",
+      personaId: "layla_eq",
+    },
+    {
+      badge: "Study",
+      title: "Study rescue plan",
+      description: "A realistic exam plan based on time left and weak points.",
+      bring: "Write the subject, deadline, and what you do not understand.",
+      artifacts: ["Schedule", "Priorities", "Mini test"],
+      text: "Start this as a study rescue project. Ask me about the subject, deadline, and level if I did not provide them, then give me: 1) priority order, 2) a realistic study schedule until the deadline, 3) a learning method for each hard part, 4) a mini test, and 5) the first session to start now.",
+      world: "learning",
+      personaId: "professor_zain",
+    },
+    {
+      badge: "Money",
+      title: "Budget reset",
+      description: "Turn a money decision or messy expenses into a clear number plan.",
+      bring: "Write your income, expenses, and current decision.",
+      artifacts: ["Number map", "Risk reduction", "Week plan"],
+      text: "Start this as a general educational budget reset, not licensed financial advice. Ask me about income, expenses, and goal if I did not provide them, then give me: 1) a simple number map, 2) where money is leaking, 3) comparison of the current decision, 4) risks to avoid, and 5) a one-week plan.",
+      world: "build",
+      personaId: "khalid_investor",
+    },
+    {
+      badge: "Launch",
+      title: "Content launch pack",
+      description: "Turn a product or idea into posts and a clear sales message.",
+      bring: "Write the product, audience, and platform.",
+      artifacts: ["Angles", "5 posts", "CTA"],
+      text: "Start this as a content launch project. Ask me about the product, audience, and platform if I did not provide them, then give me: 1) one positioning angle, 2) 5 post ideas, 3) one ready-to-publish post, 4) a clear CTA, and 5) a quick test to learn which angle works best.",
+      world: "build",
+      personaId: "maya_creator",
+    },
+  ],
+};
+
 const consultantScenarios: Record<Language, ConsultantScenario[]> = {
   ar: [
     {
@@ -1448,6 +1586,19 @@ export function ChatWindow() {
     setToolsOpen(false);
     pendingVisitorChallengeFocusRef.current = hasDisplayName ? "composer" : "name";
     trackInteraction("starter_tap", { type: "consultant_hub", consultant: consultantBadge, world: nextWorld, language, personaId: nextPersona.id });
+    void submitMessage(undefined, text, nextWorld, nextPersona);
+  }
+
+  function submitLifeProjectTemplate(text: string, nextWorld: WorldId, nextPersonaId: PersonaId, projectBadge: string) {
+    const nextPersona = globallyAvailablePersonas.find((persona) => persona.id === nextPersonaId && unlockedPersonaIds.includes(persona.id))
+      ?? globallyAvailablePersonas.find((persona) => persona.id === unlockedPersonaIds[0])
+      ?? activePersona;
+    const hasDisplayName = Boolean(effectiveUserName ?? normalizeGreetingName(visitorNameDraft));
+    setPersonaId(nextPersona.id);
+    setWorld(nextWorld);
+    setToolsOpen(false);
+    pendingVisitorChallengeFocusRef.current = hasDisplayName ? "composer" : "name";
+    trackInteraction("starter_tap", { type: "life_project", project: projectBadge, world: nextWorld, language, personaId: nextPersona.id });
     void submitMessage(undefined, text, nextWorld, nextPersona);
   }
 
@@ -2828,6 +2979,7 @@ export function ChatWindow() {
         </p>
         <TrustChipRow language={language} />
         <VisitorChallengeDeck language={language} onRun={submitVisitorChallenge} />
+        <LifeProjectShowcase language={language} onRun={submitLifeProjectTemplate} />
         <ConsultantHub language={language} onRun={submitConsultantScenario} />
         {plusWelcomeOpen ? (
           <PlusWelcomeCard
@@ -4309,6 +4461,96 @@ function VisitorChallengeDeck({ language, onRun }: { language: Language; onRun: 
   );
 }
 
+function LifeProjectShowcase({ language, onRun }: { language: Language; onRun: (text: string, world: WorldId, personaId: PersonaId, projectBadge: string) => void }) {
+  const isArabic = language === "ar";
+  const templates = lifeProjectTemplates[language];
+  const featured = templates[0];
+  const supporting = templates.slice(1);
+
+  return (
+    <section className="mt-5 w-full overflow-hidden rounded-2xl border border-[#F7F3EC]/14 bg-[#F7F3EC]/[0.045] text-start shadow-2xl backdrop-blur" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="grid gap-0 lg:grid-cols-[1.05fr_1.25fr]">
+        <button
+          type="button"
+          onClick={() => onRun(featured.text, featured.world, featured.personaId, featured.badge)}
+          className="group relative min-h-64 overflow-hidden border-b border-white/10 bg-[radial-gradient(circle_at_18%_16%,rgba(201,168,106,0.22),transparent_34%),linear-gradient(135deg,rgba(22,18,13,0.96),rgba(50,36,18,0.72))] p-4 text-start transition-all hover:bg-[#C9A86A]/10 lg:border-b-0 lg:border-e"
+        >
+          <div className="absolute inset-x-5 top-5 h-px bg-gradient-to-r from-transparent via-[#C9A86A]/50 to-transparent" />
+          <div className="relative flex h-full flex-col justify-between gap-8">
+            <div>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="ui-kicker text-[#C9A86A]/90">{isArabic ? "مشاريع الحياة" : "Life projects"}</p>
+                  <h2 className="mt-2 max-w-sm font-arui text-2xl font-semibold leading-8 text-[#F7F3EC]/95">
+                    {isArabic ? "ابدأ بقالب، واخرج بشيء تستخدمه" : "Start with a template, leave with something useful"}
+                  </h2>
+                </div>
+                <span className="shrink-0 rounded-full border border-[#C9A86A]/35 bg-black/25 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#C9A86A]" dir="ltr">
+                  Director
+                </span>
+              </div>
+              <p className="mt-3 max-w-md font-arsans text-sm leading-6 text-[#F7F3EC]/58">
+                {isArabic ? "بدل سؤال مفتوح، اختر مشروعاً جاهزاً: مقابلة، ميزانية، رسالة، مذاكرة، مشروع، أو إطلاق محتوى." : "Instead of a blank chat, choose a ready project: interview, budget, message, study, business, or content launch."}
+              </p>
+            </div>
+            <div className="rounded-xl border border-[#C9A86A]/20 bg-black/24 p-3 transition-all group-hover:border-[#C9A86A]/45">
+              <span className="inline-flex rounded-full border border-[#C9A86A]/25 bg-[#C9A86A]/10 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#C9A86A]/85" dir="ltr">
+                {featured.badge}
+              </span>
+              <h3 className="mt-3 font-arui text-xl font-semibold leading-7 text-[#F7F3EC]/94">{featured.title}</h3>
+              <p className="mt-2 font-arsans text-sm leading-6 text-[#F7F3EC]/58">{featured.description}</p>
+              <p className="mt-3 rounded-lg border border-white/10 bg-white/[0.045] px-3 py-2 font-arsans text-xs leading-5 text-[#F7F3EC]/62">{featured.bring}</p>
+              <span className="mt-4 inline-flex font-arsans text-xs font-semibold text-[#C9A86A] transition-colors group-hover:text-[#F7F3EC]">
+                {isArabic ? "ابدأ المشروع" : "Start project"}
+              </span>
+            </div>
+          </div>
+        </button>
+
+        <div className="p-3 sm:p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+            <p className="font-arsans text-sm leading-6 text-[#F7F3EC]/58">
+              {isArabic ? "كل مشروع يطلب منك المدخلات ثم يبني مخرجات واضحة." : "Each project asks for inputs, then builds clear artifacts."}
+            </p>
+            <span className="rounded-full border border-white/10 bg-black/18 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#F7F3EC]/52" dir="ltr">
+              {templates.length} templates
+            </span>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {supporting.map((template) => (
+              <button
+                key={template.title}
+                type="button"
+                onClick={() => onRun(template.text, template.world, template.personaId, template.badge)}
+                className="group flex min-h-40 flex-col rounded-xl border border-white/10 bg-black/18 p-3 text-start transition-all hover:-translate-y-0.5 hover:border-[#C9A86A]/45 hover:bg-[#C9A86A]/10"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="inline-flex rounded-full border border-[#C9A86A]/22 bg-[#C9A86A]/10 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#C9A86A]/80" dir="ltr">
+                    {template.badge}
+                  </span>
+                  <span className="font-arsans text-[11px] text-[#C9A86A]/72 transition-colors group-hover:text-[#F7F3EC]">
+                    {isArabic ? "ابدأ" : "Start"}
+                  </span>
+                </div>
+                <span className="mt-3 block font-arsans text-sm font-semibold leading-5 text-[#F7F3EC]/90">{template.title}</span>
+                <span className="mt-2 block font-arsans text-xs leading-5 text-[#F7F3EC]/50">{template.description}</span>
+                <span className="mt-3 block font-arsans text-[11px] leading-5 text-[#F7F3EC]/46">{template.bring}</span>
+                <span className="mt-auto flex flex-wrap gap-1.5 pt-4">
+                  {template.artifacts.map((artifact) => (
+                    <span key={artifact} className="rounded-full border border-white/10 bg-white/[0.045] px-2 py-1 font-arsans text-[10px] text-[#F7F3EC]/58">
+                      {artifact}
+                    </span>
+                  ))}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ConsultantHub({ language, onRun }: { language: Language; onRun: (text: string, world: WorldId, personaId: PersonaId, consultantBadge: string) => void }) {
   const isArabic = language === "ar";
 
@@ -4321,7 +4563,7 @@ function ConsultantHub({ language, onRun }: { language: Language; onRun: (text: 
             {isArabic ? "ادخل بالسؤال العملي الذي يحتاجه الناس" : "Start with the practical help people need"}
           </h2>
           <p className="mt-1 max-w-2xl font-arsans text-sm leading-6 text-[#F7F3EC]/56">
-            {isArabic ? "قانون، تقنية، رياضيات، تجارة، مهنة، وصحة عامة. كل اختيار يبدأ بسؤال ذكي ثم يخرج بخطوات قابلة للتنفيذ." : "Law, IT, math, commerce, career, and general health literacy. Each choice starts with the right question and ends with usable next steps."}
+            {isArabic ? "استشارات عملية للحياة والعمل والدراسة والمال والعلاقات. كل اختيار يبدأ بسؤال ذكي ثم يخرج بخطوات قابلة للتنفيذ." : "Practical consults for life, work, study, money, and relationships. Each choice starts with the right question and ends with usable next steps."}
           </p>
         </div>
         <span className="w-fit shrink-0 rounded-full border border-cyan-100/25 bg-black/20 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-cyan-100" dir="ltr">
