@@ -354,6 +354,7 @@ type ConsultantScenario = {
   badge: string;
   title: string;
   description: string;
+  intake: string;
   output: string;
   text: string;
   world: WorldId;
@@ -366,6 +367,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       badge: "قانون",
       title: "افهم موقفك القانوني",
       description: "رتّب العقد أو المشكلة قبل الذهاب لمحامٍ.",
+      intake: "الصق بند عقد أو اشرح النزاع والبلد.",
       output: "مخاطر + أسئلة للمحامي",
       text: "تصرف كمستشار معلومات قانونية عام، وليس بديلاً عن محامٍ مرخص. اسألني أولاً عن البلد ونوع المشكلة إذا لم أوضحها، ثم ساعدني في ترتيب الموقف إلى: 1) ملخص بسيط، 2) نقاط الخطر، 3) مستندات أحتاج جمعها، 4) أسئلة دقيقة أسألها لمحامٍ مختص. لا تعطيني فتوى قانونية نهائية.",
       world: "build",
@@ -375,6 +377,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       badge: "IT",
       title: "حل مشكلة تقنية",
       description: "برمجة، أخطاء، سيرفرات، أدوات، أو اختيار تقنية.",
+      intake: "الصق رسالة الخطأ أو صف الجهاز والهدف.",
       output: "تشخيص + خطوات إصلاح",
       text: "تصرف كمستشار IT عملي. اسألني عن البيئة والخطأ والهدف إذا لم أوضحها، ثم أعطني تشخيصاً منظماً: السبب المحتمل، خطوات فحص سريعة، حل أول، وحل احتياطي. اجعل الرد مناسباً لشخص يريد إنجاز المشكلة لا درساً طويلاً.",
       world: "learning",
@@ -384,6 +387,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       badge: "Math",
       title: "مدرس رياضيات خطوة بخطوة",
       description: "افهم المسألة بدل حفظ الإجابة فقط.",
+      intake: "اكتب المسألة أو صوّرها بالكلام.",
       output: "شرح + تدريب صغير",
       text: "تصرف كمدرس رياضيات صبور. اطلب مني نص المسألة أو صوّرها بالكلام، ثم حلها خطوة بخطوة مع سبب كل خطوة. بعد الحل، أعطني سؤالاً مشابهاً بسيطاً لأتأكد أنني فهمت.",
       world: "learning",
@@ -393,6 +397,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       badge: "تجارة",
       title: "راجع فكرة مشروعك",
       description: "سعر، جمهور، منافسين، ومخاطر قبل التنفيذ.",
+      intake: "اكتب المنتج والعميل والسعر المتوقع.",
       output: "نموذج ربح + خطة اختبار",
       text: "تصرف كمستشار تجارة ومشاريع. اسألني عن المنتج والعميل والسعر الحالي إذا لم أوضحها، ثم أعطني مراجعة عملية: العميل المناسب، عرض القيمة، طريقة التسعير، أكبر 3 مخاطر، وتجربة اختبار خلال 48 ساعة.",
       world: "build",
@@ -402,6 +407,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       badge: "Career",
       title: "جهّز قرارك المهني",
       description: "CV، مقابلة، عرض عمل، أو تغيير مسار.",
+      intake: "الصق CV أو إعلان وظيفة أو قرارك الحالي.",
       output: "قرار + خطوة اليوم",
       text: "تصرف كمستشار مهني عملي. اسألني عن وضعي الحالي والهدف إذا لم أوضحه، ثم ساعدني في اختيار الخطوة التالية: تحليل الخيارات، المخاطر، رسالة أو CV pitch مختصر، وخطوة واحدة أعملها اليوم.",
       world: "build",
@@ -411,6 +417,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       badge: "صحة",
       title: "افهم معلومة صحية بأمان",
       description: "تبسيط أبحاث وأعراض عامة بدون تشخيص.",
+      intake: "اكتب السؤال أو المصطلح الصحي الذي تريد فهمه.",
       output: "فهم + متى تسأل مختصاً",
       text: "تصرف كمرشد تثقيف صحي عام، وليس طبيباً ولا بديلاً عن رعاية طبية. ساعدني أفهم المعلومة أو السؤال الصحي بلغة بسيطة، واذكر علامات تستدعي التواصل مع طبيب أو طوارئ، ولا تقدم تشخيصاً أو وصفة علاجية.",
       world: "learning",
@@ -422,6 +429,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       badge: "Law",
       title: "Understand a legal situation",
       description: "Organize a contract or issue before speaking to a lawyer.",
+      intake: "Paste a clause or describe the issue and country.",
       output: "Risks + lawyer questions",
       text: "Act as a general legal information guide, not a substitute for a licensed lawyer. First ask my country/jurisdiction and issue type if I did not provide them, then organize the situation into: 1) plain summary, 2) risk points, 3) documents to collect, and 4) precise questions to ask a qualified lawyer. Do not give a final legal opinion.",
       world: "build",
@@ -431,6 +439,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       badge: "IT",
       title: "Fix a technical problem",
       description: "Code, bugs, servers, tools, or choosing a stack.",
+      intake: "Paste the error or describe the device and goal.",
       output: "Diagnosis + fix steps",
       text: "Act as a practical IT consultant. Ask about my environment, error, and goal if I did not provide them, then give a structured diagnosis: likely cause, quick checks, first fix, and backup fix. Keep it useful for someone trying to solve the problem now.",
       world: "learning",
@@ -440,6 +449,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       badge: "Math",
       title: "Learn math step by step",
       description: "Understand the problem instead of memorizing the answer.",
+      intake: "Type the problem or describe the photo.",
       output: "Explanation + mini drill",
       text: "Act as a patient math tutor. Ask me for the problem statement if I did not provide it, then solve it step by step with the reason behind each step. After the solution, give me one similar small practice question to confirm I understood.",
       world: "learning",
@@ -449,6 +459,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       badge: "Commerce",
       title: "Review a business idea",
       description: "Pricing, audience, competitors, and risks before execution.",
+      intake: "Write the product, customer, and expected price.",
       output: "Profit logic + test plan",
       text: "Act as a commerce and business consultant. Ask me about the product, customer, and current price if I did not provide them, then give a practical review: best customer, value proposition, pricing logic, top 3 risks, and one 48-hour validation experiment.",
       world: "build",
@@ -458,6 +469,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       badge: "Career",
       title: "Prepare a career decision",
       description: "CV, interview, job offer, or career switch.",
+      intake: "Paste a CV, job post, offer, or career question.",
       output: "Decision + today step",
       text: "Act as a practical career consultant. Ask about my current situation and goal if I did not provide them, then help me choose the next move: option analysis, risks, a short CV/interview pitch, and one action I can take today.",
       world: "build",
@@ -467,6 +479,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       badge: "Health",
       title: "Understand health info safely",
       description: "Simplify research and general symptoms without diagnosis.",
+      intake: "Write the health term or question you want to understand.",
       output: "Clarity + when to ask a pro",
       text: "Act as a general health literacy guide, not a doctor or a replacement for medical care. Help me understand the health question in simple language, mention signs that mean I should contact a clinician or emergency services, and do not provide diagnosis or treatment prescriptions.",
       world: "learning",
@@ -4128,6 +4141,9 @@ function ConsultantHub({ language, onRun }: { language: Language; onRun: (text: 
             </span>
             <span className="mt-3 block font-arsans text-sm font-semibold leading-5 text-[#F7F3EC]/90">{scenario.title}</span>
             <span className="mt-2 block font-arsans text-xs leading-5 text-[#F7F3EC]/50">{scenario.description}</span>
+            <span className="mt-3 block rounded-lg border border-cyan-100/15 bg-cyan-100/[0.055] px-2.5 py-2 font-arsans text-[11px] leading-5 text-cyan-100/72">
+              {scenario.intake}
+            </span>
             <span className="mt-auto pt-4 font-arsans text-[11px] text-cyan-100/75 transition-colors group-hover:text-[#F7F3EC]">
               {scenario.output}
             </span>
