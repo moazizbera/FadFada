@@ -2933,7 +2933,7 @@ export function ChatWindow() {
 
   return (
     <main
-      className={`relative mx-auto flex min-h-screen max-w-2xl flex-col overflow-hidden px-4 pb-44 pt-20 transition-all duration-700 ease-in-out ${personaEnvironment.ambientClassName} ${personaEnvironment.textClassName} ${personaEnvironment.typographyClassName}`}
+      className={`relative mx-auto flex min-h-screen max-w-5xl flex-col overflow-hidden px-4 pb-56 pt-20 transition-all duration-700 ease-in-out md:pb-40 ${personaEnvironment.ambientClassName} ${personaEnvironment.textClassName} ${personaEnvironment.typographyClassName}`}
       style={{
         backgroundImage: activeWorld.gradient,
         "--persona-aura": personaAura,
@@ -2944,7 +2944,7 @@ export function ChatWindow() {
       <div className={`persona-ambient-layer pointer-events-none absolute inset-0 ${personaEnvironment.animationClassName}`} />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_8%,rgba(247,243,236,0.08),transparent_22rem)]" />
 
-      <header className="relative z-10 flex min-h-24 items-start justify-between">
+      <header className="relative z-10 flex min-h-44 items-start justify-between sm:min-h-24">
         <button type="button" onClick={() => void startNewChatSession()} className="ui-action rounded-full border border-white/10 bg-black/15 px-3 py-2 text-xs text-[#F7F3EC]/70 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
           {language === "ar" ? "محادثة جديدة" : "New chat"}
         </button>
@@ -2952,11 +2952,11 @@ export function ChatWindow() {
         <button
           type="button"
           onClick={() => setPersonaOpen(true)}
-          className="absolute left-1/2 top-0 flex w-40 -translate-x-1/2 flex-col items-center gap-1.5 rounded-[1.25rem] border border-white/10 bg-black/15 px-3 py-2 text-center outline-none backdrop-blur-sm transition-colors hover:border-[#C9A86A]/45"
+          className="absolute left-1/2 top-12 flex w-36 -translate-x-1/2 flex-col items-center gap-1.5 rounded-[1.25rem] border border-white/10 bg-black/15 px-3 py-2 text-center outline-none backdrop-blur-sm transition-colors hover:border-[#C9A86A]/45 sm:top-0 sm:w-40"
           aria-label={language === "ar" ? `افتح اختيار الرفيق ${activePersona.nameAr}` : `Open persona drawer for ${activePersona.nameEn}`}
         >
           <span
-            className={`h-[4.75rem] w-[4.75rem] ${headerAvatarFrameClass} rounded-[1.65rem] transition-all duration-500 ${isThinking ? "animate-pulse scale-105" : "animate-breathe scale-105 duration-[4000ms]"
+            className={`h-16 w-16 sm:h-[4.75rem] sm:w-[4.75rem] ${headerAvatarFrameClass} rounded-[1.65rem] transition-all duration-500 ${isThinking ? "animate-pulse scale-105" : "animate-breathe scale-105 duration-[4000ms]"
               }`}
             style={{ boxShadow: `0 0 0 1px rgba(255,255,255,0.14), 0 0 44px ${activeHeaderPresentation.auraHex}C8, 0 26px 76px ${activeHeaderPresentation.auraHex}82` }}
           >
@@ -2985,8 +2985,10 @@ export function ChatWindow() {
       </header>
 
       <section ref={homeRef} className="relative z-10 mt-8 scroll-mt-24 flex flex-col items-center">
-        <PresenceOrb world={world} color={activeWorld.orbHex} />
-        <h1 className="mt-4 text-center font-arui text-3xl font-semibold leading-tight text-[#F7F3EC]/95">
+        <div className="hidden min-[360px]:block">
+          <PresenceOrb world={world} color={activeWorld.orbHex} />
+        </div>
+        <h1 className="mt-3 text-center font-arui text-2xl font-semibold leading-tight text-[#F7F3EC]/95 min-[360px]:mt-4 min-[360px]:text-3xl">
           {language === "ar" ? "فضفضة ليست شات عام" : "FadFada is not a generic chat"}
         </h1>
         <p className="mt-2 max-w-md text-center font-arsans text-base leading-7 text-[#F7F3EC]/62">
@@ -3246,13 +3248,13 @@ export function ChatWindow() {
         </HomeToolsDialog>
       ) : null}
 
-      <form onSubmit={submitMessage} className="fixed inset-x-0 bottom-20 z-30 mx-auto flex max-w-2xl flex-col gap-2 px-4 pb-3 pt-4 backdrop-blur-xl">
+      <form onSubmit={submitMessage} className="fixed inset-x-3 bottom-24 z-30 mx-auto flex max-h-[46dvh] max-w-[42rem] flex-col gap-2 overflow-y-auto rounded-[1.1rem] border border-white/10 bg-[#111014]/92 p-2.5 shadow-[0_22px_70px_rgba(0,0,0,0.45)] backdrop-blur-2xl [scrollbar-width:thin] sm:max-h-none sm:rounded-[1.35rem] sm:p-3 md:bottom-6">
         {!effectiveUserName ? (
-          <div className="rounded-2xl border border-[#C9A86A]/25 bg-[#0E0D10]/90 p-3 shadow-xl" dir={language === "ar" ? "rtl" : "ltr"}>
-            <p className="font-arsans text-xs leading-5 text-[#F7F3EC]/68">
+          <div className="rounded-2xl border border-[#C9A86A]/25 bg-[#0E0D10]/90 p-2.5 shadow-xl sm:p-3" dir={language === "ar" ? "rtl" : "ltr"}>
+            <p className="hidden font-arsans text-xs leading-5 text-[#F7F3EC]/68 min-[360px]:block">
               {language === "ar" ? "قبل ما نبدأ، اكتب اسمك أو الاسم الذي تحب أن نناديك به." : "Before we start, enter your name or what you would like to be called."}
             </p>
-            <div className="mt-2 flex items-center gap-2">
+            <div className="flex items-center gap-2 min-[360px]:mt-2">
               <input
                 ref={nameInputRef}
                 value={visitorNameDraft}
@@ -3268,9 +3270,9 @@ export function ChatWindow() {
                 maxLength={32}
                 dir="auto"
                 placeholder={language === "ar" ? "اسمك" : "Your name"}
-                className="min-h-10 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 font-arsans text-sm text-[#F7F3EC]/90 outline-none placeholder:text-[#F7F3EC]/28 focus:border-[#C9A86A]/55"
+                className="min-h-10 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 font-arsans text-sm text-[#F7F3EC]/90 outline-none placeholder:text-[#F7F3EC]/28 focus:border-[#C9A86A]/55"
               />
-              <button type="button" onClick={saveVisitorName} className="ui-action rounded-xl bg-[#C9A86A] px-3 py-2 font-arsans text-xs text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
+              <button type="button" onClick={saveVisitorName} className="ui-action shrink-0 rounded-xl bg-[#C9A86A] px-3 py-2 font-arsans text-xs text-[#0E0D10] transition-colors hover:bg-[#F7F3EC] min-[360px]:px-4">
                 {language === "ar" ? "حفظ" : "Save"}
               </button>
             </div>
@@ -3281,7 +3283,7 @@ export function ChatWindow() {
         ) : null}
         {accessState !== "plus" ? (
           <>
-            <div className="flex items-center justify-between gap-3 rounded-full border border-white/10 bg-[#0E0D10]/82 px-3 py-2 shadow-xl" dir={language === "ar" ? "rtl" : "ltr"}>
+            <div className="hidden items-center justify-between gap-2 rounded-2xl border border-white/10 bg-[#0E0D10]/82 px-3 py-2 shadow-xl min-[360px]:flex sm:rounded-full" dir={language === "ar" ? "rtl" : "ltr"}>
               <p className="min-w-0 truncate font-arsans text-[11px] text-[#F7F3EC]/58">
                 {accessState === "anonymous"
                   ? language === "ar"
@@ -3328,18 +3330,18 @@ export function ChatWindow() {
               : language === "ar" ? "مسودة بدون اتصال جاهزة للإرسال." : "Offline draft is ready to send."}
           </p>
         ) : null}
-        <div className="flex w-full items-end gap-3">
+        <div className="flex w-full items-end gap-2 sm:gap-3">
         <button
           type="button"
           onClick={toggleVoiceCapture}
-          className={`relative flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-3 py-2 font-arsans text-xs transition-colors ${isRecording ? "border-red-200/35 bg-red-200/10 text-red-100 shadow-[0_0_0_6px_rgba(248,113,113,0.12)]" : "border-[#F7F3EC]/10 bg-[#F7F3EC]/[0.03] text-[#C9A86A] hover:border-[#C9A86A]/45"
+          className={`relative flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-2 py-2 font-arsans text-[11px] transition-colors min-[360px]:px-2.5 sm:min-h-11 sm:gap-2 sm:px-3 sm:text-xs ${isRecording ? "border-red-200/35 bg-red-200/10 text-red-100 shadow-[0_0_0_6px_rgba(248,113,113,0.12)]" : "border-[#F7F3EC]/10 bg-[#F7F3EC]/[0.03] text-[#C9A86A] hover:border-[#C9A86A]/45"
             }`}
           aria-pressed={isRecording}
           aria-label={isRecording ? (language === "ar" ? "إيقاف التسجيل الصوتي" : "Stop voice recording") : language === "ar" ? "تشغيل التسجيل الصوتي" : "Start voice recording"}
         >
           <span className={isRecording ? "absolute inset-0 rounded-full border border-[#C9A86A]/60 animate-ping" : "hidden"} />
           <span className="h-2.5 w-2.5 rounded-full bg-[#C9A86A]" aria-hidden="true" />
-          <span>{isRecording ? (language === "ar" ? "إيقاف" : "Stop") : language === "ar" ? "صوت" : "Voice"}</span>
+          <span className="hidden min-[360px]:inline">{isRecording ? (language === "ar" ? "إيقاف" : "Stop") : language === "ar" ? "صوت" : "Voice"}</span>
         </button>
         <textarea
           ref={inputRef}
@@ -3349,9 +3351,9 @@ export function ChatWindow() {
           rows={1}
           dir={language === "ar" ? "rtl" : "ltr"}
           placeholder={language === "ar" ? "فضفض هنا..." : "Write freely..."}
-          className={`min-h-12 flex-1 border-0 bg-transparent font-arsans text-lg leading-[1.9] text-[#F7F3EC]/95 outline-none placeholder:text-[#F7F3EC]/25 ${language === "ar" ? "text-right" : "text-left"}`}
+          className={`min-h-10 flex-1 border-0 bg-transparent font-arsans text-base leading-[1.75] text-[#F7F3EC]/95 outline-none placeholder:text-[#F7F3EC]/25 sm:min-h-12 sm:text-lg sm:leading-[1.9] ${language === "ar" ? "text-right" : "text-left"}`}
         />
-        <button type="submit" disabled={isThinking} className={`ui-action pb-3 text-[#C9A86A] transition-colors hover:text-[#F7F3EC] disabled:opacity-60 ${isThinking ? "animate-pulse" : ""}`}>
+        <button type="submit" disabled={isThinking} className={`ui-action pb-2 text-sm text-[#C9A86A] transition-colors hover:text-[#F7F3EC] disabled:opacity-60 sm:pb-3 ${isThinking ? "animate-pulse" : ""}`}>
           {isThinking ? (language === "ar" ? "ينتظر" : "Waiting") : language === "ar" ? "إرسال" : "Send"}
         </button>
         </div>
@@ -5406,7 +5408,6 @@ function LearningResourceCards({ language, resources }: { language: Language; re
   const isArabic = language === "ar";
   const videoResource = resources.find((resource) => resource.type === "video");
   const otherResources = resources.filter((resource) => resource !== videoResource).slice(0, 2);
-  const embedUrl = videoResource ? buildVideoEmbedUrl(videoResource.url) : null;
 
   return (
     <section className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.035] p-3 text-start" dir={isArabic ? "rtl" : "ltr"}>
@@ -5425,21 +5426,15 @@ function LearningResourceCards({ language, resources }: { language: Language; re
       </div>
 
       {videoResource ? (
-        <div className="mt-3 overflow-hidden rounded-xl border border-white/10 bg-black/25">
-          {embedUrl ? (
-            <iframe
-              title={isArabic ? "فيديو تعليمي مقترح" : "Suggested learning video"}
-              src={embedUrl}
-              className="aspect-video w-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-            />
-          ) : (
-            <div className="grid aspect-video place-items-center px-4 text-center font-arsans text-sm text-[#F7F3EC]/55">
-              {isArabic ? "افتح المورد خارج التطبيق إذا لم يظهر الفيديو هنا." : "Open the resource externally if the video cannot appear here."}
-            </div>
-          )}
-        </div>
+        <a href={videoResource.url} target="_blank" rel="noreferrer" className="mt-3 block rounded-xl border border-emerald-200/20 bg-black/24 p-3 transition-colors hover:border-emerald-200/45 hover:bg-emerald-200/[0.08]">
+          <span className="block font-arsans text-sm font-semibold text-[#F7F3EC]/88">{videoResource.title}</span>
+          <span className="mt-1 block font-arsans text-xs leading-5 text-[#F7F3EC]/52">
+            {isArabic ? "يفتح الفيديو خارج التطبيق حتى لا تظهر مشغلات محظورة أو رسائل غير متاحة داخل الواجهة." : videoResource.summary}
+          </span>
+          <span className="mt-3 inline-flex rounded-full border border-emerald-200/30 px-3 py-1.5 font-arsans text-[11px] text-emerald-200">
+            {isArabic ? "فتح الفيديو" : "Open video"}
+          </span>
+        </a>
       ) : null}
 
       <div className="mt-3 grid gap-2">
@@ -5460,30 +5455,6 @@ function resourceTypeLabel(type: LearningResource["type"], language: Language) {
   if (type === "video") return language === "ar" ? "فيديو" : "Video";
   if (type === "document") return language === "ar" ? "ملاحظات" : "Notes";
   return language === "ar" ? "مقال" : "Article";
-}
-
-function buildVideoEmbedUrl(url: string) {
-  try {
-    const parsedUrl = new URL(url);
-    const host = parsedUrl.hostname.replace(/^www\./, "");
-
-    if (host === "youtube.com" || host === "m.youtube.com") {
-      const videoId = parsedUrl.searchParams.get("v");
-      if (videoId) return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}`;
-
-      const searchQuery = parsedUrl.searchParams.get("search_query");
-      if (searchQuery) return `https://www.youtube-nocookie.com/embed?listType=search&list=${encodeURIComponent(searchQuery)}`;
-    }
-
-    if (host === "youtu.be") {
-      const videoId = parsedUrl.pathname.replace(/^\//, "");
-      if (videoId) return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}`;
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
 }
 
 function MomentActions({

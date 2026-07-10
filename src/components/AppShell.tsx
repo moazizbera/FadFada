@@ -221,7 +221,7 @@ function GlobalHeader() {
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#0E0D10]/78 text-bone/90 shadow-2xl backdrop-blur-xl" dir={direction}>
-      <div className={`mx-auto flex h-16 items-center justify-between gap-2 px-3 sm:px-4 ${isAdminArea ? "max-w-6xl" : "max-w-3xl"}`}>
+      <div className={`mx-auto flex h-16 items-center justify-between gap-2 px-3 sm:px-4 ${isAdminArea ? "max-w-6xl" : "max-w-5xl"}`}>
       <div className="flex min-w-0 items-center gap-2">
         <button
           type="button"
@@ -249,7 +249,7 @@ function GlobalHeader() {
             })}
           </nav>
         ) : (
-          <nav className="flex min-w-0 items-center gap-1 overflow-x-auto rounded-full border border-white/10 bg-white/[0.035] p-1 shadow-xl backdrop-blur-xl" aria-label={isArabic ? "اختصارات فضفضة الرئيسية" : "FadFada quick actions"}>
+          <nav className="hidden min-w-0 items-center gap-1 overflow-x-auto rounded-full border border-white/10 bg-white/[0.035] p-1 shadow-xl backdrop-blur-xl min-[420px]:flex" aria-label={isArabic ? "اختصارات فضفضة الرئيسية" : "FadFada quick actions"}>
             {headerActions.map((item) => (
               <button
                 key={item.action}
