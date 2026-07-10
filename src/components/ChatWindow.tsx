@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { createPortal } from "react-dom";
-import { FormEvent, type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, FormEvent, type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { prepareArabicForSpeech } from "../lib/arabicSpeech";
 import { personas, type Persona, type PersonaId, type PersonaVoiceConfig } from "../lib/personas";
 import { selectableWorlds, worlds, type WorldId } from "../lib/worlds";
@@ -1602,6 +1602,23 @@ export function ChatWindow() {
     void submitMessage(undefined, text, nextWorld, nextPersona);
   }
 
+  function submitClientGeminiStoryDemo() {
+    const storyPersona = personas.find((persona) => persona.id === "rawi") ?? activePersona;
+    const text = language === "ar"
+      ? "حوّل شعوري إلى لوحة مشاهد بصرية قابلة لتوليد الصور: شخص يدخل مساحة هادئة بعد يوم ضغط، يرى الفوضى كضباب خفيف، ثم يجد خطوة صغيرة نحو ضوء واضح. أعطني 3 مشاهد قصيرة، ولكل مشهد برومبت صورة سينمائية آمن بدون نص داخل الصورة."
+      : "Turn my feeling into a visual storyboard ready for image generation: a person enters a calm space after a pressured day, sees the noise as light fog, then finds one small step toward clear light. Give me 3 short scenes, each with a safe cinematic image prompt and no text inside the image.";
+    setPersonaId(storyPersona.id);
+    setWorld("story");
+    setToolsOpen(false);
+    trackInteraction("starter_tap", { type: "client_gemini_studio", capability: "image_storyboard", world: "story", language, personaId: storyPersona.id });
+    void submitMessage(undefined, text, "story", storyPersona);
+  }
+
+  function submitClientGeminiContentPack() {
+    const launchProject = lifeProjectTemplates[language].find((template) => template.badge === "Launch") ?? lifeProjectTemplates[language][lifeProjectTemplates[language].length - 1];
+    submitLifeProjectTemplate(launchProject.text, launchProject.world, launchProject.personaId, launchProject.badge);
+  }
+
   function submitJudgeScenario(text: string, nextWorld: WorldId, targetLanguage: Language, nextPersonaId: PersonaId) {
     const nextPersona = globallyAvailablePersonas.find((persona) => persona.id === nextPersonaId && unlockedPersonaIds.includes(persona.id))
       ?? globallyAvailablePersonas.find((persona) => persona.id === unlockedPersonaIds[0])
@@ -2980,6 +2997,14 @@ export function ChatWindow() {
         <TrustChipRow language={language} />
         <VisitorChallengeDeck language={language} onRun={submitVisitorChallenge} />
         <LifeProjectShowcase language={language} onRun={submitLifeProjectTemplate} />
+        <ClientGeminiStudio
+          language={language}
+          userId={userId}
+          currentWorld={world}
+          onContent={submitClientGeminiContentPack}
+          onPersona={() => setPersonaOpen(true)}
+          onStory={submitClientGeminiStoryDemo}
+        />
         <ConsultantHub language={language} onRun={submitConsultantScenario} />
         {plusWelcomeOpen ? (
           <PlusWelcomeCard
@@ -4457,6 +4482,140 @@ function VisitorChallengeDeck({ language, onRun }: { language: Language; onRun: 
           </button>
         ))}
       </div>
+    </section>
+  );
+}
+
+type ClientVideoInsight = {
+  detectedState?: {
+    primaryEmotion?: string;
+    environmentalStressors?: string[];
+    intensityScore?: number;
+  };
+  responseContent?: {
+    replyText?: string;
+    microNextStep?: string;
+  };
+  error?: string;
+  message?: string;
+};
+
+function ClientGeminiStudio({
+  currentWorld,
+  language,
+  onContent,
+  onPersona,
+  onStory,
+  userId,
+}: {
+  currentWorld: WorldId;
+  language: Language;
+  onContent: () => void;
+  onPersona: () => void;
+  onStory: () => void;
+  userId: string;
+}) {
+  const isArabic = language === "ar";
+  const [videoStatus, setVideoStatus] = useState<"idle" | "analyzing" | "done" | "error">("idle");
+  const [videoInsight, setVideoInsight] = useState<ClientVideoInsight | null>(null);
+
+  async function analyzeClientMedia(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setVideoStatus("analyzing");
+    setVideoInsight(null);
+    const form = new FormData();
+    form.append("userId", userId);
+    form.append("currentWorld", currentWorld);
+    form.append("currentLanguage", language);
+    form.append("transcriptHint", isArabic ? "زائر يريد فهماً سريعاً للحظة صوت أو فيديو داخل فضفضة." : "Visitor wants a quick read of an audio or video moment inside FadFada.");
+    form.append("video", file);
+
+    const response = await fetch("/api/reflect/video", { method: "POST", body: form }).catch(() => null);
+    if (!response?.ok) {
+      setVideoStatus("error");
+      return;
+    }
+
+    const data = (await response.json()) as ClientVideoInsight;
+    setVideoInsight(data);
+    setVideoStatus(data.error ? "error" : "done");
+  }
+
+  const videoMessage = videoInsight?.message || videoInsight?.responseContent?.replyText;
+  const videoStep = videoInsight?.responseContent?.microNextStep;
+
+  return (
+    <section className="mt-5 w-full overflow-hidden rounded-2xl border border-emerald-100/20 bg-emerald-100/[0.045] text-start shadow-2xl backdrop-blur" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="grid gap-0 lg:grid-cols-[0.9fr_1.35fr]">
+        <div className="border-b border-white/10 bg-[radial-gradient(circle_at_18%_16%,rgba(110,231,183,0.18),transparent_34%),linear-gradient(135deg,rgba(9,22,19,0.96),rgba(17,41,35,0.72))] p-4 lg:border-b-0 lg:border-e">
+          <p className="ui-kicker text-emerald-100/85">{isArabic ? "استوديو Gemini للزائر" : "Gemini studio for visitors"}</p>
+          <h2 className="mt-2 max-w-sm font-arui text-2xl font-semibold leading-8 text-[#F7F3EC]/95">
+            {isArabic ? "ليس شات فقط: اصنع، اسمع، ارفع، وجرّب" : "Not just chat: create, listen, upload, and try"}
+          </h2>
+          <p className="mt-3 max-w-md font-arsans text-sm leading-6 text-[#F7F3EC]/58">
+            {isArabic ? "هذه أدوات حقيقية للعميل: توليد صور، تحليل صوت/فيديو، شخصية خاصة، ومخرجات جاهزة للاستخدام." : "These are real client tools: image generation, audio/video understanding, custom personas, and ready-to-use outputs."}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {(["Text", "Image", "Video", "Voice", "Persona"] as const).map((item) => (
+              <span key={item} className="rounded-full border border-emerald-100/20 bg-black/20 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-emerald-100/70" dir="ltr">
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-2 p-3 sm:grid-cols-2 lg:grid-cols-4">
+          <button type="button" onClick={onStory} className="group flex min-h-40 flex-col rounded-xl border border-white/10 bg-black/18 p-3 text-start transition-all hover:-translate-y-0.5 hover:border-emerald-100/45 hover:bg-emerald-100/10">
+            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-emerald-100/75">Image</span>
+            <span className="mt-3 font-arsans text-sm font-semibold leading-5 text-[#F7F3EC]/90">{isArabic ? "حوّل الشعور إلى مشاهد" : "Turn feeling into scenes"}</span>
+            <span className="mt-2 font-arsans text-xs leading-5 text-[#F7F3EC]/50">{isArabic ? "ابدأ قصة ثم ولّد صور Story Mirror." : "Start a story, then generate Story Mirror images."}</span>
+            <span className="mt-auto pt-4 font-arsans text-[11px] text-emerald-100/75 group-hover:text-[#F7F3EC]">{isArabic ? "جرّب الصور" : "Try images"}</span>
+          </button>
+
+          <label className="group flex min-h-40 cursor-pointer flex-col rounded-xl border border-white/10 bg-black/18 p-3 text-start transition-all hover:-translate-y-0.5 hover:border-emerald-100/45 hover:bg-emerald-100/10">
+            <input type="file" accept="audio/*,video/*" className="sr-only" onChange={analyzeClientMedia} disabled={videoStatus === "analyzing"} />
+            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-emerald-100/75">Video</span>
+            <span className="mt-3 font-arsans text-sm font-semibold leading-5 text-[#F7F3EC]/90">{isArabic ? "ارفع صوتاً أو فيديو" : "Upload audio or video"}</span>
+            <span className="mt-2 font-arsans text-xs leading-5 text-[#F7F3EC]/50">{isArabic ? "Gemini يقرأ اللحظة ويقترح خطوة." : "Gemini reads the moment and suggests a step."}</span>
+            <span className="mt-auto pt-4 font-arsans text-[11px] text-emerald-100/75 group-hover:text-[#F7F3EC]">
+              {videoStatus === "analyzing" ? (isArabic ? "جاري التحليل..." : "Analyzing...") : isArabic ? "اختَر ملفاً" : "Choose file"}
+            </span>
+          </label>
+
+          <button type="button" onClick={onPersona} className="group flex min-h-40 flex-col rounded-xl border border-white/10 bg-black/18 p-3 text-start transition-all hover:-translate-y-0.5 hover:border-emerald-100/45 hover:bg-emerald-100/10">
+            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-emerald-100/75">Persona</span>
+            <span className="mt-3 font-arsans text-sm font-semibold leading-5 text-[#F7F3EC]/90">{isArabic ? "اصنع رفيقك الخاص" : "Create your companion"}</span>
+            <span className="mt-2 font-arsans text-xs leading-5 text-[#F7F3EC]/50">{isArabic ? "اكتب وصفاً وولّد صورة شخصية." : "Describe it and generate an avatar."}</span>
+            <span className="mt-auto pt-4 font-arsans text-[11px] text-emerald-100/75 group-hover:text-[#F7F3EC]">{isArabic ? "افتح الرفقاء" : "Open companions"}</span>
+          </button>
+
+          <button type="button" onClick={onContent} className="group flex min-h-40 flex-col rounded-xl border border-white/10 bg-black/18 p-3 text-start transition-all hover:-translate-y-0.5 hover:border-emerald-100/45 hover:bg-emerald-100/10">
+            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-emerald-100/75">Output</span>
+            <span className="mt-3 font-arsans text-sm font-semibold leading-5 text-[#F7F3EC]/90">{isArabic ? "مخرجات جاهزة" : "Ready outputs"}</span>
+            <span className="mt-2 font-arsans text-xs leading-5 text-[#F7F3EC]/50">{isArabic ? "بوست، برزنتيشن، CTA، وخطة نشر." : "Post, presentation, CTA, and launch plan."}</span>
+            <span className="mt-auto pt-4 font-arsans text-[11px] text-emerald-100/75 group-hover:text-[#F7F3EC]">{isArabic ? "ابدأ المحتوى" : "Start content"}</span>
+          </button>
+        </div>
+      </div>
+      {videoStatus !== "idle" ? (
+        <div className="border-t border-white/10 px-4 py-3 font-arsans text-xs leading-5 text-[#F7F3EC]/58">
+          {videoStatus === "analyzing" ? (isArabic ? "نحلل الملف الآن داخل فضفضة..." : "Analyzing the file inside FadFada...") : null}
+          {videoStatus === "error" ? (videoMessage || (isArabic ? "لم نستطع تحليل الملف الآن. جرّب ملفاً أصغر أو مقطعاً أقصر." : "We could not analyze this file now. Try a smaller file or shorter clip.")) : null}
+          {videoStatus === "done" ? (
+            <div className="grid gap-2 sm:grid-cols-[0.8fr_1.2fr]">
+              <p className="rounded-lg border border-emerald-100/15 bg-emerald-100/[0.055] px-3 py-2 text-emerald-100/75">
+                {videoInsight?.detectedState?.primaryEmotion || (isArabic ? "تم فهم اللحظة" : "Moment understood")}
+              </p>
+              <p className="rounded-lg border border-white/10 bg-black/16 px-3 py-2">
+                {videoStep || videoMessage || (isArabic ? "خذ خطوة صغيرة الآن بناءً على ما ظهر في الملف." : "Take one small next step based on what the file showed.")}
+              </p>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }
