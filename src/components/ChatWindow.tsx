@@ -2997,8 +2997,6 @@ export function ChatWindow() {
             : "A calm Arabic/English space: write what is inside, then open the menu when you need a companion, a step, or a saved moment."}
         </p>
         <TrustChipRow language={language} />
-        <VisitorChallengeDeck language={language} onRun={submitVisitorChallenge} />
-        <LifeProjectShowcase language={language} onRun={submitLifeProjectTemplate} />
         <ClientGeminiStudio
           language={language}
           userId={userId}
@@ -3007,6 +3005,8 @@ export function ChatWindow() {
           onPersona={() => setPersonaOpen(true)}
           onStory={submitClientGeminiStoryDemo}
         />
+        <VisitorChallengeDeck language={language} onRun={submitVisitorChallenge} />
+        <LifeProjectShowcase language={language} onRun={submitLifeProjectTemplate} />
         <ConsultantHub language={language} onRun={submitConsultantScenario} />
         {plusWelcomeOpen ? (
           <PlusWelcomeCard
@@ -4502,6 +4502,15 @@ type ClientVideoInsight = {
   message?: string;
 };
 
+type GeminiStudioAsset = {
+  imageDataUrl?: string;
+  model?: string;
+  source?: string;
+  location?: string;
+  error?: string;
+  message?: string;
+};
+
 function ClientGeminiStudio({
   currentWorld,
   language,
@@ -4520,6 +4529,21 @@ function ClientGeminiStudio({
   const isArabic = language === "ar";
   const [videoStatus, setVideoStatus] = useState<"idle" | "analyzing" | "done" | "error">("idle");
   const [videoInsight, setVideoInsight] = useState<ClientVideoInsight | null>(null);
+  const [imagePrompt, setImagePrompt] = useState(
+    isArabic
+      ? "شخص يقف في غرفة هادئة بعد يوم ضغط، يرى الضوضاء كضباب خفيف، ثم يجد نافذة ذهبية وخطوة صغيرة للأمام."
+      : "A person in a quiet room after a pressured day, seeing the noise as light fog, then finding a golden window and one small step forward."
+  );
+  const [imageStatus, setImageStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [imageAsset, setImageAsset] = useState<GeminiStudioAsset | null>(null);
+  const [avatarName, setAvatarName] = useState(isArabic ? "رفيق فضفضة" : "FadFada companion");
+  const [avatarDescription, setAvatarDescription] = useState(
+    isArabic
+      ? "رفيق دافئ، صوته هادئ، يشبه مرشد عربي عصري يساعدني أرتب أفكاري بدون حكم."
+      : "A warm companion with a calm voice, like a modern guide who helps me organize my thoughts without judgment."
+  );
+  const [avatarStatus, setAvatarStatus] = useState<"idle" | "loading" | "ready" | "speaking" | "error">("idle");
+  const [avatarAsset, setAvatarAsset] = useState<GeminiStudioAsset | null>(null);
 
   async function analyzeClientMedia(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -4546,6 +4570,78 @@ function ClientGeminiStudio({
     setVideoStatus(data.error ? "error" : "done");
   }
 
+  async function generateStudioImage() {
+    const prompt = imagePrompt.trim();
+    if (!prompt || imageStatus === "loading") return;
+
+    setImageStatus("loading");
+    setImageAsset(null);
+    const response = await fetch("/api/storyboard/image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt,
+        title: isArabic ? "مشهد Gemini من فضفضة" : "FadFada Gemini scene",
+        sceneNumber: 1,
+        variation: Date.now() % 10000,
+        language,
+      }),
+    }).catch(() => null);
+
+    if (!response?.ok) {
+      setImageStatus("error");
+      return;
+    }
+
+    const data = (await response.json()) as GeminiStudioAsset;
+    setImageAsset(data);
+    setImageStatus(data.imageDataUrl ? "ready" : "error");
+  }
+
+  async function generateStudioAvatar() {
+    const name = avatarName.trim();
+    const description = avatarDescription.trim();
+    if (!name || !description || avatarStatus === "loading") return;
+
+    window.speechSynthesis?.cancel();
+    setAvatarStatus("loading");
+    setAvatarAsset(null);
+    const response = await fetch("/api/avatar/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, description, language }),
+    }).catch(() => null);
+
+    if (!response?.ok) {
+      setAvatarStatus("error");
+      return;
+    }
+
+    const data = (await response.json()) as GeminiStudioAsset;
+    setAvatarAsset(data);
+    setAvatarStatus(data.imageDataUrl ? "ready" : "error");
+  }
+
+  function speakStudioAvatar() {
+    if (typeof window === "undefined" || !window.speechSynthesis) {
+      setAvatarStatus("error");
+      return;
+    }
+
+    const script = isArabic
+      ? `أهلاً، أنا ${avatarName.trim() || "رفيق فضفضة"}. أقدر أسمعك، أحلل اللحظة، وأحوّلها لصورة أو خطوة واضحة.`
+      : `Hi, I am ${avatarName.trim() || "your FadFada companion"}. I can listen, understand the moment, and turn it into an image or a clear next step.`;
+    const utterance = new SpeechSynthesisUtterance(prepareArabicForSpeech(script, language, "egyptian"));
+    utterance.lang = language === "ar" ? "ar-EG" : "en-US";
+    utterance.rate = language === "ar" ? 0.94 : 0.98;
+    utterance.pitch = 0.92;
+    utterance.onend = () => setAvatarStatus(avatarAsset?.imageDataUrl ? "ready" : "idle");
+    utterance.onerror = () => setAvatarStatus(avatarAsset?.imageDataUrl ? "ready" : "error");
+    window.speechSynthesis.cancel();
+    setAvatarStatus("speaking");
+    window.speechSynthesis.speak(utterance);
+  }
+
   const videoMessage = videoInsight?.message || videoInsight?.responseContent?.replyText;
   const videoStep = videoInsight?.responseContent?.microNextStep;
 
@@ -4569,13 +4665,27 @@ function ClientGeminiStudio({
           </div>
         </div>
 
-        <div className="grid gap-2 p-3 sm:grid-cols-2 lg:grid-cols-4">
-          <button type="button" onClick={onStory} className="group flex min-h-40 flex-col rounded-xl border border-white/10 bg-black/18 p-3 text-start transition-all hover:-translate-y-0.5 hover:border-emerald-100/45 hover:bg-emerald-100/10">
+        <div className="grid gap-2 p-3 lg:grid-cols-2">
+          <div className="flex min-h-64 flex-col rounded-xl border border-white/10 bg-black/18 p-3 text-start">
             <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-emerald-100/75">Image</span>
-            <span className="mt-3 font-arsans text-sm font-semibold leading-5 text-[#F7F3EC]/90">{isArabic ? "حوّل الشعور إلى مشاهد" : "Turn feeling into scenes"}</span>
-            <span className="mt-2 font-arsans text-xs leading-5 text-[#F7F3EC]/50">{isArabic ? "ابدأ قصة ثم ولّد صور Story Mirror." : "Start a story, then generate Story Mirror images."}</span>
-            <span className="mt-auto pt-4 font-arsans text-[11px] text-emerald-100/75 group-hover:text-[#F7F3EC]">{isArabic ? "جرّب الصور" : "Try images"}</span>
-          </button>
+            <span className="mt-2 font-arsans text-sm font-semibold leading-5 text-[#F7F3EC]/90">{isArabic ? "اكتب برومبت وشاهد صورة فوراً" : "Write a prompt and see an image"}</span>
+            <textarea value={imagePrompt} onChange={(event) => setImagePrompt(event.target.value)} rows={3} className="mt-3 min-h-20 rounded-lg border border-white/10 bg-black/24 px-3 py-2 font-arsans text-xs leading-5 text-[#F7F3EC]/84 outline-none transition-colors placeholder:text-[#F7F3EC]/35 focus:border-emerald-100/45" />
+            <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+              <button type="button" onClick={generateStudioImage} disabled={imageStatus === "loading"} className="ui-action rounded-lg bg-emerald-100 px-3 py-2.5 text-xs text-[#0E0D10] transition-colors hover:bg-[#F7F3EC] disabled:animate-pulse disabled:opacity-70">
+                {imageStatus === "loading" ? (isArabic ? "جاري التوليد" : "Generating") : isArabic ? "ولّد صورة" : "Generate image"}
+              </button>
+              <button type="button" onClick={onStory} className="ui-action rounded-lg border border-emerald-100/30 px-3 py-2.5 text-xs text-emerald-100 transition-colors hover:bg-emerald-100 hover:text-[#0E0D10]">
+                {isArabic ? "قصة كاملة" : "Full story"}
+              </button>
+            </div>
+            {imageStatus === "ready" && imageAsset?.imageDataUrl ? (
+              <div className="mt-3 overflow-hidden rounded-xl border border-emerald-100/20 bg-black/20">
+                <img src={imageAsset.imageDataUrl} alt={isArabic ? "صورة مولدة من Gemini" : "Generated Gemini image"} className="aspect-video w-full object-cover" />
+                <p className="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.08em] text-emerald-100/58" dir="ltr">{imageAsset.source || "gemini_image"} · {imageAsset.model || "image model"}</p>
+              </div>
+            ) : null}
+            {imageStatus === "error" ? <p className="mt-3 rounded-lg border border-red-200/25 bg-red-200/10 px-3 py-2 font-arsans text-xs text-red-100">{isArabic ? "تعذر توليد الصورة الآن. جرّب برومبت أقصر." : "Image generation failed. Try a shorter prompt."}</p> : null}
+          </div>
 
           <label className="group flex min-h-40 cursor-pointer flex-col rounded-xl border border-white/10 bg-black/18 p-3 text-start transition-all hover:-translate-y-0.5 hover:border-emerald-100/45 hover:bg-emerald-100/10">
             <input type="file" accept="audio/*,video/*" className="sr-only" onChange={analyzeClientMedia} disabled={videoStatus === "analyzing"} />
@@ -4587,12 +4697,30 @@ function ClientGeminiStudio({
             </span>
           </label>
 
-          <button type="button" onClick={onPersona} className="group flex min-h-40 flex-col rounded-xl border border-white/10 bg-black/18 p-3 text-start transition-all hover:-translate-y-0.5 hover:border-emerald-100/45 hover:bg-emerald-100/10">
+          <div className="flex min-h-64 flex-col rounded-xl border border-white/10 bg-black/18 p-3 text-start">
             <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-emerald-100/75">Persona</span>
-            <span className="mt-3 font-arsans text-sm font-semibold leading-5 text-[#F7F3EC]/90">{isArabic ? "اصنع رفيقك الخاص" : "Create your companion"}</span>
-            <span className="mt-2 font-arsans text-xs leading-5 text-[#F7F3EC]/50">{isArabic ? "اكتب وصفاً وولّد صورة شخصية." : "Describe it and generate an avatar."}</span>
-            <span className="mt-auto pt-4 font-arsans text-[11px] text-emerald-100/75 group-hover:text-[#F7F3EC]">{isArabic ? "افتح الرفقاء" : "Open companions"}</span>
-          </button>
+            <span className="mt-2 font-arsans text-sm font-semibold leading-5 text-[#F7F3EC]/90">{isArabic ? "اصنع شخصية بصورة وصوت" : "Create a speaking persona"}</span>
+            <input value={avatarName} onChange={(event) => setAvatarName(event.target.value)} className="mt-3 rounded-lg border border-white/10 bg-black/24 px-3 py-2 font-arsans text-xs text-[#F7F3EC]/84 outline-none transition-colors focus:border-emerald-100/45" aria-label={isArabic ? "اسم الشخصية" : "Persona name"} />
+            <textarea value={avatarDescription} onChange={(event) => setAvatarDescription(event.target.value)} rows={3} className="mt-2 min-h-20 rounded-lg border border-white/10 bg-black/24 px-3 py-2 font-arsans text-xs leading-5 text-[#F7F3EC]/84 outline-none transition-colors focus:border-emerald-100/45" aria-label={isArabic ? "وصف الشخصية" : "Persona description"} />
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              <button type="button" onClick={generateStudioAvatar} disabled={avatarStatus === "loading"} className="ui-action rounded-lg bg-emerald-100 px-3 py-2.5 text-xs text-[#0E0D10] transition-colors hover:bg-[#F7F3EC] disabled:animate-pulse disabled:opacity-70">
+                {avatarStatus === "loading" ? (isArabic ? "جاري" : "Creating") : isArabic ? "ولّد" : "Create"}
+              </button>
+              <button type="button" onClick={speakStudioAvatar} disabled={avatarStatus === "loading"} className="ui-action rounded-lg border border-emerald-100/30 px-3 py-2.5 text-xs text-emerald-100 transition-colors hover:bg-emerald-100 hover:text-[#0E0D10] disabled:opacity-60">
+                {avatarStatus === "speaking" ? (isArabic ? "يتكلم" : "Speaking") : isArabic ? "تكلم" : "Speak"}
+              </button>
+              <button type="button" onClick={onPersona} className="ui-action rounded-lg border border-white/10 px-3 py-2.5 text-xs text-[#F7F3EC]/62 transition-colors hover:border-emerald-100/35 hover:text-emerald-100">
+                {isArabic ? "احفظ" : "Save"}
+              </button>
+            </div>
+            {avatarStatus !== "idle" && avatarStatus !== "loading" && avatarAsset?.imageDataUrl ? (
+              <div className="mt-3 grid grid-cols-[4.75rem_1fr] items-center gap-3 rounded-xl border border-emerald-100/20 bg-emerald-100/[0.055] p-2">
+                <img src={avatarAsset.imageDataUrl} alt={avatarName} className="h-16 w-16 rounded-2xl object-cover" />
+                <p className="font-arsans text-xs leading-5 text-[#F7F3EC]/62">{isArabic ? "تم إنشاء أفاتار. اضغط تكلم لتسمع الشخصية." : "Avatar created. Press Speak to hear the persona."}</p>
+              </div>
+            ) : null}
+            {avatarStatus === "error" ? <p className="mt-3 rounded-lg border border-red-200/25 bg-red-200/10 px-3 py-2 font-arsans text-xs text-red-100">{isArabic ? "تعذر إنشاء الشخصية أو تشغيل الصوت الآن." : "Could not create the persona or play speech right now."}</p> : null}
+          </div>
 
           <button type="button" onClick={onContent} className="group flex min-h-40 flex-col rounded-xl border border-white/10 bg-black/18 p-3 text-start transition-all hover:-translate-y-0.5 hover:border-emerald-100/45 hover:bg-emerald-100/10">
             <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-emerald-100/75">Output</span>
