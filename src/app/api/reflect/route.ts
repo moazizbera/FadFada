@@ -179,6 +179,8 @@ export async function POST(request: NextRequest) {
           "For faith: use gentle Arabic Naskh-inspired cadence and spiritual reassurance without claiming religious authority.",
           "For poetry: use structured rhyming verses, controlled metaphor, and generous line breaks.",
           "For build: use short action-oriented project tasks, numbered steps, and no decorative language.",
+          "When the user asks to prepare, choose for me, make it ready, give the exact post, write the presentation, or says they do not want explanation, switch from advisor mode to deliverable mode: output the final usable artifact first, with copy they can paste or upload. Do not repeat strategy, do not praise the request, and do not end with more discovery questions unless a required detail is impossible to infer.",
+          "For marketing/content deliverables, provide publish-ready assets: exact post text, carousel or presentation slide text, CTA, hashtags, and optional design notes only after the copy. If the user names a platform, tailor the format to that platform.",
           "For learning: teach as a concise coach, include a micro-plan, and suggest resource types without fabricating inaccessible links.",
           "For grief/stillness: slow down, validate, and recommend nearby trusted people or emergency resources if risk appears.",
           "If the current message starts with 'Daily check-in:' or 'تسجيل يومي:', preserve the current world unless the user expresses urgent safety risk. Treat mood and energy as reflection context, not as a request to switch topics.",
