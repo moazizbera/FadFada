@@ -369,7 +369,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       output: "مخاطر + أسئلة للمحامي",
       text: "تصرف كمستشار معلومات قانونية عام، وليس بديلاً عن محامٍ مرخص. اسألني أولاً عن البلد ونوع المشكلة إذا لم أوضحها، ثم ساعدني في ترتيب الموقف إلى: 1) ملخص بسيط، 2) نقاط الخطر، 3) مستندات أحتاج جمعها، 4) أسئلة دقيقة أسألها لمحامٍ مختص. لا تعطيني فتوى قانونية نهائية.",
       world: "build",
-      personaId: "dania",
+      personaId: "lina_consultant",
     },
     {
       badge: "IT",
@@ -378,7 +378,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       output: "تشخيص + خطوات إصلاح",
       text: "تصرف كمستشار IT عملي. اسألني عن البيئة والخطأ والهدف إذا لم أوضحها، ثم أعطني تشخيصاً منظماً: السبب المحتمل، خطوات فحص سريعة، حل أول، وحل احتياطي. اجعل الرد مناسباً لشخص يريد إنجاز المشكلة لا درساً طويلاً.",
       world: "learning",
-      personaId: "tareq",
+      personaId: "rami_operator",
     },
     {
       badge: "Math",
@@ -387,7 +387,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       output: "شرح + تدريب صغير",
       text: "تصرف كمدرس رياضيات صبور. اطلب مني نص المسألة أو صوّرها بالكلام، ثم حلها خطوة بخطوة مع سبب كل خطوة. بعد الحل، أعطني سؤالاً مشابهاً بسيطاً لأتأكد أنني فهمت.",
       world: "learning",
-      personaId: "sarah_alt",
+      personaId: "professor_zain",
     },
     {
       badge: "تجارة",
@@ -396,7 +396,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       output: "نموذج ربح + خطة اختبار",
       text: "تصرف كمستشار تجارة ومشاريع. اسألني عن المنتج والعميل والسعر الحالي إذا لم أوضحها، ثم أعطني مراجعة عملية: العميل المناسب، عرض القيمة، طريقة التسعير، أكبر 3 مخاطر، وتجربة اختبار خلال 48 ساعة.",
       world: "build",
-      personaId: "grandmaster",
+      personaId: "dr_fahad",
     },
     {
       badge: "Career",
@@ -414,7 +414,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       output: "فهم + متى تسأل مختصاً",
       text: "تصرف كمرشد تثقيف صحي عام، وليس طبيباً ولا بديلاً عن رعاية طبية. ساعدني أفهم المعلومة أو السؤال الصحي بلغة بسيطة، واذكر علامات تستدعي التواصل مع طبيب أو طوارئ، ولا تقدم تشخيصاً أو وصفة علاجية.",
       world: "learning",
-      personaId: "layan",
+      personaId: "hadi_researcher",
     },
   ],
   en: [
@@ -425,7 +425,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       output: "Risks + lawyer questions",
       text: "Act as a general legal information guide, not a substitute for a licensed lawyer. First ask my country/jurisdiction and issue type if I did not provide them, then organize the situation into: 1) plain summary, 2) risk points, 3) documents to collect, and 4) precise questions to ask a qualified lawyer. Do not give a final legal opinion.",
       world: "build",
-      personaId: "dania",
+      personaId: "lina_consultant",
     },
     {
       badge: "IT",
@@ -434,7 +434,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       output: "Diagnosis + fix steps",
       text: "Act as a practical IT consultant. Ask about my environment, error, and goal if I did not provide them, then give a structured diagnosis: likely cause, quick checks, first fix, and backup fix. Keep it useful for someone trying to solve the problem now.",
       world: "learning",
-      personaId: "tareq",
+      personaId: "rami_operator",
     },
     {
       badge: "Math",
@@ -443,7 +443,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       output: "Explanation + mini drill",
       text: "Act as a patient math tutor. Ask me for the problem statement if I did not provide it, then solve it step by step with the reason behind each step. After the solution, give me one similar small practice question to confirm I understood.",
       world: "learning",
-      personaId: "sarah_alt",
+      personaId: "professor_zain",
     },
     {
       badge: "Commerce",
@@ -452,7 +452,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       output: "Profit logic + test plan",
       text: "Act as a commerce and business consultant. Ask me about the product, customer, and current price if I did not provide them, then give a practical review: best customer, value proposition, pricing logic, top 3 risks, and one 48-hour validation experiment.",
       world: "build",
-      personaId: "grandmaster",
+      personaId: "dr_fahad",
     },
     {
       badge: "Career",
@@ -470,7 +470,7 @@ const consultantScenarios: Record<Language, ConsultantScenario[]> = {
       output: "Clarity + when to ask a pro",
       text: "Act as a general health literacy guide, not a doctor or a replacement for medical care. Help me understand the health question in simple language, mention signs that mean I should contact a clinician or emergency services, and do not provide diagnosis or treatment prescriptions.",
       world: "learning",
-      personaId: "layan",
+      personaId: "hadi_researcher",
     },
   ],
 };
