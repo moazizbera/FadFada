@@ -6,9 +6,54 @@ import { personas } from "../../lib/personas";
 
 const evidenceCards = [
   { label: "Core", value: "Arabic-first reflection PWA", detail: "Chat, companions, Daily Pulse, saved moments, quests, and proof cards." },
-  { label: "AI", value: "Gemini / Vertex ready", detail: "Reflection, storyboard prompts, avatar generation, and local fallbacks." },
+  { label: "Gemini", value: "Multimodal AI stack", detail: "Text reasoning, image generation, video/audio understanding, custom personas, voice playback, and fallbacks." },
   { label: "Admin", value: "Live operations room", detail: "Auto-refreshing visits, signups, comments, installs, sessions, gifts, and persona grants." },
   { label: "Trust", value: "Non-clinical wellbeing", detail: "No medical, legal, financial, emergency, or regulated claims." },
+];
+
+const geminiCapabilities = [
+  {
+    label: "Text + reasoning",
+    value: "Gemini 2.5 Flash reflection",
+    detail: "Builds Arabic/English replies, consultants, publish-ready assets, plans, and learning support.",
+    proof: "Open Consultant Hub or Life Projects, then ask for a ready artifact.",
+    href: "/?demoCommand=%2Flaunch&lang=ar&persona=maya_creator",
+  },
+  {
+    label: "Image generation",
+    value: "Storyboard + avatar images",
+    detail: "Uses Gemini/Imagen image routes for symbolic Story Mirror frames and generated custom companion avatars.",
+    proof: "Run Story Mirror, then generate a custom avatar from the companion drawer.",
+    href: "/?demoCommand=%2Fstory&lang=ar&persona=rawi",
+  },
+  {
+    label: "Video understanding",
+    value: "Video/audio moment analysis",
+    detail: "The `/api/reflect/video` route accepts video or audio, reads context, and returns emotional state plus UI orchestration.",
+    proof: "Use as judge proof for Gemini multimodal understanding beyond text chat.",
+    href: "/demo#gemini-stack",
+  },
+  {
+    label: "Persona creation",
+    value: "Custom companion builder",
+    detail: "Users can create their own companion, generate an avatar, and keep that persona voice in the chat.",
+    proof: "Open the companion drawer from the app and create a custom persona with an avatar.",
+    href: "/",
+  },
+  {
+    label: "Voice output",
+    value: "Speaking companions",
+    detail: "Assistant messages include listen/speak actions and Profile includes Arabic voice flavor settings.",
+    proof: "Send a reply, press listen, then show Voice Studio Lite in Profile.",
+    href: "/profile#voice",
+  },
+  {
+    label: "Operational proof",
+    value: "Version + events + admin",
+    detail: "Evidence Room and Admin prove live deploys, events, grants, avatar generation, installs, and sessions.",
+    proof: "Show `/api/version` and the live Admin dashboard during judging.",
+    href: "/admin/dashboard",
+  },
 ];
 
 const flows = [
@@ -36,7 +81,7 @@ const guidedSequence = [
 const snapshotFacts = [
   "Arabic-first bilingual emotional reflection PWA",
   "26 focused companions with Plus unlocks and grants",
-  "Gemini / Vertex reflection, storyboard prompt, avatar, and fallback-ready AI stack",
+  "Gemini / Vertex text, image, video/audio, avatar, persona, and fallback-ready AI stack",
   "Profile journey map, mood constellation, story gallery, quests, and voice studio",
   "Admin live room, narrative timeline, sessions, gifts, persona grants, offers, and notifications",
   "Non-clinical wellbeing boundaries with no emergency, medical, legal, or financial claims",
@@ -81,6 +126,25 @@ export default function DemoEvidencePage() {
               <p className="mt-3 font-arsans text-sm leading-6 text-bone/55">{card.detail}</p>
             </article>
           ))}
+        </section>
+
+        <section id="gemini-stack" className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <p className="ui-kicker text-cyan-100">Gemini multimodal proof</p>
+            <h2 className="mt-2 font-arserif text-4xl text-bone/92">Not only chat: text, image, video, persona, and voice.</h2>
+            <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">This is the judge-facing map for the Google Gemini requirement. Each card names the capability, what FadFada already does with it, and the fastest proof path.</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {geminiCapabilities.map((capability) => (
+              <Link key={capability.label} href={capability.href} className="group flex min-h-56 flex-col border border-cyan-100/15 bg-cyan-100/[0.035] p-4 transition-colors hover:border-cyan-100/45 hover:bg-cyan-100/[0.07]">
+                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-cyan-100/70">{capability.label}</span>
+                <h3 className="mt-3 font-arserif text-2xl text-bone/92">{capability.value}</h3>
+                <p className="mt-3 font-arsans text-sm leading-6 text-bone/58">{capability.detail}</p>
+                <p className="mt-auto border-t border-white/10 pt-3 font-arsans text-xs leading-5 text-bone/42">{capability.proof}</p>
+                <span className="mt-3 font-mono text-[10px] uppercase tracking-[0.08em] text-cyan-100/65 transition-colors group-hover:text-cyan-100">Open proof</span>
+              </Link>
+            ))}
+          </div>
         </section>
 
         <section className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.8fr_1.2fr]">
