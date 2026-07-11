@@ -3055,10 +3055,12 @@ export function ChatWindow() {
         <SmartFeatureShowcase
           language={language}
           userId={userId}
+          accessState={accessState}
           currentWorld={world}
           avatarsEnabled={avatarsEnabled}
           availablePersonas={globallyAvailablePersonas}
           unlockedPersonaIds={unlockedPersonaIds}
+          onRequirePlus={() => setPaywallOpen(true)}
           onContent={submitClientGeminiContentPack}
           onPersona={() => {
             if (avatarsEnabled) setPersonaOpen(true);
@@ -4594,6 +4596,7 @@ type SmartFeatureSlide = {
 };
 
 function SmartFeatureShowcase({
+  accessState,
   availablePersonas,
   avatarsEnabled,
   currentWorld,
@@ -4602,11 +4605,13 @@ function SmartFeatureShowcase({
   onConsultant,
   onLifeProject,
   onPersona,
+  onRequirePlus,
   onStory,
   onVisitorChallenge,
   unlockedPersonaIds,
   userId,
 }: {
+  accessState: AccessState;
   availablePersonas: Persona[];
   avatarsEnabled: boolean;
   currentWorld: WorldId;
@@ -4615,6 +4620,7 @@ function SmartFeatureShowcase({
   onConsultant: (text: string, world: WorldId, personaId: PersonaId, consultantBadge: string) => void;
   onLifeProject: (text: string, world: WorldId, personaId: PersonaId, projectBadge: string) => void;
   onPersona: () => void;
+  onRequirePlus: () => void;
   onStory: () => void;
   onVisitorChallenge: (text: string, world: WorldId, personaId: PersonaId) => void;
   unlockedPersonaIds: PersonaId[];
@@ -4679,11 +4685,25 @@ function SmartFeatureShowcase({
   const activeSlide = slides[activeIndex] ?? slides[0];
   const permittedPersonaIds = new Set(unlockedPersonaIds);
   const permittedPersonas = avatarsEnabled ? availablePersonas.filter((persona) => permittedPersonaIds.has(persona.id)) : [];
-  const personaAccessEnabled = permittedPersonas.length > 0;
-  const activePersona = permittedPersonas.find((persona) => persona.id === activeSlide.personaId) ?? permittedPersonas[0] ?? availablePersonas[0] ?? personas[0];
+  const personaAccessEnabled = avatarsEnabled && availablePersonas.length > 0;
+  const activePersona = availablePersonas.find((persona) => persona.id === activeSlide.personaId) ?? permittedPersonas[0] ?? availablePersonas[0] ?? personas[0];
   const activePersonaPresentation = getHeaderAvatarPresentation(activePersona);
   const activePersonaName = language === "ar" ? activePersonaPresentation.nameAr : activePersonaPresentation.nameEn;
   const activePersonaRole = language === "ar" ? activePersona.roleAr : activePersona.roleEn;
+  const activePersonaLocked = accessState !== "plus" && !permittedPersonaIds.has(activePersona.id);
+
+  function runIfPersonaUnlocked(personaIdToRun: PersonaId, run: () => void) {
+    if (accessState !== "plus" && !permittedPersonaIds.has(personaIdToRun)) {
+      onRequirePlus();
+      return;
+    }
+
+    run();
+  }
+
+  function runActiveSlideAction() {
+    runIfPersonaUnlocked(activePersona.id, activeSlide.onAction);
+  }
 
   useEffect(() => {
     if (isExpanded) return;
@@ -4728,13 +4748,13 @@ function SmartFeatureShowcase({
             language={language}
             userId={userId}
             currentWorld={currentWorld}
-            onContent={onContent}
+            onContent={() => runIfPersonaUnlocked(lifeProjectTemplates[language].find((template) => template.badge === "Launch")?.personaId ?? lifeProjectTemplates[language][0].personaId, onContent)}
             onPersona={onPersona}
             onStory={onStory}
           />
-          <VisitorChallengeDeck language={language} onRun={onVisitorChallenge} />
-          <LifeProjectShowcase language={language} onRun={onLifeProject} />
-          <ConsultantHub language={language} onRun={onConsultant} />
+          <VisitorChallengeDeck language={language} onRun={(text, world, personaId) => runIfPersonaUnlocked(personaId, () => onVisitorChallenge(text, world, personaId))} />
+          <LifeProjectShowcase language={language} onRun={(text, world, personaId, projectBadge) => runIfPersonaUnlocked(personaId, () => onLifeProject(text, world, personaId, projectBadge))} />
+          <ConsultantHub language={language} onRun={(text, world, personaId, consultantBadge) => runIfPersonaUnlocked(personaId, () => onConsultant(text, world, personaId, consultantBadge))} />
         </div>
       </div>
     </div>,
@@ -4794,8 +4814,8 @@ function SmartFeatureShowcase({
               ))}
             </div>
             <div className="grid gap-2 sm:grid-cols-[auto_auto]">
-              <button type="button" onClick={activeSlide.onAction} className="ui-action rounded-xl px-4 py-3 text-sm text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]" style={{ backgroundColor: activeSlide.accent }}>
-                {activeSlide.actionLabel}
+              <button type="button" onClick={runActiveSlideAction} className="ui-action rounded-xl px-4 py-3 text-sm text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]" style={{ backgroundColor: activeSlide.accent }}>
+                {activePersonaLocked ? (isArabic ? "افتح مع بلس" : "Unlock with Plus") : activeSlide.actionLabel}
               </button>
               <button type="button" onClick={() => setIsExpanded(true)} className="ui-action rounded-xl border border-white/12 bg-black/20 px-4 py-3 text-sm text-[#F7F3EC]/72 transition-colors hover:border-[#F7F3EC]/35 hover:text-[#F7F3EC]">
                 {isArabic ? "شاهد الكل" : "See all"}
@@ -4814,14 +4834,19 @@ function SmartFeatureShowcase({
                     <h3 className="mt-2 font-arui text-2xl font-semibold text-[#F7F3EC]/95">{activePersonaName}</h3>
                     <p className="mt-1 font-arsans text-sm leading-6 text-[#F7F3EC]/54">{activePersonaRole}</p>
                   </div>
-                  <span className="rounded-full border border-white/10 bg-white/[0.045] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#F7F3EC]/50" dir="ltr">
-                    {activeSlide.key.replace("-", " ")}
+                  <span className={`rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] ${activePersonaLocked ? "border-[#C9A86A]/30 bg-[#C9A86A]/10 text-[#C9A86A]" : "border-white/10 bg-white/[0.045] text-[#F7F3EC]/50"}`} dir="ltr">
+                    {activePersonaLocked ? "PLUS PREVIEW" : activeSlide.key.replace("-", " ")}
                   </span>
                 </div>
 
                 <div className="relative mx-auto h-48 w-48 overflow-hidden rounded-[2rem] border border-white/14 bg-black/28 shadow-[0_24px_90px_rgba(0,0,0,0.34)] sm:h-56 sm:w-56" style={{ boxShadow: `0 0 0 1px rgba(255,255,255,0.1), 0 0 70px ${hexToRgba(activeSlide.accent, 0.34)}` }}>
                   <Image src={activePersonaPresentation.avatarPath} alt={activePersonaName} fill sizes="224px" className="object-cover" />
                 </div>
+                {activePersonaLocked ? (
+                  <p className="rounded-xl border border-[#C9A86A]/24 bg-[#C9A86A]/10 px-3 py-2 text-center font-arsans text-xs leading-5 text-[#F7F3EC]/70">
+                    {isArabic ? "يمكن للزائر رؤية الشخصية والنتيجة المتوقعة، لكن التشغيل الكامل يفتح مع بلس." : "Visitors can preview this persona and value, but running it unlocks with Plus."}
+                  </p>
+                ) : null}
               </>
             ) : (
               <div className="grid min-h-64 place-items-center rounded-[1rem] border border-white/10 bg-black/20 p-4 text-center">
