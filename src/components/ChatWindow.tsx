@@ -4759,6 +4759,18 @@ function SmartFeatureShowcase({
         </div>
 
         <div className="max-h-[82vh] overflow-y-auto p-3 sm:p-5">
+          <PersonaPreviewCatalog
+            accessState={accessState}
+            activePersonaId={activePersona.id}
+            availablePersonas={availablePersonas}
+            language={language}
+            unlockedPersonaIds={unlockedPersonaIds}
+            onPreview={(personaIdToPreview) => {
+              const nextIndex = personaCarousel.findIndex((persona) => persona.id === personaIdToPreview);
+              if (nextIndex >= 0) setActivePersonaIndex(nextIndex);
+            }}
+            onRequirePlus={onRequirePlus}
+          />
           <ClientGeminiStudio
             language={language}
             userId={userId}
@@ -4892,6 +4904,79 @@ function SmartFeatureShowcase({
         </div>
       </div>
       {dialog}
+    </section>
+  );
+}
+
+function PersonaPreviewCatalog({
+  accessState,
+  activePersonaId,
+  availablePersonas,
+  language,
+  onPreview,
+  onRequirePlus,
+  unlockedPersonaIds,
+}: {
+  accessState: AccessState;
+  activePersonaId: PersonaId;
+  availablePersonas: Persona[];
+  language: Language;
+  onPreview: (personaId: PersonaId) => void;
+  onRequirePlus: () => void;
+  unlockedPersonaIds: PersonaId[];
+}) {
+  const isArabic = language === "ar";
+  const unlockedPersonaIdSet = new Set(unlockedPersonaIds);
+
+  return (
+    <section className="w-full rounded-2xl border border-[#C9A86A]/24 bg-[#C9A86A]/[0.045] p-3 text-start shadow-2xl backdrop-blur" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="ui-kicker text-[#C9A86A]/90">{isArabic ? "معرض الرفاق" : "Persona gallery"}</p>
+          <h2 className="mt-1 font-arui text-xl font-semibold leading-7 text-[#F7F3EC]/94">
+            {isArabic ? "اعرض كل الشخصيات، وافتح التشغيل الكامل مع بلس" : "Preview every persona, unlock full use with Plus"}
+          </h2>
+          <p className="mt-1 max-w-2xl font-arsans text-sm leading-6 text-[#F7F3EC]/56">
+            {isArabic ? "الزائر يرى الوجوه والأدوار بوضوح. الرفاق المقفلون يظهرون كمعاينة تسويقية ولا يبدأون المحادثة إلا بعد الترقية." : "Visitors see the faces and roles clearly. Locked personas appear as marketing previews and only run after upgrade."}
+          </p>
+        </div>
+        <span className="w-fit shrink-0 rounded-full border border-[#C9A86A]/30 bg-black/20 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#C9A86A]" dir="ltr">
+          {availablePersonas.length} personas
+        </span>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+        {availablePersonas.map((persona) => {
+          const presentation = getHeaderAvatarPresentation(persona);
+          const displayName = language === "ar" ? presentation.nameAr : presentation.nameEn;
+          const role = language === "ar" ? persona.roleAr : persona.roleEn;
+          const locked = accessState !== "plus" && !unlockedPersonaIdSet.has(persona.id);
+          const active = activePersonaId === persona.id;
+
+          return (
+            <button
+              key={persona.id}
+              type="button"
+              onClick={() => {
+                onPreview(persona.id);
+                if (locked) onRequirePlus();
+              }}
+              className={`group relative min-h-44 overflow-hidden rounded-xl border p-2 text-start transition-all hover:-translate-y-0.5 ${active ? "border-[#C9A86A]/70 bg-[#C9A86A]/10" : locked ? "border-[#C9A86A]/22 bg-black/24 hover:border-[#C9A86A]/48" : "border-white/10 bg-black/18 hover:border-white/28"}`}
+              aria-label={locked ? (isArabic ? `معاينة مقفلة: ${displayName}` : `Locked preview: ${displayName}`) : (isArabic ? `معاينة ${displayName}` : `Preview ${displayName}`)}
+            >
+              <span className="relative block aspect-square overflow-hidden rounded-xl border border-white/10 bg-black/35">
+                <Image src={presentation.avatarPath} alt={displayName} fill sizes="160px" className="object-cover transition-transform duration-500 group-hover:scale-105" />
+                {locked ? <span className="absolute end-1.5 top-1.5 rounded-full border border-[#C9A86A]/45 bg-black/70 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.08em] text-[#C9A86A]">Plus</span> : null}
+              </span>
+              <span className="mt-2 block truncate font-arsans text-sm font-semibold text-[#F7F3EC]/90">{displayName}</span>
+              <span className="mt-1 line-clamp-2 block font-arsans text-[11px] leading-4 text-[#F7F3EC]/48">{role}</span>
+              <span className={`mt-2 inline-flex rounded-full border px-2 py-1 font-arsans text-[10px] ${locked ? "border-[#C9A86A]/30 bg-[#C9A86A]/10 text-[#C9A86A]" : "border-emerald-100/20 bg-emerald-100/10 text-emerald-100/72"}`}>
+                {locked ? (isArabic ? "معاينة مقفلة" : "Locked preview") : isArabic ? "مفتوح" : "Unlocked"}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </section>
   );
 }

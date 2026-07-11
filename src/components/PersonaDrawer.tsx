@@ -278,30 +278,30 @@ export function PersonaDrawer({
 
                         onSelect(persona.id);
                       }}
-                      className={`group text-start transition duration-300 ${selected ? "scale-[1.04] opacity-100" : "opacity-70 hover:scale-[1.02] hover:opacity-95"}`}
+                      className={`group text-start transition duration-300 ${selected ? "scale-[1.04] opacity-100" : locked ? "opacity-95 hover:scale-[1.02]" : "opacity-78 hover:scale-[1.02] hover:opacity-100"}`}
                       aria-pressed={selected}
                       aria-label={locked ? `Unlock ${persona.nameEn}` : `Choose ${persona.nameEn}`}
                     >
                       <span
                         className={`block ${avatarFrameClass} transition-all duration-500 ${
-                          selected ? "animate-breathe border-white/20" : ""
+                          selected ? "animate-breathe border-white/20" : locked ? "border-[#C9A86A]/28" : ""
                         }`}
-                        style={selected ? { boxShadow: `0 0 0 1px rgba(255,255,255,0.1), 0 22px 52px ${presentation.auraHex}66` } : undefined}
+                        style={selected || locked ? { boxShadow: `0 0 0 1px rgba(255,255,255,0.08), 0 18px 42px ${presentation.auraHex}${locked ? "33" : "66"}` } : undefined}
                       >
-                        <span className={`absolute inset-0 transition duration-500 ${locked ? "filter grayscale contrast-50 brightness-40 opacity-30" : ""}`}>
+                        <span className={`absolute inset-0 transition duration-500 ${locked ? "brightness-75 saturate-[0.72]" : ""}`}>
                           <AvatarImage src={presentation.avatarPath} alt={`${displayName} avatar`} sizes="(max-width: 768px) 30vw, 180px" />
                         </span>
-                        {locked ? <span className="absolute inset-0 filter grayscale contrast-50 brightness-40 opacity-30" aria-hidden="true" /> : null}
                         {locked ? (
-                          <span className="absolute inset-0 grid place-items-center bg-[#0E0D10]/20">
+                          <span className="absolute end-1.5 top-1.5 inline-flex items-center gap-1 rounded-full border border-[#C9A86A]/45 bg-[#0E0D10]/78 px-2 py-1 text-[#C9A86A] shadow-xl">
                             <LockIcon />
+                            <span className={`${language === "ar" ? "font-arsans" : "font-ensans"} text-[9px] uppercase tracking-[0.08em]`}>{isArabic ? "بلس" : "Plus"}</span>
                           </span>
                         ) : null}
                         <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0E0D10]/90 via-[#0E0D10]/45 to-transparent px-2 pb-2 pt-8">
                           <span className={`block truncate text-center text-xs text-bone/95 ${language === "ar" ? "font-arsans" : "font-ensans"}`}>{displayName}</span>
                         </span>
                       </span>
-                      <span className={`mt-1 block truncate text-center text-[10px] uppercase tracking-[0.08em] text-bone/40 ${language === "ar" ? "font-arsans" : "font-ensans"}`}>{role}</span>
+                      <span className={`mt-1 block truncate text-center text-[10px] uppercase tracking-[0.08em] ${locked ? "text-[#C9A86A]/70" : "text-bone/40"} ${language === "ar" ? "font-arsans" : "font-ensans"}`}>{locked ? (isArabic ? "معاينة مقفلة" : "Locked preview") : role}</span>
                     </button>
                   );
                 })}
