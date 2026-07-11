@@ -6002,7 +6002,7 @@ function GeneratedMediaCard({ language, asset }: { language: Language; asset: Ge
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [frames, setFrames] = useState<Array<{ imageDataUrl: string; source?: string; model?: string }>>([]);
   const [activeFrame, setActiveFrame] = useState(0);
-  const [videoState, setVideoState] = useState<{ status: "idle" | "encoding" | "ready" | "error"; url?: string; mimeType?: string }>({ status: "idle" });
+  const [videoState, setVideoState] = useState<{ status: "idle" | "encoding" | "ready" | "error"; url?: string; mimeType?: string; extension?: string }>({ status: "idle" });
   const prompts = useMemo(() => asset.kind === "video" ? buildGeneratedVideoFramePrompts(asset, language) : [asset.prompt], [asset, language]);
 
   useEffect(() => {
@@ -6038,12 +6038,6 @@ function GeneratedMediaCard({ language, asset }: { language: Language; asset: Ge
   }, [asset, language, prompts]);
 
   useEffect(() => {
-    if (asset.kind !== "video" || frames.length <= 1) return;
-    const interval = window.setInterval(() => setActiveFrame((current) => (current + 1) % frames.length), 1400);
-    return () => window.clearInterval(interval);
-  }, [asset.kind, frames.length]);
-
-  useEffect(() => {
     if (asset.kind !== "video" || status !== "ready" || frames.length === 0) {
       setVideoState({ status: "idle" });
       return;
@@ -6053,14 +6047,14 @@ function GeneratedMediaCard({ language, asset }: { language: Language; asset: Ge
     let objectUrl: string | undefined;
     setVideoState({ status: "encoding" });
 
-    encodeFramesAsWebm(frames.map((frame) => frame.imageDataUrl))
+    encodeFramesAsVideo(frames.map((frame) => frame.imageDataUrl))
       .then((video) => {
         if (cancelled) {
           URL.revokeObjectURL(video.url);
           return;
         }
         objectUrl = video.url;
-        setVideoState({ status: "ready", url: video.url, mimeType: video.mimeType });
+        setVideoState({ status: "ready", url: video.url, mimeType: video.mimeType, extension: video.extension });
       })
       .catch(() => {
         if (!cancelled) setVideoState({ status: "error" });
@@ -6073,7 +6067,7 @@ function GeneratedMediaCard({ language, asset }: { language: Language; asset: Ge
   }, [asset.kind, frames, status]);
 
   const activeImage = frames[activeFrame]?.imageDataUrl || frames[0]?.imageDataUrl;
-  const sourceLabel = videoState.status === "ready" ? "gemini_webm_video" : frames[0]?.source || (asset.kind === "video" ? "gemini_visual_reel" : "gemini_image");
+  const sourceLabel = videoState.status === "ready" ? `gemini_${videoState.extension || "video"}_video` : frames[0]?.source || (asset.kind === "video" ? "gemini_video_encoding" : "gemini_image");
 
   return (
     <section className="mt-4 overflow-hidden rounded-2xl border border-emerald-100/20 bg-emerald-100/[0.045] text-start" dir={isArabic ? "rtl" : "ltr"}>
@@ -6083,18 +6077,29 @@ function GeneratedMediaCard({ language, asset }: { language: Language; asset: Ge
           <h4 className="mt-1 font-arui text-lg font-semibold leading-7 text-[#F7F3EC]/92">{asset.title}</h4>
           <p className="mt-1 font-arsans text-xs leading-5 text-[#F7F3EC]/50">
             {asset.kind === "video"
-              ? isArabic ? "ننشئ ملف فيديو WebM حقيقي داخل المحادثة من لقطات Gemini، مع تشغيل وتحميل بدون فتح يوتيوب." : "A real WebM video file is generated in chat from Gemini frames, with playback and download without opening YouTube."
+              ? isArabic ? "ننشئ ملف فيديو حقيقي داخل المحادثة من لقطات Gemini، مع تشغيل وتحميل بدون فتح يوتيوب." : "A real video file is generated in chat from Gemini frames, with playback and download without opening YouTube."
               : isArabic ? "الصورة تُنشأ هنا وتُحفظ في أرشيف فضفضة المحلي." : "The image is generated here and saved to the local FadFada archive."}
           </p>
         </div>
         <span className="shrink-0 rounded-full border border-emerald-100/25 bg-black/20 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-emerald-100/70" dir="ltr">
-          {asset.kind === "video" ? "WEBM" : "IMAGE"}
+          {asset.kind === "video" ? (videoState.extension || "VIDEO").toUpperCase() : "IMAGE"}
         </span>
       </div>
 
       <div className="relative aspect-video bg-[radial-gradient(circle_at_20%_18%,rgba(110,231,183,0.18),transparent_30%),linear-gradient(135deg,rgba(7,18,16,0.95),rgba(16,21,30,0.95))]">
         {asset.kind === "video" && videoState.status === "ready" && videoState.url ? (
           <video src={videoState.url} controls playsInline loop className="h-full w-full object-cover" aria-label={asset.title} />
+        ) : asset.kind === "video" && status === "ready" && activeImage ? (
+          <div className="relative h-full w-full">
+            <img src={activeImage} alt={asset.title} className="h-full w-full object-cover opacity-65" />
+            <div className="absolute inset-0 grid place-items-center bg-black/42 p-5 text-center">
+              <p className="rounded-2xl border border-emerald-100/20 bg-black/58 px-4 py-3 font-arsans text-sm leading-6 text-emerald-100/82">
+                {videoState.status === "error"
+                  ? isArabic ? "المتصفح الحالي لم يستطع ترميز ملف فيديو هنا. جرّب Chrome أو Edge، أو حدّث التطبيق ثم أعد الطلب." : "This browser could not encode a video file here. Try Chrome or Edge, or update the app and request it again."
+                  : isArabic ? "جاري تحويل لقطات Gemini إلى ملف فيديو قابل للتشغيل والتحميل..." : "Encoding Gemini frames into a playable, downloadable video file..."}
+              </p>
+            </div>
+          </div>
         ) : status === "ready" && activeImage ? (
           <img src={activeImage} alt={asset.title} className="h-full w-full object-cover" />
         ) : (
@@ -6106,9 +6111,9 @@ function GeneratedMediaCard({ language, asset }: { language: Language; asset: Ge
         )}
         {asset.kind === "video" && status === "ready" ? (
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/82 to-transparent p-3">
-            {videoState.status === "encoding" ? (
+            {videoState.status === "encoding" || videoState.status === "error" ? (
               <p className="mb-2 rounded-full border border-emerald-100/20 bg-black/45 px-3 py-1.5 font-arsans text-[11px] text-emerald-100/75">
-                {isArabic ? "جاري تحويل اللقطات إلى فيديو حقيقي..." : "Encoding frames into a real video..."}
+                {videoState.status === "error" ? (isArabic ? "تعذر إنشاء ملف الفيديو في هذا المتصفح" : "Video encoding failed in this browser") : isArabic ? "جاري إنشاء ملف فيديو حقيقي..." : "Creating a real video file..."}
               </p>
             ) : null}
             <div className="flex gap-1.5" dir="ltr">
@@ -6124,7 +6129,7 @@ function GeneratedMediaCard({ language, asset }: { language: Language; asset: Ge
         <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-emerald-100/55" dir="ltr">{sourceLabel}</p>
         <div className="flex flex-wrap gap-2 sm:justify-end">
           {asset.kind === "video" && videoState.status === "ready" && videoState.url ? (
-            <a href={videoState.url} download={`fadfada-video-${asset.createdAt.slice(0, 10)}.webm`} className="ui-action rounded-lg border border-emerald-100/30 px-3 py-2 text-xs text-emerald-100 transition-colors hover:bg-emerald-100 hover:text-[#0E0D10]">
+            <a href={videoState.url} download={`fadfada-video-${asset.createdAt.slice(0, 10)}.${videoState.extension || "webm"}`} className="ui-action rounded-lg border border-emerald-100/30 px-3 py-2 text-xs text-emerald-100 transition-colors hover:bg-emerald-100 hover:text-[#0E0D10]">
               {isArabic ? "تحميل الفيديو" : "Download video"}
             </a>
           ) : null}
@@ -6137,8 +6142,8 @@ function GeneratedMediaCard({ language, asset }: { language: Language; asset: Ge
   );
 }
 
-async function encodeFramesAsWebm(frameUrls: string[]) {
-  if (typeof window === "undefined" || typeof MediaRecorder === "undefined") {
+async function encodeFramesAsVideo(frameUrls: string[]) {
+  if (typeof window === "undefined" || typeof MediaRecorder === "undefined" || frameUrls.length === 0) {
     throw new Error("MediaRecorder is unavailable");
   }
 
@@ -6148,13 +6153,10 @@ async function encodeFramesAsWebm(frameUrls: string[]) {
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Canvas context is unavailable");
 
-  const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
-    ? "video/webm;codecs=vp9"
-    : MediaRecorder.isTypeSupported("video/webm;codecs=vp8")
-      ? "video/webm;codecs=vp8"
-      : "video/webm";
+  const videoFormat = getSupportedRecordingFormat();
+  if (!videoFormat) throw new Error("No supported video recording format");
   const stream = canvas.captureStream(30);
-  const recorder = new MediaRecorder(stream, { mimeType });
+  const recorder = new MediaRecorder(stream, { mimeType: videoFormat.mimeType });
   const chunks: BlobPart[] = [];
   recorder.ondataavailable = (event) => {
     if (event.data.size > 0) chunks.push(event.data);
@@ -6162,7 +6164,7 @@ async function encodeFramesAsWebm(frameUrls: string[]) {
 
   const stopped = new Promise<Blob>((resolve, reject) => {
     recorder.onerror = () => reject(new Error("Video recorder failed"));
-    recorder.onstop = () => resolve(new Blob(chunks, { type: mimeType }));
+    recorder.onstop = () => resolve(new Blob(chunks, { type: videoFormat.mimeType }));
   });
 
   recorder.start();
@@ -6179,7 +6181,19 @@ async function encodeFramesAsWebm(frameUrls: string[]) {
   stream.getTracks().forEach((track) => track.stop());
   const blob = await stopped;
 
-  return { url: URL.createObjectURL(blob), mimeType };
+  return { url: URL.createObjectURL(blob), mimeType: videoFormat.mimeType, extension: videoFormat.extension };
+}
+
+function getSupportedRecordingFormat() {
+  const formats = [
+    { mimeType: "video/webm;codecs=vp9", extension: "webm" },
+    { mimeType: "video/webm;codecs=vp8", extension: "webm" },
+    { mimeType: "video/webm", extension: "webm" },
+    { mimeType: "video/mp4;codecs=avc1.42E01E", extension: "mp4" },
+    { mimeType: "video/mp4", extension: "mp4" },
+  ];
+
+  return formats.find((format) => MediaRecorder.isTypeSupported(format.mimeType));
 }
 
 function loadFrameImage(src: string) {
