@@ -6002,6 +6002,7 @@ function GeneratedMediaCard({ language, asset }: { language: Language; asset: Ge
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [frames, setFrames] = useState<Array<{ imageDataUrl: string; source?: string; model?: string }>>([]);
   const [activeFrame, setActiveFrame] = useState(0);
+  const [videoState, setVideoState] = useState<{ status: "idle" | "encoding" | "ready" | "error"; url?: string; mimeType?: string }>({ status: "idle" });
   const prompts = useMemo(() => asset.kind === "video" ? buildGeneratedVideoFramePrompts(asset, language) : [asset.prompt], [asset, language]);
 
   useEffect(() => {
@@ -6042,8 +6043,37 @@ function GeneratedMediaCard({ language, asset }: { language: Language; asset: Ge
     return () => window.clearInterval(interval);
   }, [asset.kind, frames.length]);
 
+  useEffect(() => {
+    if (asset.kind !== "video" || status !== "ready" || frames.length === 0) {
+      setVideoState({ status: "idle" });
+      return;
+    }
+
+    let cancelled = false;
+    let objectUrl: string | undefined;
+    setVideoState({ status: "encoding" });
+
+    encodeFramesAsWebm(frames.map((frame) => frame.imageDataUrl))
+      .then((video) => {
+        if (cancelled) {
+          URL.revokeObjectURL(video.url);
+          return;
+        }
+        objectUrl = video.url;
+        setVideoState({ status: "ready", url: video.url, mimeType: video.mimeType });
+      })
+      .catch(() => {
+        if (!cancelled) setVideoState({ status: "error" });
+      });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [asset.kind, frames, status]);
+
   const activeImage = frames[activeFrame]?.imageDataUrl || frames[0]?.imageDataUrl;
-  const sourceLabel = frames[0]?.source || (asset.kind === "video" ? "gemini_visual_reel" : "gemini_image");
+  const sourceLabel = videoState.status === "ready" ? "gemini_webm_video" : frames[0]?.source || (asset.kind === "video" ? "gemini_visual_reel" : "gemini_image");
 
   return (
     <section className="mt-4 overflow-hidden rounded-2xl border border-emerald-100/20 bg-emerald-100/[0.045] text-start" dir={isArabic ? "rtl" : "ltr"}>
@@ -6053,17 +6083,19 @@ function GeneratedMediaCard({ language, asset }: { language: Language; asset: Ge
           <h4 className="mt-1 font-arui text-lg font-semibold leading-7 text-[#F7F3EC]/92">{asset.title}</h4>
           <p className="mt-1 font-arsans text-xs leading-5 text-[#F7F3EC]/50">
             {asset.kind === "video"
-              ? isArabic ? "ننشئ فيديو بصرياً قصيراً من لقطات مولّدة داخل التطبيق، بدون فتح يوتيوب أو الخروج من المحادثة." : "A short visual reel is generated from in-app frames without opening YouTube or leaving the chat."
+              ? isArabic ? "ننشئ ملف فيديو WebM حقيقي داخل المحادثة من لقطات Gemini، مع تشغيل وتحميل بدون فتح يوتيوب." : "A real WebM video file is generated in chat from Gemini frames, with playback and download without opening YouTube."
               : isArabic ? "الصورة تُنشأ هنا وتُحفظ في أرشيف فضفضة المحلي." : "The image is generated here and saved to the local FadFada archive."}
           </p>
         </div>
         <span className="shrink-0 rounded-full border border-emerald-100/25 bg-black/20 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-emerald-100/70" dir="ltr">
-          {asset.kind === "video" ? "REEL" : "IMAGE"}
+          {asset.kind === "video" ? "WEBM" : "IMAGE"}
         </span>
       </div>
 
       <div className="relative aspect-video bg-[radial-gradient(circle_at_20%_18%,rgba(110,231,183,0.18),transparent_30%),linear-gradient(135deg,rgba(7,18,16,0.95),rgba(16,21,30,0.95))]">
-        {status === "ready" && activeImage ? (
+        {asset.kind === "video" && videoState.status === "ready" && videoState.url ? (
+          <video src={videoState.url} controls playsInline loop className="h-full w-full object-cover" aria-label={asset.title} />
+        ) : status === "ready" && activeImage ? (
           <img src={activeImage} alt={asset.title} className="h-full w-full object-cover" />
         ) : (
           <div className="grid h-full place-items-center p-5 text-center">
@@ -6074,6 +6106,11 @@ function GeneratedMediaCard({ language, asset }: { language: Language; asset: Ge
         )}
         {asset.kind === "video" && status === "ready" ? (
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/82 to-transparent p-3">
+            {videoState.status === "encoding" ? (
+              <p className="mb-2 rounded-full border border-emerald-100/20 bg-black/45 px-3 py-1.5 font-arsans text-[11px] text-emerald-100/75">
+                {isArabic ? "جاري تحويل اللقطات إلى فيديو حقيقي..." : "Encoding frames into a real video..."}
+              </p>
+            ) : null}
             <div className="flex gap-1.5" dir="ltr">
               {frames.map((frame, index) => (
                 <button key={`${frame.imageDataUrl}:${index}`} type="button" onClick={() => setActiveFrame(index)} className={`h-1.5 flex-1 rounded-full transition-colors ${index === activeFrame ? "bg-emerald-100" : "bg-white/25"}`} aria-label={isArabic ? `لقطة ${index + 1}` : `Frame ${index + 1}`} />
@@ -6085,12 +6122,92 @@ function GeneratedMediaCard({ language, asset }: { language: Language; asset: Ge
 
       <div className="grid gap-2 p-3 sm:grid-cols-[1fr_auto] sm:items-center">
         <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-emerald-100/55" dir="ltr">{sourceLabel}</p>
-        <button type="button" onClick={() => void copyTextToClipboard(asset.prompt)} className="ui-action rounded-lg border border-emerald-100/30 px-3 py-2 text-xs text-emerald-100 transition-colors hover:bg-emerald-100 hover:text-[#0E0D10]">
-          {isArabic ? "انسخ البرومبت" : "Copy prompt"}
-        </button>
+        <div className="flex flex-wrap gap-2 sm:justify-end">
+          {asset.kind === "video" && videoState.status === "ready" && videoState.url ? (
+            <a href={videoState.url} download={`fadfada-video-${asset.createdAt.slice(0, 10)}.webm`} className="ui-action rounded-lg border border-emerald-100/30 px-3 py-2 text-xs text-emerald-100 transition-colors hover:bg-emerald-100 hover:text-[#0E0D10]">
+              {isArabic ? "تحميل الفيديو" : "Download video"}
+            </a>
+          ) : null}
+          <button type="button" onClick={() => void copyTextToClipboard(asset.prompt)} className="ui-action rounded-lg border border-emerald-100/30 px-3 py-2 text-xs text-emerald-100 transition-colors hover:bg-emerald-100 hover:text-[#0E0D10]">
+            {isArabic ? "انسخ البرومبت" : "Copy prompt"}
+          </button>
+        </div>
       </div>
     </section>
   );
+}
+
+async function encodeFramesAsWebm(frameUrls: string[]) {
+  if (typeof window === "undefined" || typeof MediaRecorder === "undefined") {
+    throw new Error("MediaRecorder is unavailable");
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 1280;
+  canvas.height = 720;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Canvas context is unavailable");
+
+  const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+    ? "video/webm;codecs=vp9"
+    : MediaRecorder.isTypeSupported("video/webm;codecs=vp8")
+      ? "video/webm;codecs=vp8"
+      : "video/webm";
+  const stream = canvas.captureStream(30);
+  const recorder = new MediaRecorder(stream, { mimeType });
+  const chunks: BlobPart[] = [];
+  recorder.ondataavailable = (event) => {
+    if (event.data.size > 0) chunks.push(event.data);
+  };
+
+  const stopped = new Promise<Blob>((resolve, reject) => {
+    recorder.onerror = () => reject(new Error("Video recorder failed"));
+    recorder.onstop = () => resolve(new Blob(chunks, { type: mimeType }));
+  });
+
+  recorder.start();
+  const images = await Promise.all(frameUrls.map(loadFrameImage));
+  for (let index = 0; index < images.length; index += 1) {
+    for (let step = 0; step < 18; step += 1) {
+      drawVideoFrame(context, images[index], canvas.width, canvas.height, index, step / 17);
+      await wait(66);
+    }
+  }
+  drawVideoFrame(context, images[images.length - 1], canvas.width, canvas.height, images.length - 1, 1);
+  await wait(240);
+  recorder.stop();
+  stream.getTracks().forEach((track) => track.stop());
+  const blob = await stopped;
+
+  return { url: URL.createObjectURL(blob), mimeType };
+}
+
+function loadFrameImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Frame image failed to load"));
+    image.src = src;
+  });
+}
+
+function drawVideoFrame(context: CanvasRenderingContext2D, image: HTMLImageElement, width: number, height: number, index: number, progress: number) {
+  context.fillStyle = "#071210";
+  context.fillRect(0, 0, width, height);
+  const imageRatio = image.width / image.height;
+  const canvasRatio = width / height;
+  const zoom = 1.04 + progress * 0.035;
+  const drawHeight = imageRatio > canvasRatio ? height * zoom : (width / imageRatio) * zoom;
+  const drawWidth = imageRatio > canvasRatio ? (height * imageRatio) * zoom : width * zoom;
+  const panX = Math.sin((index + 1) * 0.8) * 26 * progress;
+  const panY = Math.cos((index + 1) * 0.7) * 18 * progress;
+  context.drawImage(image, (width - drawWidth) / 2 + panX, (height - drawHeight) / 2 + panY, drawWidth, drawHeight);
+  context.fillStyle = `rgba(4, 8, 8, ${0.12 + progress * 0.1})`;
+  context.fillRect(0, 0, width, height);
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function buildGeneratedVideoFramePrompts(asset: GeneratedMediaAsset, language: Language) {
