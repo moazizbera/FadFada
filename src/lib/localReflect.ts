@@ -527,15 +527,15 @@ function extractTopic(text: string) {
 function buildResources(topic: string) {
   return [
     {
-      title: `Video path for ${topic}`,
+      title: `In-chat video plan for ${topic}`,
       type: "video" as const,
-      url: `https://www.youtube.com/results?search_query=${encodeURIComponent(topic)}`,
-      summary: `Search and watch one strong overview for ${topic}. If YouTube blocks embedded playback, keep the query here and open externally only for playback.`,
+      url: "#fadfada-in-chat-video-plan",
+      summary: `Keep this inside FadFada: create a 3-shot explanation reel for ${topic}, then turn the strongest frame into an image inside the conversation.`,
     },
     {
       title: `One-page notes for ${topic}`,
       type: "document" as const,
-      url: `https://www.google.com/search?q=${encodeURIComponent(`${topic} notes`)}`,
+      url: "#fadfada-in-chat-notes",
       summary: `Focus question, three anchor facts, one thing to verify, and a 60-second memory check for ${topic}.`,
     },
   ];

@@ -66,6 +66,7 @@ type ChatMessage = {
   language?: Language;
   cadence?: EmotionalCadence;
   resources?: LearningResource[];
+  generatedMedia?: GeneratedMediaAsset;
   personaId?: PersonaId;
   personaName?: string;
   avatarPath?: string;
@@ -87,6 +88,15 @@ type LearningResource = {
   type: "video" | "article" | "document";
   url: string;
   summary: string;
+};
+
+type GeneratedMediaAsset = {
+  id: string;
+  kind: "image" | "video";
+  title: string;
+  prompt: string;
+  sourceText: string;
+  createdAt: string;
 };
 
 type TinyPlan = {
@@ -249,6 +259,7 @@ const dailyPulseStorageKey = "fadfada-daily-pulse";
 const tinyPlanStorageKey = "fadfada-tiny-plans";
 const journeySnapshotStorageKey = "fadfada-journey-snapshots";
 const growthQuestStorageKey = "fadfada-growth-quests";
+const generatedMediaStorageKey = "fadfada-generated-media";
 const discountCodeStorageKey = "fadfada-discount-code";
 const voiceDialectStorageKey = "fadfada-voice-dialect";
 const offlineDraftStorageKey = "fadfada-offline-draft";
@@ -1485,6 +1496,7 @@ export function ChatWindow() {
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const homeRef = useRef<HTMLElement | null>(null);
   const chatRef = useRef<HTMLElement | null>(null);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
   const pendingVisitorChallengeFocusRef = useRef<"composer" | "name" | null>(null);
 
   const activeWorld = worlds[world];
@@ -2000,6 +2012,10 @@ export function ChatWindow() {
     target?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  function scrollToConversationEnd() {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }
+
   function runHomeHeaderAction(action: HomeHeaderAction) {
     if (action === "start") {
       setPersonaOpen(false);
@@ -2322,20 +2338,27 @@ export function ChatWindow() {
     setSpeakingMessageId(null);
   }
 
-  function playBrowserSpeech(message: ChatMessage) {
+  function speakTextWithPersona(text: string, speechLanguage: Language, persona: Persona, messageId: string) {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
 
-    const speechLanguage = message.language || language;
-    const preferredVoiceConfig = getPreferredVoiceConfig(activePersona.voiceConfig);
-    const utterance = new SpeechSynthesisUtterance(prepareArabicForSpeech(message.text, speechLanguage, getArabicSpeechDialect(preferredVoiceConfig)));
+    const preferredVoiceConfig = getPreferredVoiceConfig(persona.voiceConfig);
+    const utterance = new SpeechSynthesisUtterance(prepareArabicForSpeech(text, speechLanguage, getArabicSpeechDialect(preferredVoiceConfig)));
     utterance.lang = getSpeechLocale(speechLanguage, preferredVoiceConfig);
     utterance.rate = preferredVoiceConfig.rate;
     utterance.pitch = preferredVoiceConfig.pitch;
     utterance.voice = selectSpeechVoice(speechLanguage, preferredVoiceConfig) ?? null;
     utterance.onend = () => setSpeakingMessageId(null);
     utterance.onerror = () => setSpeakingMessageId(null);
-    setSpeakingMessageId(message.id);
+    setSpeakingMessageId(messageId);
     window.speechSynthesis.speak(utterance);
+  }
+
+  function playBrowserSpeech(message: ChatMessage) {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+
+    const speechLanguage = message.language || language;
+    const messagePersona = resolveMessagePersona(message, customPersona);
+    speakTextWithPersona(message.text, speechLanguage, messagePersona, message.id);
   }
 
   function toggleVoicePlayback(message: ChatMessage) {
@@ -2552,6 +2575,7 @@ export function ChatWindow() {
     }
 
     const nextLanguage = inferRequestedLanguage(text, language);
+    const generatedMediaKind = detectGeneratedMediaKind(text);
     const requestWorld = overrideWorld ?? world;
     const candidatePersona = overridePersona ?? activePersona;
     const requestPersona = candidatePersona.id === "custom" || unlockedPersonaIds.includes(candidatePersona.id)
@@ -2601,6 +2625,8 @@ export function ChatWindow() {
 
       const responseWorld = data.world && data.world in worlds ? data.world : requestWorld;
       const cadence = normalizeCadence(data.emotionalCadence?.speed, responseWorld);
+      const responseText = data.text || (nextLanguage === "ar" ? "أنا معاك. خلينا نكمل بخطوة صغيرة." : "I am with you. Let's continue with one small step.");
+      const generatedMedia = generatedMediaKind ? buildGeneratedMediaAsset(generatedMediaKind, text, responseText, nextLanguage) : undefined;
       if (accessState !== "plus") {
         useOneCredit();
       }
@@ -2610,11 +2636,12 @@ export function ChatWindow() {
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          text: data.text || (nextLanguage === "ar" ? "أنا معاك. خلينا نكمل بخطوة صغيرة." : "I am with you. Let's continue with one small step."),
+          text: responseText,
           world: responseWorld,
           language: nextLanguage,
           cadence,
-          resources: data.resources,
+          resources: generatedMedia ? undefined : data.resources,
+          generatedMedia,
           personaId: requestPersona.id,
           personaName: nextLanguage === "ar" ? requestPersona.nameAr : requestPersona.nameEn,
           avatarPath: requestPersona.avatarPath,
@@ -2920,10 +2947,29 @@ export function ChatWindow() {
   function saveCustomPersona(draft: CustomPersonaDraft) {
     const nextDraft = { name: draft.name.trim(), description: draft.description.trim(), avatarPath: isAllowedCustomAvatarPath(draft.avatarPath) ? draft.avatarPath : inferCustomAvatarPath(draft.description) };
     if (!nextDraft.name || !nextDraft.description) return;
+    const nextPersona = buildCustomPersona(nextDraft);
+    if (!nextPersona) return;
+    const welcomeText = language === "ar"
+      ? `أهلاً، أنا ${nextDraft.name}. أصبحت جاهزاً أتكلم مع الزوار وأرد بصوتي داخل فضفضة.`
+      : `Hi, I am ${nextDraft.name}. I am ready to speak with visitors in my own voice inside FadFada.`;
+    const welcomeMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      text: welcomeText,
+      world,
+      language,
+      cadence: normalizeCadence("steady_calm", world),
+      personaId: "custom",
+      personaName: nextPersona.nameAr,
+      avatarPath: nextPersona.avatarPath,
+    };
 
     localStorage.setItem(customPersonaStorageKey, JSON.stringify(nextDraft));
     setCustomPersonaDraft(nextDraft);
     setPersonaId("custom");
+    setMessages((current) => [...current, welcomeMessage]);
+    stopVoicePlayback();
+    window.setTimeout(() => speakTextWithPersona(welcomeText, language, nextPersona, welcomeMessage.id), 140);
     trackInteraction("starter_tap", { type: "custom_persona", language });
     window.setTimeout(focusInput, 80);
   }
@@ -3120,6 +3166,7 @@ export function ChatWindow() {
                     instant={animatedAssistantMessageIds.includes(message.id)}
                     onComplete={() => setAnimatedAssistantMessageIds((current) => current.includes(message.id) ? current : [...current, message.id])}
                   />
+                {message.generatedMedia ? <GeneratedMediaCard language={messageLanguage} asset={message.generatedMedia} /> : null}
                 <VoicePlaybackButton
                   language={messageLanguage}
                   speaking={speakingMessageId === message.id}
@@ -3162,6 +3209,7 @@ export function ChatWindow() {
         {isThinking ? (
           <ThinkingShimmer language={language} personaName={language === "ar" ? activePersona.nameAr : activePersona.nameEn} />
         ) : null}
+        <div ref={chatEndRef} className="h-32" aria-hidden="true" />
       </section>
 
       {paywallOpen ? <PaywallCard language={language} accessState={accessState} remainingReflections={remainingReflections} configuration={experienceConfiguration} loading={checkoutLoading} onCheckout={startCheckout} onSignIn={openSignInGift} onClose={() => setPaywallOpen(false)} /> : null}
@@ -3373,8 +3421,8 @@ export function ChatWindow() {
         accountImage={accountImage}
         onHome={() => scrollToSection("home")}
         onChat={() => {
-          scrollToSection("chat");
-          window.setTimeout(focusInput, 120);
+          scrollToConversationEnd();
+          window.setTimeout(scrollToConversationEnd, 120);
         }}
         onPersona={avatarsEnabled ? () => setPersonaOpen(true) : undefined}
         onMenu={() => setToolsOpen(true)}
@@ -3473,6 +3521,21 @@ function sanitizeStoredMessages(value: unknown): ChatMessage[] {
               summary: resource.summary.slice(0, 220),
             }))
         : undefined;
+      const generatedMediaCandidate = candidate.generatedMedia as Partial<GeneratedMediaAsset> | undefined;
+      const generatedMedia = generatedMediaCandidate
+        && (generatedMediaCandidate.kind === "image" || generatedMediaCandidate.kind === "video")
+        && typeof generatedMediaCandidate.title === "string"
+        && typeof generatedMediaCandidate.prompt === "string"
+        && typeof generatedMediaCandidate.sourceText === "string"
+          ? {
+              id: typeof generatedMediaCandidate.id === "string" && generatedMediaCandidate.id ? generatedMediaCandidate.id.slice(0, 120) : `media:${crypto.randomUUID()}`,
+              kind: generatedMediaCandidate.kind,
+              title: generatedMediaCandidate.title.slice(0, 120),
+              prompt: generatedMediaCandidate.prompt.slice(0, 3000),
+              sourceText: generatedMediaCandidate.sourceText.slice(0, 900),
+              createdAt: typeof generatedMediaCandidate.createdAt === "string" ? generatedMediaCandidate.createdAt : new Date().toISOString(),
+            }
+          : undefined;
 
       if (!role || !text) return null;
 
@@ -3484,6 +3547,7 @@ function sanitizeStoredMessages(value: unknown): ChatMessage[] {
         language,
         cadence,
         resources,
+        generatedMedia,
         personaId,
         personaName,
         avatarPath,
@@ -3571,6 +3635,48 @@ function inferRequestedLanguage(text: string, fallbackLanguage: Language): Langu
   if (/\b(arabic|arabiyyah|عربي|العربية|بالعربي|arabic story|arabic poem)\b/i.test(text)) return "ar";
   if (/[A-Za-z]/.test(text)) return "en";
   return fallbackLanguage;
+}
+
+function detectGeneratedMediaKind(text: string): GeneratedMediaAsset["kind"] | null {
+  const normalizedText = text.toLowerCase();
+  const asksToCreate = /(create|generate|make|draw|design|render|produce|اصنع|ولّد|ولد|انشئ|أنشئ|اعمل|صمم|ارسم|حوّل|حول)/i.test(normalizedText);
+  if (!asksToCreate) return null;
+  if (/(video|reel|short|clip|animation|animated|فيديو|ريل|مقطع|أنيميشن|انيميشن|حركة|متحرك)/i.test(normalizedText)) return "video";
+  if (/(image|picture|poster|visual|storyboard|scene|photo|صورة|بوستر|مشهد|لوحة|تصميم|كارت|بطاقة)/i.test(normalizedText)) return "image";
+  return null;
+}
+
+function buildGeneratedMediaAsset(kind: GeneratedMediaAsset["kind"], userText: string, assistantText: string, language: Language): GeneratedMediaAsset {
+  const isArabic = language === "ar";
+  const title = kind === "video"
+    ? isArabic ? "فيديو مولّد داخل المحادثة" : "Generated in-chat video reel"
+    : isArabic ? "صورة مولّدة داخل المحادثة" : "Generated in-chat image";
+  const prompt = [
+    isArabic
+      ? "حوّل الطلب التالي إلى أصل بصري آمن داخل فضفضة، بدون نص داخل الصورة، وبأسلوب سينمائي واضح."
+      : "Turn the following request into a safe FadFada visual asset, with no text inside the image and a clear cinematic style.",
+    userText,
+    assistantText.slice(0, 900),
+  ].join("\n\n");
+
+  return {
+    id: `media:${crypto.randomUUID()}`,
+    kind,
+    title,
+    prompt,
+    sourceText: userText.slice(0, 900),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function archiveGeneratedMedia(asset: GeneratedMediaAsset, payload: { frames?: string[]; imageDataUrl?: string; model?: string; source?: string }) {
+  try {
+    const stored = JSON.parse(localStorage.getItem(generatedMediaStorageKey) || "[]") as Array<GeneratedMediaAsset & typeof payload>;
+    const next = [{ ...asset, ...payload }, ...stored.filter((item) => item.id !== asset.id)].slice(0, 16);
+    localStorage.setItem(generatedMediaStorageKey, JSON.stringify(next));
+  } catch {
+    // Local media archive is a convenience; chat rendering should continue if storage is full.
+  }
 }
 
 function buildMomentCapsule(message: ChatMessage, userMessage: ChatMessage | undefined, personaName: string, language: Language) {
@@ -5826,6 +5932,7 @@ function LearningResourceCards({ language, resources }: { language: Language; re
   const isArabic = language === "ar";
   const videoResource = resources.find((resource) => resource.type === "video");
   const otherResources = resources.filter((resource) => resource !== videoResource).slice(0, 2);
+  const videoIsInChat = Boolean(videoResource?.url.startsWith("#"));
 
   return (
     <section className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.035] p-3 text-start" dir={isArabic ? "rtl" : "ltr"}>
@@ -5837,36 +5944,142 @@ function LearningResourceCards({ language, resources }: { language: Language; re
           </p>
         </div>
         {videoResource ? (
-          <a href={videoResource.url} target="_blank" rel="noreferrer" className="ui-action shrink-0 rounded-lg border border-emerald-200/30 px-3 py-2 text-xs text-emerald-200 transition-colors hover:bg-emerald-200 hover:text-[#0E0D10]">
-            {isArabic ? "فتح" : "Open"}
-          </a>
+          <span className="shrink-0 rounded-lg border border-emerald-200/30 px-3 py-2 font-arsans text-xs text-emerald-200">
+            {videoIsInChat ? (isArabic ? "داخل المحادثة" : "In chat") : isArabic ? "مصدر" : "Resource"}
+          </span>
         ) : null}
       </div>
 
       {videoResource ? (
-        <a href={videoResource.url} target="_blank" rel="noreferrer" className="mt-3 block rounded-xl border border-emerald-200/20 bg-black/24 p-3 transition-colors hover:border-emerald-200/45 hover:bg-emerald-200/[0.08]">
+        <div className="mt-3 block rounded-xl border border-emerald-200/20 bg-black/24 p-3">
           <span className="block font-arsans text-sm font-semibold text-[#F7F3EC]/88">{videoResource.title}</span>
           <span className="mt-1 block font-arsans text-xs leading-5 text-[#F7F3EC]/52">
-            {isArabic ? "يفتح الفيديو خارج التطبيق حتى لا تظهر مشغلات محظورة أو رسائل غير متاحة داخل الواجهة." : videoResource.summary}
+            {isArabic ? "يبقى داخل المحادثة: اطلب إنشاء فيديو أو صورة وسنولّدها هنا بدلاً من فتح يوتيوب." : videoResource.summary}
           </span>
           <span className="mt-3 inline-flex rounded-full border border-emerald-200/30 px-3 py-1.5 font-arsans text-[11px] text-emerald-200">
-            {isArabic ? "فتح الفيديو" : "Open video"}
+            {isArabic ? "لا خروج من التطبيق" : "No external player"}
           </span>
-        </a>
+        </div>
       ) : null}
 
       <div className="mt-3 grid gap-2">
         {otherResources.map((resource) => (
-          <a key={`${resource.type}:${resource.url}`} href={resource.url} target="_blank" rel="noreferrer" className="block rounded-xl border border-white/10 bg-white/[0.025] p-3 transition-colors hover:border-emerald-200/35">
+          <div key={`${resource.type}:${resource.url}`} className="block rounded-xl border border-white/10 bg-white/[0.025] p-3">
             <span className="block font-arsans text-sm text-[#F7F3EC]/82">{isArabic ? resourceTypeLabel(resource.type, language) : resource.title}</span>
             <span className="mt-1 block font-arsans text-xs leading-5 text-[#F7F3EC]/48">
               {isArabic ? (resource.type === "document" ? "ملاحظات مختصرة تساعدك تراجع الفكرة." : "مصدر إضافي للمراجعة.") : resource.summary}
             </span>
-          </a>
+          </div>
         ))}
       </div>
     </section>
   );
+}
+
+function GeneratedMediaCard({ language, asset }: { language: Language; asset: GeneratedMediaAsset }) {
+  const isArabic = language === "ar";
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [frames, setFrames] = useState<Array<{ imageDataUrl: string; source?: string; model?: string }>>([]);
+  const [activeFrame, setActiveFrame] = useState(0);
+  const prompts = useMemo(() => asset.kind === "video" ? buildGeneratedVideoFramePrompts(asset, language) : [asset.prompt], [asset, language]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setStatus("loading");
+    setFrames([]);
+
+    Promise.all(prompts.map(async (prompt, index) => {
+      const response = await fetch(`/api/storyboard/image?chatMedia=${encodeURIComponent(asset.id)}-${index}`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-cache" },
+        body: JSON.stringify({ prompt, title: asset.title, sceneNumber: index + 1, variation: index, language }),
+      });
+      if (!response.ok) throw new Error("media image failed");
+      const data = (await response.json()) as { imageDataUrl?: string; source?: string; model?: string };
+      if (!data.imageDataUrl) throw new Error("media image missing");
+      return { imageDataUrl: data.imageDataUrl, source: data.source, model: data.model };
+    }))
+      .then((nextFrames) => {
+        if (cancelled) return;
+        setFrames(nextFrames);
+        setStatus("ready");
+        archiveGeneratedMedia(asset, asset.kind === "video" ? { frames: nextFrames.map((frame) => frame.imageDataUrl), source: nextFrames[0]?.source, model: nextFrames[0]?.model } : { imageDataUrl: nextFrames[0]?.imageDataUrl, source: nextFrames[0]?.source, model: nextFrames[0]?.model });
+      })
+      .catch(() => {
+        if (!cancelled) setStatus("error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [asset, language, prompts]);
+
+  useEffect(() => {
+    if (asset.kind !== "video" || frames.length <= 1) return;
+    const interval = window.setInterval(() => setActiveFrame((current) => (current + 1) % frames.length), 1400);
+    return () => window.clearInterval(interval);
+  }, [asset.kind, frames.length]);
+
+  const activeImage = frames[activeFrame]?.imageDataUrl || frames[0]?.imageDataUrl;
+  const sourceLabel = frames[0]?.source || (asset.kind === "video" ? "gemini_visual_reel" : "gemini_image");
+
+  return (
+    <section className="mt-4 overflow-hidden rounded-2xl border border-emerald-100/20 bg-emerald-100/[0.045] text-start" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="flex items-start justify-between gap-3 border-b border-white/10 p-3">
+        <div>
+          <p className="ui-kicker text-emerald-100/85">{asset.kind === "video" ? (isArabic ? "فيديو داخل المحادثة" : "In-chat video") : isArabic ? "صورة داخل المحادثة" : "In-chat image"}</p>
+          <h4 className="mt-1 font-arui text-lg font-semibold leading-7 text-[#F7F3EC]/92">{asset.title}</h4>
+          <p className="mt-1 font-arsans text-xs leading-5 text-[#F7F3EC]/50">
+            {asset.kind === "video"
+              ? isArabic ? "ننشئ فيديو بصرياً قصيراً من لقطات مولّدة داخل التطبيق، بدون فتح يوتيوب أو الخروج من المحادثة." : "A short visual reel is generated from in-app frames without opening YouTube or leaving the chat."
+              : isArabic ? "الصورة تُنشأ هنا وتُحفظ في أرشيف فضفضة المحلي." : "The image is generated here and saved to the local FadFada archive."}
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full border border-emerald-100/25 bg-black/20 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-emerald-100/70" dir="ltr">
+          {asset.kind === "video" ? "REEL" : "IMAGE"}
+        </span>
+      </div>
+
+      <div className="relative aspect-video bg-[radial-gradient(circle_at_20%_18%,rgba(110,231,183,0.18),transparent_30%),linear-gradient(135deg,rgba(7,18,16,0.95),rgba(16,21,30,0.95))]">
+        {status === "ready" && activeImage ? (
+          <img src={activeImage} alt={asset.title} className="h-full w-full object-cover" />
+        ) : (
+          <div className="grid h-full place-items-center p-5 text-center">
+            <p className="rounded-2xl border border-white/10 bg-black/28 px-4 py-3 font-arsans text-sm leading-6 text-emerald-100/76">
+              {status === "error" ? (isArabic ? "تعذر إنشاء الوسيط الآن. البرومبت محفوظ داخل المحادثة." : "Could not generate this media now. The prompt is saved in chat.") : isArabic ? "Gemini ينشئ الوسيط الآن داخل المحادثة..." : "Gemini is generating this media inside the chat..."}
+            </p>
+          </div>
+        )}
+        {asset.kind === "video" && status === "ready" ? (
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/82 to-transparent p-3">
+            <div className="flex gap-1.5" dir="ltr">
+              {frames.map((frame, index) => (
+                <button key={`${frame.imageDataUrl}:${index}`} type="button" onClick={() => setActiveFrame(index)} className={`h-1.5 flex-1 rounded-full transition-colors ${index === activeFrame ? "bg-emerald-100" : "bg-white/25"}`} aria-label={isArabic ? `لقطة ${index + 1}` : `Frame ${index + 1}`} />
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="grid gap-2 p-3 sm:grid-cols-[1fr_auto] sm:items-center">
+        <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-emerald-100/55" dir="ltr">{sourceLabel}</p>
+        <button type="button" onClick={() => void copyTextToClipboard(asset.prompt)} className="ui-action rounded-lg border border-emerald-100/30 px-3 py-2 text-xs text-emerald-100 transition-colors hover:bg-emerald-100 hover:text-[#0E0D10]">
+          {isArabic ? "انسخ البرومبت" : "Copy prompt"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function buildGeneratedVideoFramePrompts(asset: GeneratedMediaAsset, language: Language) {
+  const isArabic = language === "ar";
+  const base = asset.prompt;
+  return [
+    isArabic ? `${base}\n\nاللقطة 1: افتتاحية واسعة تحدد المكان والمزاج، بدون نص داخل الصورة.` : `${base}\n\nFrame 1: wide opening shot establishing place and mood, no text inside the image.`,
+    isArabic ? `${base}\n\nاللقطة 2: لقطة متوسطة فيها حركة أو تحول واضح، بدون نص داخل الصورة.` : `${base}\n\nFrame 2: medium shot with clear motion or transformation, no text inside the image.`,
+    isArabic ? `${base}\n\nاللقطة 3: نهاية بصرية واضحة تصلح كآخر إطار لفيديو قصير، بدون نص داخل الصورة.` : `${base}\n\nFrame 3: clear closing visual suitable as the final frame of a short reel, no text inside the image.`,
+  ];
 }
 
 function resourceTypeLabel(type: LearningResource["type"], language: Language) {

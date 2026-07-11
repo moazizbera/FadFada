@@ -270,7 +270,7 @@ function VersionChip({ language, version, hasUpdate }: { language: "ar" | "en"; 
   const isArabic = language === "ar";
 
   return (
-    <div className="fixed bottom-3 left-3 z-[54] rounded-full border border-white/10 bg-[#0E0D10]/80 px-3 py-1.5 font-mono text-[9px] text-[#F7F3EC]/45 shadow-2xl backdrop-blur-xl" dir="ltr" aria-label={isArabic ? `إصدار فضفضة ${version}` : `FadFada version ${version}`}>
+    <div className="fixed bottom-24 left-3 z-[54] rounded-full border border-white/10 bg-[#0E0D10]/80 px-3 py-1.5 font-mono text-[9px] text-[#F7F3EC]/45 shadow-2xl backdrop-blur-xl md:bottom-3" dir="ltr" aria-label={isArabic ? `إصدار فضفضة ${version}` : `FadFada version ${version}`}>
       <span>{hasUpdate ? (isArabic ? "تحديث" : "update") : "v"}</span> <span>{version}</span>
     </div>
   );
