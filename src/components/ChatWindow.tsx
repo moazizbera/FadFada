@@ -3640,9 +3640,9 @@ function inferRequestedLanguage(text: string, fallbackLanguage: Language): Langu
 
 function detectGeneratedMediaKind(text: string): GeneratedMediaAsset["kind"] | null {
   const normalizedText = text.toLowerCase();
-  const asksToCreate = /(create|generate|make|draw|design|render|produce|build|can we make|could you make|اصنع|ولّد|ولد|انشئ|أنشئ|اعمل|اعملي|اعمللي|نعمل|نصنع|ننشئ|نسوي|سوي|ممكن|عايز|أريد|اريد|صمم|ارسم|حوّل|حول)/i.test(normalizedText);
+  const asksToCreate = /(create|generate|make|draw|design|render|produce|build|can we make|could you make|اصنع|ولّد|ولد|انشئ|أنشئ|اعمل|اعملي|اعمللي|نعمل|نصنع|ننشئ|نسوي|سوي|ممكن|عايز|عاوز|عايزة|أريد|اريد|صمم|ارسم|حوّل|حول)/i.test(normalizedText);
   if (!asksToCreate) return null;
-  if (/(video|reel|short|clip|animation|animated|movie|فيديو|فديو|ريل|مقطع|أنيميشن|انيميشن|حركة|متحرك|مشاهد)/i.test(normalizedText)) return "video";
+  if (/(video|reel|short|clip|animation|animated|movie|فيديو|فديو|فيدو|ڤيديو|قيديو|قديو|قيدو|ريل|مقطع|أنيميشن|انيميشن|حركة|متحرك|مشاهد)/i.test(normalizedText)) return "video";
   if (/(image|picture|poster|visual|storyboard|scene|photo|صورة|صور|بوستر|مشهد|لوحة|تصميم|كارت|بطاقة)/i.test(normalizedText)) return "image";
   return null;
 }
