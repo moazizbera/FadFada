@@ -6153,6 +6153,8 @@ async function encodeFramesAsVideo(frameUrls: string[]) {
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Canvas context is unavailable");
 
+  const images = await Promise.all(frameUrls.map(loadFrameImage));
+  drawVideoFrame(context, images[0], canvas.width, canvas.height, 0, 0);
   const videoFormat = getSupportedRecordingFormat();
   if (!videoFormat) throw new Error("No supported video recording format");
   const stream = canvas.captureStream(30);
@@ -6169,8 +6171,7 @@ async function encodeFramesAsVideo(frameUrls: string[]) {
     recorder.onstop = () => resolve(new Blob(chunks, { type: videoFormat.mimeType }));
   });
 
-  recorder.start();
-  const images = await Promise.all(frameUrls.map(loadFrameImage));
+  recorder.start(250);
   for (let index = 0; index < images.length; index += 1) {
     for (let step = 0; step < 18; step += 1) {
       drawVideoFrame(context, images[index], canvas.width, canvas.height, index, step / 17);
@@ -6179,9 +6180,11 @@ async function encodeFramesAsVideo(frameUrls: string[]) {
   }
   drawVideoFrame(context, images[images.length - 1], canvas.width, canvas.height, images.length - 1, 1);
   await wait(240);
+  if (recorder.state === "recording") recorder.requestData();
   recorder.stop();
-  stream.getTracks().forEach((track) => track.stop());
   const blob = await stopped;
+  stream.getTracks().forEach((track) => track.stop());
+  if (chunks.length === 0 || blob.size === 0) throw new Error("Video recorder produced an empty file");
 
   const mimeType = blob.type || recorder.mimeType || videoFormat.mimeType || "video/webm";
   return {
