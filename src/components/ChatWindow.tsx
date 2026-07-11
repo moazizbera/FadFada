@@ -1603,7 +1603,9 @@ export function ChatWindow() {
   }
 
   function submitClientGeminiStoryDemo() {
-    const storyPersona = personas.find((persona) => persona.id === "rawi") ?? activePersona;
+    const storyPersona = globallyAvailablePersonas.find((persona) => persona.id === "rawi" && unlockedPersonaIds.includes(persona.id))
+      ?? globallyAvailablePersonas.find((persona) => persona.id === unlockedPersonaIds[0])
+      ?? activePersona;
     const text = language === "ar"
       ? "حوّل شعوري إلى لوحة مشاهد بصرية قابلة لتوليد الصور: شخص يدخل مساحة هادئة بعد يوم ضغط، يرى الفوضى كضباب خفيف، ثم يجد خطوة صغيرة نحو ضوء واضح. أعطني 3 مشاهد قصيرة، ولكل مشهد برومبت صورة سينمائية آمن بدون نص داخل الصورة."
       : "Turn my feeling into a visual storyboard ready for image generation: a person enters a calm space after a pressured day, sees the noise as light fog, then finds one small step toward clear light. Give me 3 short scenes, each with a safe cinematic image prompt and no text inside the image.";
@@ -3001,8 +3003,13 @@ export function ChatWindow() {
           language={language}
           userId={userId}
           currentWorld={world}
+          avatarsEnabled={avatarsEnabled}
+          availablePersonas={globallyAvailablePersonas}
+          unlockedPersonaIds={unlockedPersonaIds}
           onContent={submitClientGeminiContentPack}
-          onPersona={() => setPersonaOpen(true)}
+          onPersona={() => {
+            if (avatarsEnabled) setPersonaOpen(true);
+          }}
           onStory={submitClientGeminiStoryDemo}
           onVisitorChallenge={submitVisitorChallenge}
           onLifeProject={submitLifeProjectTemplate}
@@ -4460,6 +4467,8 @@ type SmartFeatureSlide = {
 };
 
 function SmartFeatureShowcase({
+  availablePersonas,
+  avatarsEnabled,
   currentWorld,
   language,
   onContent,
@@ -4468,8 +4477,11 @@ function SmartFeatureShowcase({
   onPersona,
   onStory,
   onVisitorChallenge,
+  unlockedPersonaIds,
   userId,
 }: {
+  availablePersonas: Persona[];
+  avatarsEnabled: boolean;
   currentWorld: WorldId;
   language: Language;
   onContent: () => void;
@@ -4478,6 +4490,7 @@ function SmartFeatureShowcase({
   onPersona: () => void;
   onStory: () => void;
   onVisitorChallenge: (text: string, world: WorldId, personaId: PersonaId) => void;
+  unlockedPersonaIds: PersonaId[];
   userId: string;
 }) {
   const isArabic = language === "ar";
@@ -4537,7 +4550,10 @@ function SmartFeatureShowcase({
     },
   ];
   const activeSlide = slides[activeIndex] ?? slides[0];
-  const activePersona = personas.find((persona) => persona.id === activeSlide.personaId) ?? personas[0];
+  const permittedPersonaIds = new Set(unlockedPersonaIds);
+  const permittedPersonas = avatarsEnabled ? availablePersonas.filter((persona) => permittedPersonaIds.has(persona.id)) : [];
+  const personaAccessEnabled = permittedPersonas.length > 0;
+  const activePersona = permittedPersonas.find((persona) => persona.id === activeSlide.personaId) ?? permittedPersonas[0] ?? availablePersonas[0] ?? personas[0];
   const activePersonaPresentation = getHeaderAvatarPresentation(activePersona);
   const activePersonaName = language === "ar" ? activePersonaPresentation.nameAr : activePersonaPresentation.nameEn;
   const activePersonaRole = language === "ar" ? activePersona.roleAr : activePersona.roleEn;
@@ -4663,20 +4679,36 @@ function SmartFeatureShowcase({
 
         <div className="relative min-h-[22rem] bg-[linear-gradient(135deg,rgba(255,255,255,0.055),rgba(255,255,255,0.015))] p-4 sm:p-5">
           <div className="flex h-full flex-col justify-between gap-5 rounded-[1.1rem] border border-white/10 bg-black/22 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="ui-kicker" style={{ color: activeSlide.accent }}>{isArabic ? "الشخصية المناسبة" : "Matched persona"}</p>
-                <h3 className="mt-2 font-arui text-2xl font-semibold text-[#F7F3EC]/95">{activePersonaName}</h3>
-                <p className="mt-1 font-arsans text-sm leading-6 text-[#F7F3EC]/54">{activePersonaRole}</p>
-              </div>
-              <span className="rounded-full border border-white/10 bg-white/[0.045] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#F7F3EC]/50" dir="ltr">
-                {activeSlide.key.replace("-", " ")}
-              </span>
-            </div>
+            {personaAccessEnabled ? (
+              <>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="ui-kicker" style={{ color: activeSlide.accent }}>{isArabic ? "الشخصية المناسبة" : "Matched persona"}</p>
+                    <h3 className="mt-2 font-arui text-2xl font-semibold text-[#F7F3EC]/95">{activePersonaName}</h3>
+                    <p className="mt-1 font-arsans text-sm leading-6 text-[#F7F3EC]/54">{activePersonaRole}</p>
+                  </div>
+                  <span className="rounded-full border border-white/10 bg-white/[0.045] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#F7F3EC]/50" dir="ltr">
+                    {activeSlide.key.replace("-", " ")}
+                  </span>
+                </div>
 
-            <div className="relative mx-auto h-48 w-48 overflow-hidden rounded-[2rem] border border-white/14 bg-black/28 shadow-[0_24px_90px_rgba(0,0,0,0.34)] sm:h-56 sm:w-56" style={{ boxShadow: `0 0 0 1px rgba(255,255,255,0.1), 0 0 70px ${hexToRgba(activeSlide.accent, 0.34)}` }}>
-              <Image src={activePersonaPresentation.avatarPath} alt={activePersonaName} fill sizes="224px" className="object-cover" />
-            </div>
+                <div className="relative mx-auto h-48 w-48 overflow-hidden rounded-[2rem] border border-white/14 bg-black/28 shadow-[0_24px_90px_rgba(0,0,0,0.34)] sm:h-56 sm:w-56" style={{ boxShadow: `0 0 0 1px rgba(255,255,255,0.1), 0 0 70px ${hexToRgba(activeSlide.accent, 0.34)}` }}>
+                  <Image src={activePersonaPresentation.avatarPath} alt={activePersonaName} fill sizes="224px" className="object-cover" />
+                </div>
+              </>
+            ) : (
+              <div className="grid min-h-64 place-items-center rounded-[1rem] border border-white/10 bg-black/20 p-4 text-center">
+                <div>
+                  <p className="ui-kicker" style={{ color: activeSlide.accent }}>{isArabic ? "الشخصيات مقفلة" : "Personas disabled"}</p>
+                  <h3 className="mt-3 font-arui text-2xl font-semibold leading-8 text-[#F7F3EC]/92">
+                    {isArabic ? "ظهور الشخصيات يدار من لوحة الأدمن" : "Persona visibility is managed from admin"}
+                  </h3>
+                  <p className="mt-2 font-arsans text-sm leading-6 text-[#F7F3EC]/52">
+                    {isArabic ? "عند إيقافها أو حجبها، لا نعرض أفاتاراً في واجهة الزائر." : "When disabled or blocked, no avatar is shown in the visitor UI."}
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               <button type="button" onClick={() => setActiveIndex((activeIndex + slides.length - 1) % slides.length)} className="ui-action rounded-xl border border-white/12 bg-white/[0.045] px-3 py-2.5 text-xs text-[#F7F3EC]/68 transition-colors hover:border-white/28 hover:text-[#F7F3EC]">
