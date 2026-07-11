@@ -6156,7 +6156,9 @@ async function encodeFramesAsVideo(frameUrls: string[]) {
   const videoFormat = getSupportedRecordingFormat();
   if (!videoFormat) throw new Error("No supported video recording format");
   const stream = canvas.captureStream(30);
-  const recorder = new MediaRecorder(stream, { mimeType: videoFormat.mimeType });
+  const recorder = videoFormat.mimeType
+    ? new MediaRecorder(stream, { mimeType: videoFormat.mimeType })
+    : new MediaRecorder(stream);
   const chunks: BlobPart[] = [];
   recorder.ondataavailable = (event) => {
     if (event.data.size > 0) chunks.push(event.data);
@@ -6181,7 +6183,12 @@ async function encodeFramesAsVideo(frameUrls: string[]) {
   stream.getTracks().forEach((track) => track.stop());
   const blob = await stopped;
 
-  return { url: URL.createObjectURL(blob), mimeType: videoFormat.mimeType, extension: videoFormat.extension };
+  const mimeType = blob.type || recorder.mimeType || videoFormat.mimeType || "video/webm";
+  return {
+    url: URL.createObjectURL(new Blob([blob], { type: mimeType })),
+    mimeType,
+    extension: videoFormat.extension,
+  };
 }
 
 function getSupportedRecordingFormat() {
@@ -6193,7 +6200,7 @@ function getSupportedRecordingFormat() {
     { mimeType: "video/mp4", extension: "mp4" },
   ];
 
-  return formats.find((format) => MediaRecorder.isTypeSupported(format.mimeType));
+  return formats.find((format) => MediaRecorder.isTypeSupported(format.mimeType)) || { mimeType: "", extension: "webm" };
 }
 
 function loadFrameImage(src: string) {
