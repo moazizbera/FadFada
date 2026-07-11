@@ -40,6 +40,11 @@ const personaNeedRecommendations: Array<{ id: PersonaId; ar: string; en: string;
   { id: "sami", ar: "طمأنينة", en: "Comfort", hintAr: "حكمة ناعمة", hintEn: "Gentle wisdom" },
   { id: "sarah", ar: "وضوح", en: "Clarity", hintAr: "تبسيط هادئ", hintEn: "Calm simplifier" },
 ];
+const personaValueCards = [
+  { ar: "رفيق مناسب للحالة", en: "Matched companion", hintAr: "اختيار سريع حسب الاحتياج بدل قائمة مربكة.", hintEn: "A quick need-based choice instead of a confusing list." },
+  { ar: "نتيجة يمكن رؤيتها", en: "Visible result", hintAr: "خطة، قصة، أو رد عملي يثبت القيمة فوراً.", hintEn: "A plan, story, or useful reply that proves value fast." },
+  { ar: "بلس واضح بدون إخفاء", en: "Clear Plus preview", hintAr: "الشخصيات المقفلة تظهر كمعاينة جذابة قبل الترقية.", hintEn: "Locked personas stay visible as attractive previews before upgrade." },
+];
 
 type AvatarPresentation = {
   avatarPath: string;
@@ -243,14 +248,33 @@ export function PersonaDrawer({
           </button>
         </div>
         <div className="mb-5 rounded-2xl border border-[#C9A86A]/20 bg-[#C9A86A]/[0.045] p-3" dir={isArabic ? "rtl" : "ltr"}>
-          <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-start text-sm font-semibold text-bone/88`}>{isArabic ? "اختر حسب احتياجك الآن" : "Pick by what you need now"}</p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 text-start">
+              <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-sm font-semibold text-bone/88`}>{isArabic ? "اختر حسب احتياجك الآن" : "Pick by what you need now"}</p>
+              <p className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 text-xs leading-5 text-bone/48`}>
+                {isArabic ? "كل رفيق يبيع نتيجة مختلفة للزائر: سماع أهدأ، خطوة عملية، أو حكاية تكشف المعنى." : "Each companion sells a different outcome: calmer listening, practical next steps, or a story that reveals meaning."}
+              </p>
+            </div>
+            <span className="w-fit shrink-0 rounded-full border border-[#C9A86A]/30 bg-black/20 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#C9A86A]" dir="ltr">
+              Plus preview
+            </span>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            {personaValueCards.map((card) => (
+              <div key={card.en} className="rounded-xl border border-white/10 bg-black/18 p-3 text-start">
+                <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-xs font-semibold text-bone/82`}>{isArabic ? card.ar : card.en}</p>
+                <p className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 text-[11px] leading-5 text-bone/44`}>{isArabic ? card.hintAr : card.hintEn}</p>
+              </div>
+            ))}
+          </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-5">
             {personaNeedRecommendations.map((item) => {
               const persona = personaSource.find((candidate) => candidate.id === item.id);
               const locked = !unlockedPersonaIds.includes(item.id);
               return (
-                <button key={item.id} type="button" onClick={() => chooseRecommendedPersona(item.id)} className={`rounded-xl border px-3 py-2 text-start transition-colors ${locked ? "border-white/10 bg-black/20 text-bone/36" : "border-white/10 bg-white/[0.035] text-bone/78 hover:border-[#C9A86A]/45 hover:bg-[#C9A86A]/10"}`}>
-                  <span className={`${isArabic ? "font-arsans" : "font-ensans"} block text-sm font-semibold`}>{isArabic ? item.ar : item.en}</span>
+                <button key={item.id} type="button" onClick={() => chooseRecommendedPersona(item.id)} className={`relative rounded-xl border px-3 py-2 text-start transition-colors ${locked ? "border-[#C9A86A]/26 bg-black/24 text-bone/70 hover:border-[#C9A86A]/48 hover:bg-[#C9A86A]/10" : "border-white/10 bg-white/[0.035] text-bone/78 hover:border-[#C9A86A]/45 hover:bg-[#C9A86A]/10"}`}>
+                  {locked ? <span className="absolute end-2 top-2 rounded-full border border-[#C9A86A]/35 bg-[#0E0D10]/70 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.08em] text-[#C9A86A]" dir="ltr">Plus</span> : null}
+                  <span className={`${isArabic ? "font-arsans" : "font-ensans"} block pe-8 text-sm font-semibold`}>{isArabic ? item.ar : item.en}</span>
                   <span className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 block text-[10px] text-bone/42`}>{persona ? (isArabic ? persona.nameAr : persona.nameEn) : item.id} · {isArabic ? item.hintAr : item.hintEn}</span>
                 </button>
               );
