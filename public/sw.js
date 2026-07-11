@@ -1,4 +1,4 @@
-const CACHE_NAME = "fadfada-shell-v94";
+const CACHE_NAME = "fadfada-shell-v95";
 const SHELL_ASSETS = ["/", "/manifest.json", "/icon.svg"];
 
 self.addEventListener("install", (event) => {

@@ -2625,8 +2625,9 @@ export function ChatWindow() {
 
       const responseWorld = data.world && data.world in worlds ? data.world : requestWorld;
       const cadence = normalizeCadence(data.emotionalCadence?.speed, responseWorld);
-      const responseText = data.text || (nextLanguage === "ar" ? "أنا معاك. خلينا نكمل بخطوة صغيرة." : "I am with you. Let's continue with one small step.");
-      const generatedMedia = generatedMediaKind ? buildGeneratedMediaAsset(generatedMediaKind, text, responseText, nextLanguage) : undefined;
+      const rawResponseText = data.text || (nextLanguage === "ar" ? "أنا معاك. خلينا نكمل بخطوة صغيرة." : "I am with you. Let's continue with one small step.");
+      const responseText = generatedMediaKind ? buildGeneratedMediaReply(generatedMediaKind, nextLanguage) : rawResponseText;
+      const generatedMedia = generatedMediaKind ? buildGeneratedMediaAsset(generatedMediaKind, text, rawResponseText, nextLanguage) : undefined;
       if (accessState !== "plus") {
         useOneCredit();
       }
@@ -3157,6 +3158,7 @@ export function ChatWindow() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="mb-2 font-arsans text-[11px] text-[#C9A86A]/70">{messageDisplayName}</p>
+                  {message.generatedMedia ? <GeneratedMediaCard language={messageLanguage} asset={message.generatedMedia} /> : null}
                   <TypewriterSync
                     text={messagePersonaEnvironment.formatAssistantText?.(message.text) ?? message.text}
                     language={messageLanguage}
@@ -3166,7 +3168,6 @@ export function ChatWindow() {
                     instant={animatedAssistantMessageIds.includes(message.id)}
                     onComplete={() => setAnimatedAssistantMessageIds((current) => current.includes(message.id) ? current : [...current, message.id])}
                   />
-                {message.generatedMedia ? <GeneratedMediaCard language={messageLanguage} asset={message.generatedMedia} /> : null}
                 <VoicePlaybackButton
                   language={messageLanguage}
                   speaking={speakingMessageId === message.id}
@@ -3639,11 +3640,23 @@ function inferRequestedLanguage(text: string, fallbackLanguage: Language): Langu
 
 function detectGeneratedMediaKind(text: string): GeneratedMediaAsset["kind"] | null {
   const normalizedText = text.toLowerCase();
-  const asksToCreate = /(create|generate|make|draw|design|render|produce|اصنع|ولّد|ولد|انشئ|أنشئ|اعمل|صمم|ارسم|حوّل|حول)/i.test(normalizedText);
+  const asksToCreate = /(create|generate|make|draw|design|render|produce|build|can we make|could you make|اصنع|ولّد|ولد|انشئ|أنشئ|اعمل|اعملي|اعمللي|نعمل|نصنع|ننشئ|نسوي|سوي|ممكن|عايز|أريد|اريد|صمم|ارسم|حوّل|حول)/i.test(normalizedText);
   if (!asksToCreate) return null;
-  if (/(video|reel|short|clip|animation|animated|فيديو|ريل|مقطع|أنيميشن|انيميشن|حركة|متحرك)/i.test(normalizedText)) return "video";
-  if (/(image|picture|poster|visual|storyboard|scene|photo|صورة|بوستر|مشهد|لوحة|تصميم|كارت|بطاقة)/i.test(normalizedText)) return "image";
+  if (/(video|reel|short|clip|animation|animated|movie|فيديو|فديو|ريل|مقطع|أنيميشن|انيميشن|حركة|متحرك|مشاهد)/i.test(normalizedText)) return "video";
+  if (/(image|picture|poster|visual|storyboard|scene|photo|صورة|صور|بوستر|مشهد|لوحة|تصميم|كارت|بطاقة)/i.test(normalizedText)) return "image";
   return null;
+}
+
+function buildGeneratedMediaReply(kind: GeneratedMediaAsset["kind"], language: Language) {
+  if (language === "ar") {
+    return kind === "video"
+      ? "تمام. سأحوّل طلبك إلى فيديو بصري قصير داخل المحادثة الآن، بدون فتح يوتيوب أو إخراجك من فضفضة."
+      : "تمام. سأولّد الصورة داخل المحادثة الآن، وأحفظ البرومبت معها حتى تقدر ترجع لها.";
+  }
+
+  return kind === "video"
+    ? "Done. I will generate a short visual video reel inside the conversation now, without opening YouTube or taking you out of FadFada."
+    : "Done. I will generate the image inside the conversation now and keep the prompt with it.";
 }
 
 function buildGeneratedMediaAsset(kind: GeneratedMediaAsset["kind"], userText: string, assistantText: string, language: Language): GeneratedMediaAsset {
