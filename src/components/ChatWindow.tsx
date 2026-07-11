@@ -4628,6 +4628,7 @@ function SmartFeatureShowcase({
 }) {
   const isArabic = language === "ar";
   const [activeIndex, setActiveIndex] = useState(0);
+  const [activePersonaIndex, setActivePersonaIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const visitorMoment = visitorChallengeMoments[language][0];
   const lifeProject = lifeProjectTemplates[language][0];
@@ -4686,7 +4687,8 @@ function SmartFeatureShowcase({
   const permittedPersonaIds = new Set(unlockedPersonaIds);
   const permittedPersonas = avatarsEnabled ? availablePersonas.filter((persona) => permittedPersonaIds.has(persona.id)) : [];
   const personaAccessEnabled = avatarsEnabled && availablePersonas.length > 0;
-  const activePersona = availablePersonas.find((persona) => persona.id === activeSlide.personaId) ?? permittedPersonas[0] ?? availablePersonas[0] ?? personas[0];
+  const personaCarousel = personaAccessEnabled ? availablePersonas : [];
+  const activePersona = personaCarousel[activePersonaIndex % Math.max(1, personaCarousel.length)] ?? availablePersonas.find((persona) => persona.id === activeSlide.personaId) ?? permittedPersonas[0] ?? availablePersonas[0] ?? personas[0];
   const activePersonaPresentation = getHeaderAvatarPresentation(activePersona);
   const activePersonaName = language === "ar" ? activePersonaPresentation.nameAr : activePersonaPresentation.nameEn;
   const activePersonaRole = language === "ar" ? activePersona.roleAr : activePersona.roleEn;
@@ -4705,14 +4707,27 @@ function SmartFeatureShowcase({
     runIfPersonaUnlocked(activePersona.id, activeSlide.onAction);
   }
 
+  function movePersonaCarousel(direction: 1 | -1) {
+    if (personaCarousel.length === 0) return;
+    setActivePersonaIndex((current) => (current + direction + personaCarousel.length) % personaCarousel.length);
+  }
+
+  useEffect(() => {
+    if (activePersonaIndex < personaCarousel.length) return;
+    setActivePersonaIndex(0);
+  }, [activePersonaIndex, personaCarousel.length]);
+
   useEffect(() => {
     if (isExpanded) return;
     const timer = window.setInterval(() => {
       setActiveIndex((current) => (current + 1) % slides.length);
+      if (personaCarousel.length > 1) {
+        setActivePersonaIndex((current) => (current + 1) % personaCarousel.length);
+      }
     }, 5600);
 
     return () => window.clearInterval(timer);
-  }, [isExpanded, slides.length]);
+  }, [isExpanded, personaCarousel.length, slides.length]);
 
   useEffect(() => {
     if (!isExpanded) return;
@@ -4830,7 +4845,7 @@ function SmartFeatureShowcase({
               <>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="ui-kicker" style={{ color: activeSlide.accent }}>{isArabic ? "الشخصية المناسبة" : "Matched persona"}</p>
+                    <p className="ui-kicker" style={{ color: activeSlide.accent }}>{isArabic ? "كل شخصيات فضفضة" : "All FadFada personas"}</p>
                     <h3 className="mt-2 font-arui text-2xl font-semibold text-[#F7F3EC]/95">{activePersonaName}</h3>
                     <p className="mt-1 font-arsans text-sm leading-6 text-[#F7F3EC]/54">{activePersonaRole}</p>
                   </div>
@@ -4847,6 +4862,9 @@ function SmartFeatureShowcase({
                     {isArabic ? "يمكن للزائر رؤية الشخصية والنتيجة المتوقعة، لكن التشغيل الكامل يفتح مع بلس." : "Visitors can preview this persona and value, but running it unlocks with Plus."}
                   </p>
                 ) : null}
+                <p className="text-center font-mono text-[10px] uppercase tracking-[0.08em] text-[#F7F3EC]/38" dir="ltr">
+                  {personaCarousel.length > 0 ? `${activePersonaIndex + 1}/${personaCarousel.length}` : "0/0"}
+                </p>
               </>
             ) : (
               <div className="grid min-h-64 place-items-center rounded-[1rem] border border-white/10 bg-black/20 p-4 text-center">
@@ -4863,10 +4881,10 @@ function SmartFeatureShowcase({
             )}
 
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-              <button type="button" onClick={() => setActiveIndex((activeIndex + slides.length - 1) % slides.length)} className="ui-action rounded-xl border border-white/12 bg-white/[0.045] px-3 py-2.5 text-xs text-[#F7F3EC]/68 transition-colors hover:border-white/28 hover:text-[#F7F3EC]">
+              <button type="button" onClick={() => movePersonaCarousel(-1)} className="ui-action rounded-xl border border-white/12 bg-white/[0.045] px-3 py-2.5 text-xs text-[#F7F3EC]/68 transition-colors hover:border-white/28 hover:text-[#F7F3EC]">
                 {isArabic ? "السابق" : "Previous"}
               </button>
-              <button type="button" onClick={() => setActiveIndex((activeIndex + 1) % slides.length)} className="ui-action rounded-xl border border-white/12 bg-white/[0.045] px-3 py-2.5 text-xs text-[#F7F3EC]/68 transition-colors hover:border-white/28 hover:text-[#F7F3EC]">
+              <button type="button" onClick={() => movePersonaCarousel(1)} className="ui-action rounded-xl border border-white/12 bg-white/[0.045] px-3 py-2.5 text-xs text-[#F7F3EC]/68 transition-colors hover:border-white/28 hover:text-[#F7F3EC]">
                 {isArabic ? "التالي" : "Next"}
               </button>
             </div>
