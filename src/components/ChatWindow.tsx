@@ -152,6 +152,11 @@ type ReflectResponse = {
   emotionalCadence?: {
     speed?: EmotionalCadence;
   };
+  mediaIntent?: {
+    kind?: "image" | "video";
+    confidence?: number;
+    prompt?: string;
+  };
   resources?: LearningResource[];
   error?: "PAYWALL_TRIGGERED" | string;
   promptUpsell?: boolean;
@@ -2575,7 +2580,7 @@ export function ChatWindow() {
     }
 
     const nextLanguage = inferRequestedLanguage(text, language);
-    const generatedMediaKind = detectGeneratedMediaKind(text);
+    const clientDetectedMediaKind = detectGeneratedMediaKind(text);
     const requestWorld = overrideWorld ?? world;
     const candidatePersona = overridePersona ?? activePersona;
     const requestPersona = candidatePersona.id === "custom" || unlockedPersonaIds.includes(candidatePersona.id)
@@ -2625,9 +2630,10 @@ export function ChatWindow() {
 
       const responseWorld = data.world && data.world in worlds ? data.world : requestWorld;
       const cadence = normalizeCadence(data.emotionalCadence?.speed, responseWorld);
+      const generatedMediaKind = data.mediaIntent?.kind === "image" || data.mediaIntent?.kind === "video" ? data.mediaIntent.kind : clientDetectedMediaKind;
       const rawResponseText = data.text || (nextLanguage === "ar" ? "أنا معاك. خلينا نكمل بخطوة صغيرة." : "I am with you. Let's continue with one small step.");
       const responseText = generatedMediaKind ? buildGeneratedMediaReply(generatedMediaKind, nextLanguage) : rawResponseText;
-      const generatedMedia = generatedMediaKind ? buildGeneratedMediaAsset(generatedMediaKind, text, rawResponseText, nextLanguage) : undefined;
+      const generatedMedia = generatedMediaKind ? buildGeneratedMediaAsset(generatedMediaKind, text, rawResponseText, nextLanguage, data.mediaIntent?.prompt) : undefined;
       if (accessState !== "plus") {
         useOneCredit();
       }
@@ -3659,18 +3665,20 @@ function buildGeneratedMediaReply(kind: GeneratedMediaAsset["kind"], language: L
     : "Done. I will generate the image inside the conversation now and keep the prompt with it.";
 }
 
-function buildGeneratedMediaAsset(kind: GeneratedMediaAsset["kind"], userText: string, assistantText: string, language: Language): GeneratedMediaAsset {
+function buildGeneratedMediaAsset(kind: GeneratedMediaAsset["kind"], userText: string, assistantText: string, language: Language, promptOverride?: string): GeneratedMediaAsset {
   const isArabic = language === "ar";
   const title = kind === "video"
     ? isArabic ? "فيديو مولّد داخل المحادثة" : "Generated in-chat video reel"
     : isArabic ? "صورة مولّدة داخل المحادثة" : "Generated in-chat image";
-  const prompt = [
-    isArabic
-      ? "حوّل الطلب التالي إلى أصل بصري آمن داخل فضفضة، بدون نص داخل الصورة، وبأسلوب سينمائي واضح."
-      : "Turn the following request into a safe FadFada visual asset, with no text inside the image and a clear cinematic style.",
-    userText,
-    assistantText.slice(0, 900),
-  ].join("\n\n");
+  const prompt = promptOverride?.trim()
+    ? promptOverride.trim().slice(0, 3000)
+    : [
+        isArabic
+          ? "حوّل الطلب التالي إلى أصل بصري آمن داخل فضفضة، بدون نص داخل الصورة، وبأسلوب سينمائي واضح."
+          : "Turn the following request into a safe FadFada visual asset, with no text inside the image and a clear cinematic style.",
+        userText,
+        assistantText.slice(0, 900),
+      ].join("\n\n");
 
   return {
     id: `media:${crypto.randomUUID()}`,

@@ -34,6 +34,11 @@ type ReflectGeminiPayload = {
     typewriterIntervalMs: number;
     particleVelocity: number;
   };
+  mediaIntent?: {
+    kind?: "none" | "image" | "video";
+    confidence?: number;
+    prompt?: string;
+  };
 };
 
 type ReflectResource = {
@@ -78,6 +83,7 @@ export async function POST(request: NextRequest) {
   const effectiveWorld = isDailyPulseRequest ? currentWorld : fallback.world;
   let responseText = fallback.replyText;
   let cadence = buildCadence(effectiveWorld);
+  let mediaIntent: ReturnType<typeof normalizeMediaIntent>;
   let responseSource: "gemini" | "fallback" = "fallback";
   let aiStatus = "not_attempted";
   const geminiDisabled = process.env.GEMINI_DISABLED === "true";
@@ -180,13 +186,15 @@ export async function POST(request: NextRequest) {
           "For poetry: use structured rhyming verses, controlled metaphor, and generous line breaks.",
           "For build: use short action-oriented project tasks, numbered steps, and no decorative language.",
           "When the user asks to prepare, choose for me, make it ready, give the exact post, write the presentation, or says they do not want explanation, switch from advisor mode to deliverable mode: output the final usable artifact first, with copy they can paste or upload. Do not repeat strategy, do not praise the request, and do not end with more discovery questions unless a required detail is impossible to infer.",
+          "MEDIA INTENT ROUTING: If the user asks, requests, wants, needs, or implies creating/generating/making a video, reel, clip, animation, image, picture, poster, visual, storyboard, or scene, classify this as mediaIntent instead of treating it as a request for a written script. This includes Arabic wording and typos such as: فيديو، فديو، قيديو، اطلب فيديو، عايز فيديو، عاوز فيديو، محتاج فيديو، ابغى فيديو، نعمل فيديو، ممكن فيديو، صورة، بوستر، تصميم.",
+          "For mediaIntent.kind video or image, keep text very short: confirm that FadFada will generate the media inside the conversation. Do not output a full screenplay, storyboard, marketing plan, LinkedIn post, or production script unless the user explicitly asks for a script or plan instead of actual generated media.",
           "For marketing/content deliverables, provide publish-ready assets: exact post text, carousel or presentation slide text, CTA, hashtags, and optional design notes only after the copy. If the user names a platform, tailor the format to that platform.",
           "For learning: teach as a concise coach, include a micro-plan, and suggest resource types without fabricating inaccessible links.",
           "For grief/stillness: slow down, validate, and recommend nearby trusted people or emergency resources if risk appears.",
           "If the current message starts with 'Daily check-in:' or 'تسجيل يومي:', preserve the current world unless the user expresses urgent safety risk. Treat mood and energy as reflection context, not as a request to switch topics.",
           "If the user asks to translate, convert, continue, or reframe the previous message, preserve the subject and world instead of resetting context.",
           "Return strict JSON only. No markdown fences. No prose outside JSON.",
-          "JSON shape: { text: string, world: calm|story|faith|build|learning|celebration|grief, emotionalCadence: { speed: slow_reflective|steady_calm|rapid_energetic, typewriterIntervalMs: number, particleVelocity: number } }.",
+          "JSON shape: { text: string, world: calm|story|faith|build|learning|celebration|grief, emotionalCadence: { speed: slow_reflective|steady_calm|rapid_energetic, typewriterIntervalMs: number, particleVelocity: number }, mediaIntent: { kind: none|image|video, confidence: number, prompt: string } }.",
         ].filter(Boolean).join("\n"),
         temperature: effectiveWorld === "build" ? 0.35 : 0.72,
         responseMimeType: "application/json",
@@ -199,6 +207,7 @@ export async function POST(request: NextRequest) {
       const responseWorld = isDailyPulseRequest ? effectiveWorld : normalizeWorld(parsed.world) || effectiveWorld;
       responseText = ensureDirectionFriendlyText(parsed.text, currentLanguage);
       cadence = normalizeCadence(parsed.emotionalCadence, responseWorld);
+      mediaIntent = normalizeMediaIntent(parsed.mediaIntent);
       responseSource = "gemini";
       aiStatus = "gemini_json";
     } else if (generatedText) {
@@ -221,12 +230,23 @@ export async function POST(request: NextRequest) {
       text: responseText,
       world: effectiveWorld,
       emotionalCadence: cadence,
+      mediaIntent,
       resources: normalizeResources(fallback.resources),
       source: responseSource,
       aiStatus,
     },
     { status: 200 }
   );
+}
+
+function normalizeMediaIntent(value: ReflectGeminiPayload["mediaIntent"] | undefined) {
+  if (!value || (value.kind !== "image" && value.kind !== "video")) return undefined;
+
+  return {
+    kind: value.kind,
+    confidence: clampNumber(value.confidence ?? 0.7, 0.7, 0, 1),
+    prompt: typeof value.prompt === "string" ? value.prompt.trim().slice(0, 1200) : "",
+  };
 }
 
 function normalizeWorld(world: WorldId | undefined): WorldId {
