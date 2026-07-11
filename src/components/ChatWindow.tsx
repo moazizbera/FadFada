@@ -2997,17 +2997,17 @@ export function ChatWindow() {
             : "A calm Arabic/English space: write what is inside, then open the menu when you need a companion, a step, or a saved moment."}
         </p>
         <TrustChipRow language={language} />
-        <ClientGeminiStudio
+        <SmartFeatureShowcase
           language={language}
           userId={userId}
           currentWorld={world}
           onContent={submitClientGeminiContentPack}
           onPersona={() => setPersonaOpen(true)}
           onStory={submitClientGeminiStoryDemo}
+          onVisitorChallenge={submitVisitorChallenge}
+          onLifeProject={submitLifeProjectTemplate}
+          onConsultant={submitConsultantScenario}
         />
-        <VisitorChallengeDeck language={language} onRun={submitVisitorChallenge} />
-        <LifeProjectShowcase language={language} onRun={submitLifeProjectTemplate} />
-        <ConsultantHub language={language} onRun={submitConsultantScenario} />
         {plusWelcomeOpen ? (
           <PlusWelcomeCard
             language={language}
@@ -4443,6 +4443,254 @@ function TrustChipRow({ language }: { language: Language }) {
         </span>
       ))}
     </div>
+  );
+}
+
+type SmartFeatureSlide = {
+  key: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+  chips: string[];
+  proof: string;
+  personaId: PersonaId;
+  accent: string;
+  actionLabel: string;
+  onAction: () => void;
+};
+
+function SmartFeatureShowcase({
+  currentWorld,
+  language,
+  onContent,
+  onConsultant,
+  onLifeProject,
+  onPersona,
+  onStory,
+  onVisitorChallenge,
+  userId,
+}: {
+  currentWorld: WorldId;
+  language: Language;
+  onContent: () => void;
+  onConsultant: (text: string, world: WorldId, personaId: PersonaId, consultantBadge: string) => void;
+  onLifeProject: (text: string, world: WorldId, personaId: PersonaId, projectBadge: string) => void;
+  onPersona: () => void;
+  onStory: () => void;
+  onVisitorChallenge: (text: string, world: WorldId, personaId: PersonaId) => void;
+  userId: string;
+}) {
+  const isArabic = language === "ar";
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const visitorMoment = visitorChallengeMoments[language][0];
+  const lifeProject = lifeProjectTemplates[language][0];
+  const consultant = consultantScenarios[language].find((scenario) => scenario.badge === (isArabic ? "IT" : "IT")) ?? consultantScenarios[language][0];
+  const slides: SmartFeatureSlide[] = [
+    {
+      key: "gemini-studio",
+      eyebrow: isArabic ? "استوديو Gemini" : "Gemini studio",
+      title: isArabic ? "اصنع صورة، ارفع فيديو، وشغّل شخصية تتكلم" : "Create images, upload media, and make a persona speak",
+      description: isArabic ? "واجهة واحدة تعرض قدرات Gemini للزائر فوراً: صورة، صوت/فيديو، شخصية، ومحتوى جاهز." : "One visitor-facing surface for Gemini: image, audio/video, persona, voice, and ready content.",
+      chips: isArabic ? ["Image", "Video", "Voice", "Persona"] : ["Image", "Video", "Voice", "Persona"],
+      proof: isArabic ? "مناسب لعرض الحكام: نتيجة مرئية بدل شرح طويل." : "Built for judging: visible output instead of a long explanation.",
+      personaId: "screenwriter",
+      accent: "#6EE7B7",
+      actionLabel: isArabic ? "افتح الاستوديو" : "Open studio",
+      onAction: () => setIsExpanded(true),
+    },
+    {
+      key: "visitor-challenge",
+      eyebrow: isArabic ? "تحدي الزائر" : "Visitor challenge",
+      title: visitorMoment.title,
+      description: visitorMoment.description,
+      chips: isArabic ? ["30 ثانية", "رفيق مناسب", "خطوة واضحة"] : ["30 sec", "Companion match", "Clear step"],
+      proof: isArabic ? "زر واحد يثبت قيمة فضفضة من أول دقيقة." : "One tap proves the value in the first minute.",
+      personaId: visitorMoment.personaId,
+      accent: "#C9A86A",
+      actionLabel: isArabic ? "ابدأ التحدي" : "Start challenge",
+      onAction: () => onVisitorChallenge(visitorMoment.text, visitorMoment.world, visitorMoment.personaId),
+    },
+    {
+      key: "life-projects",
+      eyebrow: isArabic ? "مشاريع الحياة" : "Life projects",
+      title: lifeProject.title,
+      description: lifeProject.description,
+      chips: lifeProject.artifacts,
+      proof: lifeProject.bring,
+      personaId: lifeProject.personaId,
+      accent: "#D4724A",
+      actionLabel: isArabic ? "ابدأ المشروع" : "Start project",
+      onAction: () => onLifeProject(lifeProject.text, lifeProject.world, lifeProject.personaId, lifeProject.badge),
+    },
+    {
+      key: "consultant-hub",
+      eyebrow: isArabic ? "مركز الاستشارات" : "Consultant hub",
+      title: consultant.title,
+      description: consultant.description,
+      chips: isArabic ? ["تشخيص", "أسئلة ذكية", "خطوات إصلاح"] : ["Diagnosis", "Smart intake", "Fix steps"],
+      proof: consultant.intake,
+      personaId: consultant.personaId,
+      accent: "#67E8F9",
+      actionLabel: isArabic ? "جرّب الاستشارة" : "Try consult",
+      onAction: () => onConsultant(consultant.text, consultant.world, consultant.personaId, consultant.badge),
+    },
+  ];
+  const activeSlide = slides[activeIndex] ?? slides[0];
+  const activePersona = personas.find((persona) => persona.id === activeSlide.personaId) ?? personas[0];
+  const activePersonaPresentation = getHeaderAvatarPresentation(activePersona);
+  const activePersonaName = language === "ar" ? activePersonaPresentation.nameAr : activePersonaPresentation.nameEn;
+  const activePersonaRole = language === "ar" ? activePersona.roleAr : activePersona.roleEn;
+
+  useEffect(() => {
+    if (isExpanded) return;
+    const timer = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % slides.length);
+    }, 5600);
+
+    return () => window.clearInterval(timer);
+  }, [isExpanded, slides.length]);
+
+  useEffect(() => {
+    if (!isExpanded) return;
+
+    function closeOnEscape(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") setIsExpanded(false);
+    }
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [isExpanded]);
+
+  const dialog = isExpanded && typeof document !== "undefined" ? createPortal(
+    <div className="fixed inset-0 z-[90] overflow-y-auto bg-[#050607]/82 px-3 py-4 backdrop-blur-xl sm:px-5 sm:py-8" dir={isArabic ? "rtl" : "ltr"} role="dialog" aria-modal="true" aria-label={isArabic ? "كل ميزات فضفضة" : "All FadFada features"}>
+      <div className="mx-auto max-w-6xl overflow-hidden rounded-[1.35rem] border border-white/14 bg-[#101012] shadow-[0_32px_120px_rgba(0,0,0,0.56)]">
+        <div className="relative overflow-hidden border-b border-white/10 bg-[radial-gradient(circle_at_20%_12%,rgba(110,231,183,0.18),transparent_32%),radial-gradient(circle_at_82%_0%,rgba(201,168,106,0.18),transparent_30%),linear-gradient(135deg,rgba(17,24,22,0.98),rgba(12,13,18,0.96))] p-4 sm:p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="ui-kicker text-emerald-100/85">{isArabic ? "عرض الميزات الكامل" : "Full feature view"}</p>
+              <h2 className="mt-2 max-w-2xl font-arui text-2xl font-semibold leading-8 text-[#F7F3EC]/95 sm:text-3xl sm:leading-10">
+                {isArabic ? "كل شيء يراه الزائر: إنشاء، فهم، شخصية، ومخرجات عملية" : "Everything a visitor can see: creation, understanding, persona, and practical outputs"}
+              </h2>
+              <p className="mt-2 max-w-2xl font-arsans text-sm leading-6 text-[#F7F3EC]/58">
+                {isArabic ? "اختر أي بطاقة للتشغيل فوراً، أو استخدم استوديو Gemini لصورة، صوت/فيديو، وشخصية تتكلم." : "Run any card immediately, or use Gemini Studio for image, audio/video, and a speaking persona."}
+              </p>
+            </div>
+            <button type="button" onClick={() => setIsExpanded(false)} className="ui-action h-10 w-10 shrink-0 rounded-full border border-white/12 bg-black/22 text-lg text-[#F7F3EC]/70 transition-colors hover:border-[#F7F3EC]/35 hover:text-[#F7F3EC]" aria-label={isArabic ? "إغلاق" : "Close"}>×</button>
+          </div>
+        </div>
+
+        <div className="max-h-[82vh] overflow-y-auto p-3 sm:p-5">
+          <ClientGeminiStudio
+            language={language}
+            userId={userId}
+            currentWorld={currentWorld}
+            onContent={onContent}
+            onPersona={onPersona}
+            onStory={onStory}
+          />
+          <VisitorChallengeDeck language={language} onRun={onVisitorChallenge} />
+          <LifeProjectShowcase language={language} onRun={onLifeProject} />
+          <ConsultantHub language={language} onRun={onConsultant} />
+        </div>
+      </div>
+    </div>,
+    document.body
+  ) : null;
+
+  return (
+    <section className="mt-5 w-full overflow-hidden rounded-[1.35rem] border border-white/14 bg-[#F7F3EC]/[0.045] text-start shadow-2xl backdrop-blur" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="relative grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="absolute inset-0 opacity-70" style={{ background: `radial-gradient(circle at 18% 12%, ${hexToRgba(activeSlide.accent, 0.2)}, transparent 28rem)` }} />
+        <div className="relative min-h-[25rem] overflow-hidden border-b border-white/10 p-4 sm:p-5 lg:border-b-0 lg:border-e">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="ui-kicker" style={{ color: activeSlide.accent }}>{isArabic ? "واجهة ذكية للزائر" : "Smart visitor showcase"}</p>
+              <h2 className="mt-2 max-w-xl font-arui text-2xl font-semibold leading-8 text-[#F7F3EC]/95 sm:text-3xl sm:leading-10">
+                {isArabic ? "الميزات تتحرك بسلاسة بدل قائمة طويلة" : "Features glide smoothly instead of a long wall"}
+              </h2>
+            </div>
+            <button type="button" onClick={() => setIsExpanded(true)} className="ui-action shrink-0 rounded-full border border-white/12 bg-black/24 px-3 py-2 font-arsans text-xs text-[#F7F3EC]/72 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
+              {isArabic ? "تكبير" : "Maximize"}
+            </button>
+          </div>
+
+          <div key={activeSlide.key} className="mt-8 transition-all duration-500 ease-out">
+            <span className="inline-flex rounded-full border border-white/12 bg-black/24 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em]" style={{ color: activeSlide.accent }} dir="ltr">
+              {activeSlide.eyebrow}
+            </span>
+            <h3 className="mt-4 max-w-xl font-arui text-3xl font-semibold leading-10 text-[#F7F3EC]/95 sm:text-4xl sm:leading-[3rem]">
+              {activeSlide.title}
+            </h3>
+            <p className="mt-3 max-w-lg font-arsans text-sm leading-7 text-[#F7F3EC]/58 sm:text-base">
+              {activeSlide.description}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {activeSlide.chips.map((chip) => (
+                <span key={chip} className="rounded-full border border-white/10 bg-white/[0.055] px-2.5 py-1 font-arsans text-[11px] text-[#F7F3EC]/68">
+                  {chip}
+                </span>
+              ))}
+            </div>
+            <div className="mt-5 rounded-xl border border-white/10 bg-black/20 px-3 py-3 font-arsans text-xs leading-5 text-[#F7F3EC]/62">
+              {activeSlide.proof}
+            </div>
+          </div>
+
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex gap-2" dir="ltr">
+              {slides.map((slide, index) => (
+                <button
+                  key={slide.key}
+                  type="button"
+                  onClick={() => setActiveIndex(index)}
+                  className={`h-2.5 rounded-full transition-all ${index === activeIndex ? "w-9" : "w-2.5 bg-white/18 hover:bg-white/34"}`}
+                  style={index === activeIndex ? { backgroundColor: activeSlide.accent } : undefined}
+                  aria-label={isArabic ? `اعرض ${slide.eyebrow}` : `Show ${slide.eyebrow}`}
+                />
+              ))}
+            </div>
+            <div className="grid gap-2 sm:grid-cols-[auto_auto]">
+              <button type="button" onClick={activeSlide.onAction} className="ui-action rounded-xl px-4 py-3 text-sm text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]" style={{ backgroundColor: activeSlide.accent }}>
+                {activeSlide.actionLabel}
+              </button>
+              <button type="button" onClick={() => setIsExpanded(true)} className="ui-action rounded-xl border border-white/12 bg-black/20 px-4 py-3 text-sm text-[#F7F3EC]/72 transition-colors hover:border-[#F7F3EC]/35 hover:text-[#F7F3EC]">
+                {isArabic ? "شاهد الكل" : "See all"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative min-h-[22rem] bg-[linear-gradient(135deg,rgba(255,255,255,0.055),rgba(255,255,255,0.015))] p-4 sm:p-5">
+          <div className="flex h-full flex-col justify-between gap-5 rounded-[1.1rem] border border-white/10 bg-black/22 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="ui-kicker" style={{ color: activeSlide.accent }}>{isArabic ? "الشخصية المناسبة" : "Matched persona"}</p>
+                <h3 className="mt-2 font-arui text-2xl font-semibold text-[#F7F3EC]/95">{activePersonaName}</h3>
+                <p className="mt-1 font-arsans text-sm leading-6 text-[#F7F3EC]/54">{activePersonaRole}</p>
+              </div>
+              <span className="rounded-full border border-white/10 bg-white/[0.045] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#F7F3EC]/50" dir="ltr">
+                {activeSlide.key.replace("-", " ")}
+              </span>
+            </div>
+
+            <div className="relative mx-auto h-48 w-48 overflow-hidden rounded-[2rem] border border-white/14 bg-black/28 shadow-[0_24px_90px_rgba(0,0,0,0.34)] sm:h-56 sm:w-56" style={{ boxShadow: `0 0 0 1px rgba(255,255,255,0.1), 0 0 70px ${hexToRgba(activeSlide.accent, 0.34)}` }}>
+              <Image src={activePersonaPresentation.avatarPath} alt={activePersonaName} fill sizes="224px" className="object-cover" />
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              <button type="button" onClick={() => setActiveIndex((activeIndex + slides.length - 1) % slides.length)} className="ui-action rounded-xl border border-white/12 bg-white/[0.045] px-3 py-2.5 text-xs text-[#F7F3EC]/68 transition-colors hover:border-white/28 hover:text-[#F7F3EC]">
+                {isArabic ? "السابق" : "Previous"}
+              </button>
+              <button type="button" onClick={() => setActiveIndex((activeIndex + 1) % slides.length)} className="ui-action rounded-xl border border-white/12 bg-white/[0.045] px-3 py-2.5 text-xs text-[#F7F3EC]/68 transition-colors hover:border-white/28 hover:text-[#F7F3EC]">
+                {isArabic ? "التالي" : "Next"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      {dialog}
+    </section>
   );
 }
 
