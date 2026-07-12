@@ -1468,6 +1468,8 @@ export function ChatWindow() {
   const [appShareLoading, setAppShareLoading] = useState(false);
   const [shareStatus, setShareStatus] = useState<ShareStatus>("idle");
   const [plusWelcomeOpen, setPlusWelcomeOpen] = useState(false);
+  const [visitorShowcaseOpen, setVisitorShowcaseOpen] = useState(false);
+  const [receiptOpen, setReceiptOpen] = useState(false);
   const [storyOpen, setStoryOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [activeHomePanel, setActiveHomePanel] = useState<HomeToolPanel>("checkin");
@@ -1521,6 +1523,7 @@ export function ChatWindow() {
   const activeBehavior = behaviorStyles[behaviorStyle];
   const conversationContinuity = useMemo(() => buildConversationContinuity(messages, language), [messages, language]);
   const latestAssistantMessage = useMemo(() => [...messages].reverse().find((message) => message.role === "assistant" && message.id !== "opening"), [messages]);
+  const latestUserMessage = useMemo(() => [...messages].reverse().find((message) => message.role === "user"), [messages]);
   const greetingName = useMemo(() => normalizeGreetingName(session?.user?.name || session?.user?.email), [session?.user?.email, session?.user?.name]);
   const visitorDisplayName = useMemo(() => normalizeGreetingName(visitorName), [visitorName]);
   const effectiveUserName = greetingName ?? visitorDisplayName;
@@ -2762,6 +2765,8 @@ export function ChatWindow() {
       setUserId(nextUserId);
     }
 
+    setVisitorShowcaseOpen(localStorage.getItem("fadfada-visitor-showcase-seen") !== "true");
+
     try {
       const storedConversation = JSON.parse(localStorage.getItem(conversationStorageKey) || "null") as { messages?: ChatMessage[]; world?: WorldId } | null;
       const restoredMessages = sanitizeStoredMessages(storedConversation?.messages);
@@ -2986,6 +2991,143 @@ export function ChatWindow() {
     window.setTimeout(focusInput, 80);
   }
 
+  function closeVisitorShowcase() {
+    localStorage.setItem("fadfada-visitor-showcase-seen", "true");
+    setVisitorShowcaseOpen(false);
+  }
+
+  function runStoryboardDemo() {
+    const storyPersona = personas.find((persona) => persona.id === "rawi") ?? activePersona;
+    closeVisitorShowcase();
+    submitJudgeScenario(
+      language === "ar"
+        ? "اصنعي مثالاً بصرياً إبداعياً: شخص يدخل غرفة هادئة مليئة بضوء ذهبي وظلال زرقاء، يحمل شعور أن أحداً قلل من ألمه. حوّليها إلى لوحة مشاهد بثلاث صور رمزية: اللحظة كما دخلت، المرآة الهادئة، والخطوة الصغيرة نحو ضوء واضح. اجعلي البرومبتات صالحة لتوليد صور سينمائية آمنة بدون نص داخل الصورة."
+        : "Create a creative visual demo: a person enters a quiet room filled with golden light and blue shadows, carrying the feeling that someone minimized their pain. Turn it into a three-image symbolic storyboard: the moment as it arrived, the calm mirror, and one small step toward clear light. Make the prompts ready for safe cinematic image generation with no text inside the image.",
+      "story",
+      language,
+      storyPersona.id
+    );
+  }
+
+  const visitorShowcaseDialog = visitorShowcaseOpen && typeof document !== "undefined" ? createPortal(
+    <div className="fixed inset-0 z-[85] overflow-y-auto bg-[#050607]/82 px-3 py-4 backdrop-blur-xl sm:px-5 sm:py-8" role="dialog" aria-modal="true" aria-label={language === "ar" ? "استكشاف فضفضة" : "Explore FadFada"} dir={language === "ar" ? "rtl" : "ltr"}>
+      <button type="button" className="absolute inset-0" onClick={closeVisitorShowcase} aria-label={language === "ar" ? "إغلاق المقدمة" : "Close intro"} />
+      <section className="relative mx-auto max-w-5xl overflow-hidden rounded-[1.5rem] border border-white/12 bg-[#0E0D10]/96 p-4 shadow-[0_32px_120px_rgba(0,0,0,0.58)] sm:p-5">
+        <div className="flex flex-col gap-4 border-b border-white/10 pb-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="text-start">
+            <p className="ui-kicker text-[#C9A86A]/85">{language === "ar" ? "مقدمة سريعة" : "Quick intro"}</p>
+            <h2 className="mt-2 max-w-2xl font-arui text-2xl font-semibold leading-8 text-[#F7F3EC]/95 sm:text-3xl sm:leading-10">
+              {language === "ar" ? "كل الميزات هنا عند الحاجة، والمحادثة تبقى هادئة" : "All features live here on demand, while chat stays calm"}
+            </h2>
+            <p className="mt-2 max-w-2xl font-arsans text-sm leading-6 text-[#F7F3EC]/58">
+              {language === "ar" ? "اكتب مباشرة في المحادثة. افتح هذه الشاشة فقط عندما تريد ديمو، رفيقاً، لوحة مشاهد، أو أدوات Gemini." : "Write directly in chat. Open this screen only when you want the demo, companions, storyboard, or Gemini tools."}
+            </p>
+            <TrustChipRow language={language} />
+          </div>
+          <button type="button" onClick={closeVisitorShowcase} className="ui-action h-10 w-10 shrink-0 rounded-full border border-white/12 bg-black/22 text-lg text-[#F7F3EC]/70 transition-colors hover:border-[#F7F3EC]/35 hover:text-[#F7F3EC]" aria-label={language === "ar" ? "إغلاق" : "Close"}>×</button>
+        </div>
+
+        <div className="max-h-[78vh] overflow-y-auto pb-2 pt-4 [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
+          <SmartFeatureShowcase
+            language={language}
+            userId={userId}
+            accessState={accessState}
+            currentWorld={world}
+            avatarsEnabled={avatarsEnabled}
+            availablePersonas={globallyAvailablePersonas}
+            unlockedPersonaIds={unlockedPersonaIds}
+            onRequirePlus={() => setPaywallOpen(true)}
+            onContent={() => {
+              closeVisitorShowcase();
+              submitClientGeminiContentPack();
+            }}
+            onPersona={() => {
+              closeVisitorShowcase();
+              if (avatarsEnabled) setPersonaOpen(true);
+            }}
+            onStory={() => {
+              closeVisitorShowcase();
+              submitClientGeminiStoryDemo();
+            }}
+            onVisitorChallenge={(text, nextWorld, nextPersonaId) => {
+              closeVisitorShowcase();
+              submitVisitorChallenge(text, nextWorld, nextPersonaId);
+            }}
+            onLifeProject={(text, nextWorld, nextPersonaId, projectBadge) => {
+              closeVisitorShowcase();
+              submitLifeProjectTemplate(text, nextWorld, nextPersonaId, projectBadge);
+            }}
+            onConsultant={(text, nextWorld, nextPersonaId, consultantBadge) => {
+              closeVisitorShowcase();
+              submitConsultantScenario(text, nextWorld, nextPersonaId, consultantBadge);
+            }}
+          />
+          {plusWelcomeOpen ? (
+            <PlusWelcomeCard
+              language={language}
+              onClose={() => setPlusWelcomeOpen(false)}
+              onExplore={() => {
+                setPlusWelcomeOpen(false);
+                closeVisitorShowcase();
+                setToolsOpen(true);
+                setActiveHomePanel("plans");
+              }}
+            />
+          ) : null}
+          <FeatureAnnouncementCard language={language} onTry={runStoryboardDemo} />
+          <JudgeDemoCallout language={language} onRun={() => {
+            const scenario = judgeDemoScenarios[language][0];
+            closeVisitorShowcase();
+            submitJudgeScenario(scenario.text, scenario.world, scenario.targetLanguage, scenario.personaId);
+          }} />
+          <FirstMomentPanel language={language} onSelect={(text, nextWorld) => {
+            closeVisitorShowcase();
+            submitStarterMoment(text, nextWorld);
+          }} onPersona={avatarsEnabled ? () => {
+            closeVisitorShowcase();
+            setPersonaOpen(true);
+          } : undefined} onDemo={runStoryboardDemo} />
+          <ReturnMemoryCard
+            language={language}
+            continuity={conversationContinuity}
+            onContinue={() => {
+              closeVisitorShowcase();
+              scrollToSection("chat");
+              window.setTimeout(focusInput, 120);
+            }}
+            onSaveSnapshot={saveJourneySnapshot}
+          />
+        </div>
+      </section>
+    </div>,
+    document.body
+  ) : null;
+
+  const receiptDialog = receiptOpen && latestAssistantMessage && typeof document !== "undefined" ? createPortal(
+    <div className="fixed inset-0 z-[82] grid place-items-center bg-black/68 px-3 py-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={language === "ar" ? "خلاصة الفضفضة" : "Reflection summary"} dir={language === "ar" ? "rtl" : "ltr"}>
+      <button type="button" className="absolute inset-0" onClick={() => setReceiptOpen(false)} aria-label={language === "ar" ? "إغلاق الخلاصة" : "Close summary"} />
+      <section className="relative max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-[1.5rem] border border-white/10 bg-[#0E0D10]/96 p-3 shadow-2xl backdrop-blur-2xl [scrollbar-color:rgba(201,168,106,0.45)_transparent] sm:p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="ui-kicker text-[#C9A86A]/85">{language === "ar" ? "خلاصة عند الطلب" : "On-demand summary"}</p>
+          <button type="button" onClick={() => setReceiptOpen(false)} className="ui-action rounded-full border border-white/10 px-3 py-2 text-xs text-[#F7F3EC]/60 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
+            {language === "ar" ? "إغلاق" : "Close"}
+          </button>
+        </div>
+        <ReflectionReceiptCard
+          language={language}
+          message={latestAssistantMessage}
+          userMessage={latestUserMessage}
+          personaName={latestAssistantMessage.personaName || activePersonaDisplayName}
+          onSaveSnapshot={saveJourneySnapshot}
+          onSafeShare={() => void shareSafeReceipt(latestAssistantMessage)}
+          onProofShare={() => void shareProofCard(latestAssistantMessage)}
+          onStartQuest={startGrowthQuest}
+        />
+      </section>
+    </div>,
+    document.body
+  ) : null;
+
   return (
     <main
       className={`relative mx-auto flex min-h-screen max-w-5xl flex-col overflow-hidden px-4 pb-56 pt-20 transition-all duration-700 ease-in-out md:pb-40 ${personaEnvironment.ambientClassName} ${personaEnvironment.textClassName} ${personaEnvironment.typographyClassName}`}
@@ -3051,69 +3193,25 @@ export function ChatWindow() {
             ? "مساحة عربية/إنجليزية هادئة: اكتب ما بداخلك، واختر من القائمة عندما تحتاج رفيقًا أو خطوة أو حفظ لحظة."
             : "A calm Arabic/English space: write what is inside, then open the menu when you need a companion, a step, or a saved moment."}
         </p>
-        <TrustChipRow language={language} />
-        <SmartFeatureShowcase
-          language={language}
-          userId={userId}
-          accessState={accessState}
-          currentWorld={world}
-          avatarsEnabled={avatarsEnabled}
-          availablePersonas={globallyAvailablePersonas}
-          unlockedPersonaIds={unlockedPersonaIds}
-          onRequirePlus={() => setPaywallOpen(true)}
-          onContent={submitClientGeminiContentPack}
-          onPersona={() => {
-            if (avatarsEnabled) setPersonaOpen(true);
-          }}
-          onStory={submitClientGeminiStoryDemo}
-          onVisitorChallenge={submitVisitorChallenge}
-          onLifeProject={submitLifeProjectTemplate}
-          onConsultant={submitConsultantScenario}
-        />
-        {plusWelcomeOpen ? (
-          <PlusWelcomeCard
-            language={language}
-            onClose={() => setPlusWelcomeOpen(false)}
-            onExplore={() => {
-              setPlusWelcomeOpen(false);
-              setToolsOpen(true);
-              setActiveHomePanel("plans");
-            }}
-          />
-        ) : null}
-        <FeatureAnnouncementCard language={language} onTry={() => {
-          const storyPersona = personas.find((persona) => persona.id === "rawi") ?? activePersona;
-          submitJudgeScenario(
-            language === "ar"
-              ? "اصنعي مثالاً بصرياً إبداعياً: شخص يدخل غرفة هادئة مليئة بضوء ذهبي وظلال زرقاء، يحمل شعور أن أحداً قلل من ألمه. حوّليها إلى لوحة مشاهد بثلاث صور رمزية: اللحظة كما دخلت، المرآة الهادئة، والخطوة الصغيرة نحو ضوء واضح. اجعلي البرومبتات صالحة لتوليد صور سينمائية آمنة بدون نص داخل الصورة."
-              : "Create a creative visual demo: a person enters a quiet room filled with golden light and blue shadows, carrying the feeling that someone minimized their pain. Turn it into a three-image symbolic storyboard: the moment as it arrived, the calm mirror, and one small step toward clear light. Make the prompts ready for safe cinematic image generation with no text inside the image.",
-            "story",
-            language,
-            storyPersona.id
-          );
-        }} />
-        <JudgeDemoCallout language={language} onRun={() => {
-          const scenario = judgeDemoScenarios[language][0];
-          submitJudgeScenario(scenario.text, scenario.world, scenario.targetLanguage, scenario.personaId);
-        }} />
-        <div className="mt-5 w-full max-w-sm" dir={language === "ar" ? "rtl" : "ltr"}>
-          <button type="button" onClick={focusInput} className="ui-action w-full rounded-xl bg-[#C9A86A] px-4 py-3 text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
+        <div className="mt-5 grid w-full max-w-xl gap-2 sm:grid-cols-3" dir={language === "ar" ? "rtl" : "ltr"}>
+          <button type="button" onClick={focusInput} className="ui-action rounded-xl bg-[#C9A86A] px-4 py-3 text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
             {language === "ar" ? "ابدأ الفضفضة" : "Start venting"}
           </button>
+          <button type="button" onClick={() => setVisitorShowcaseOpen(true)} className="ui-action rounded-xl border border-[#C9A86A]/35 bg-black/20 px-4 py-3 text-[#C9A86A] transition-colors hover:bg-[#C9A86A] hover:text-[#0E0D10]">
+            {language === "ar" ? "استكشف الميزات" : "Explore features"}
+          </button>
+          <button type="button" onClick={() => avatarsEnabled ? setPersonaOpen(true) : setToolsOpen(true)} className="ui-action rounded-xl border border-white/12 bg-white/[0.035] px-4 py-3 text-[#F7F3EC]/72 transition-colors hover:border-[#F7F3EC]/35 hover:text-[#F7F3EC]">
+            {language === "ar" ? "اختر رفيق" : "Choose persona"}
+          </button>
         </div>
-        <FirstMomentPanel language={language} onSelect={submitStarterMoment} onPersona={avatarsEnabled ? () => setPersonaOpen(true) : undefined} onDemo={() => {
-          const scenario = judgeDemoScenarios[language][0];
-          submitJudgeScenario(scenario.text, scenario.world, scenario.targetLanguage, scenario.personaId);
-        }} />
-        <ReturnMemoryCard
-          language={language}
-          continuity={conversationContinuity}
-          onContinue={() => {
+        {conversationContinuity && conversationContinuity.count > 0 ? (
+          <button type="button" onClick={() => {
             scrollToSection("chat");
             window.setTimeout(focusInput, 120);
-          }}
-          onSaveSnapshot={saveJourneySnapshot}
-        />
+          }} className="mt-3 max-w-md rounded-full border border-emerald-100/20 bg-emerald-100/10 px-4 py-2 font-arsans text-xs text-emerald-100/78 transition-colors hover:bg-emerald-100 hover:text-[#0E0D10]" dir={language === "ar" ? "rtl" : "ltr"}>
+            {language === "ar" ? `كمّل آخر خيط: ${conversationContinuity.topic}` : `Continue last thread: ${conversationContinuity.topic}`}
+          </button>
+        ) : null}
         <p className="mt-3 font-arsans text-sm text-[#F7F3EC]/45">{language === "ar" ? activeWorld.nameAr : activeWorld.nameEn}</p>
         {shareStatus !== "idle" ? (
           <p className="mt-3 rounded-full border border-cyan-100/20 bg-black/25 px-4 py-2 text-center font-arsans text-xs text-cyan-100" aria-live="polite">
@@ -3121,6 +3219,8 @@ export function ChatWindow() {
           </p>
         ) : null}
       </section>
+
+      {visitorShowcaseDialog}
 
       <section
         ref={chatRef}
@@ -3204,16 +3304,11 @@ export function ChatWindow() {
           );
         })}
         {latestAssistantMessage ? (
-          <ReflectionReceiptCard
-            language={language}
-            message={latestAssistantMessage}
-            userMessage={[...messages].reverse().find((message) => message.role === "user")}
-            personaName={latestAssistantMessage.personaName || activePersonaDisplayName}
-            onSaveSnapshot={saveJourneySnapshot}
-            onSafeShare={() => void shareSafeReceipt(latestAssistantMessage)}
-            onProofShare={() => void shareProofCard(latestAssistantMessage)}
-            onStartQuest={startGrowthQuest}
-          />
+          <button type="button" onClick={() => setReceiptOpen(true)} className="mx-auto w-full max-w-md rounded-2xl border border-[#C9A86A]/25 bg-[#C9A86A]/[0.055] px-4 py-3 text-start shadow-xl backdrop-blur transition-colors hover:border-[#C9A86A]/50 hover:bg-[#C9A86A]/10" dir={language === "ar" ? "rtl" : "ltr"}>
+            <span className="ui-kicker text-[#C9A86A]/85">{language === "ar" ? "خلاصة الفضفضة" : "Reflection summary"}</span>
+            <span className="mt-1 block font-arui text-lg font-semibold text-[#F7F3EC]/92">{language === "ar" ? "افتح ما فهمناه والخطوة التالية" : "Open what we understood and the next step"}</span>
+            <span className="mt-1 block truncate font-arsans text-xs text-[#F7F3EC]/46">{latestAssistantMessage.personaName || activePersonaDisplayName}</span>
+          </button>
         ) : null}
         {isThinking ? (
           <ThinkingShimmer language={language} personaName={language === "ar" ? activePersona.nameAr : activePersona.nameEn} />
@@ -3222,6 +3317,8 @@ export function ChatWindow() {
       </section>
 
       {paywallOpen ? <PaywallCard language={language} accessState={accessState} remainingReflections={remainingReflections} configuration={experienceConfiguration} loading={checkoutLoading} onCheckout={startCheckout} onSignIn={openSignInGift} onClose={() => setPaywallOpen(false)} /> : null}
+
+      {receiptDialog}
 
       {toolsOpen ? (
         <HomeToolsDialog
