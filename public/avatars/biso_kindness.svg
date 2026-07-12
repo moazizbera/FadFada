@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Biso Kindness avatar">
+  <defs>
+    <linearGradient id="bg" x1="74" x2="438" y1="42" y2="472" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7C8FF"/>
+      <stop offset="0.5" stop-color="#B8E5FF"/>
+      <stop offset="1" stop-color="#FFE5A3"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="matrix(0 204 -204 0 256 226)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="104" fill="#21172B"/>
+  <circle cx="256" cy="238" r="214" fill="url(#bg)"/>
+  <circle cx="256" cy="226" r="170" fill="url(#glow)" opacity="0.7"/>
+  <path fill="#303A52" d="M141 226c10-78 58-130 115-130 66 0 113 58 113 133v104H141V226Z"/>
+  <path fill="#465173" d="M129 227c25-77 80-119 144-111 51 7 86 41 103 91-38 17-78 13-121-14-28 31-70 45-126 34Z"/>
+  <circle cx="256" cy="246" r="104" fill="#D9A37C"/>
+  <circle cx="216" cy="243" r="12" fill="#202536"/>
+  <circle cx="296" cy="243" r="12" fill="#202536"/>
+  <circle cx="212" cy="238" r="4" fill="#FFFFFF"/>
+  <circle cx="292" cy="238" r="4" fill="#FFFFFF"/>
+  <path fill="none" stroke="#7D3E4B" stroke-linecap="round" stroke-width="8" d="M229 291c19 15 40 15 58 0"/>
+  <circle cx="190" cy="270" r="13" fill="#F09AA9" opacity="0.55"/>
+  <circle cx="322" cy="270" r="13" fill="#F09AA9" opacity="0.55"/>
+  <path fill="#D9A37C" d="M150 253c-18-6-31 7-28 25 3 17 20 27 36 20l-8-45Zm211 0c18-6 31 7 28 25-3 17-20 27-36 20l8-45Z"/>
+  <path fill="#6D4CA3" d="M116 417c18-63 71-98 140-98s122 35 140 98v33H116v-33Z"/>
+  <path fill="#F7C8FF" d="M172 394h168l-21 56H193l-21-56Z" opacity="0.72"/>
+  <g fill="#FFFFFF" stroke="#21172B" stroke-linejoin="round" stroke-width="5">
+    <path d="M111 125c0-20 16-35 35-35 13 0 25 7 31 18 7-11 18-18 32-18 20 0 35 15 35 35 0 39-67 75-67 75s-66-36-66-75Z"/>
+    <path d="M339 138c0-15 12-27 27-27 10 0 19 5 24 14 5-9 14-14 25-14 15 0 27 12 27 27 0 30-52 58-52 58s-51-28-51-58Z" opacity="0.9"/>
+    <path d="M63 302c0-14 11-25 25-25 9 0 18 5 22 13 5-8 13-13 23-13 14 0 25 11 25 25 0 28-48 54-48 54s-47-26-47-54Z" opacity="0.88"/>
+  </g>
+  <path fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-width="10" d="M177 81c42-27 115-30 160 1" opacity="0.68"/>
+</svg>

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Tala Explorer avatar">
+  <defs>
+    <linearGradient id="bg" x1="72" x2="440" y1="46" y2="470" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B5F0C8"/>
+      <stop offset="0.52" stop-color="#72C8F4"/>
+      <stop offset="1" stop-color="#FFC36D"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="matrix(0 210 -210 0 262 226)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="104" fill="#0C2021"/>
+  <circle cx="256" cy="238" r="214" fill="url(#bg)"/>
+  <circle cx="262" cy="226" r="168" fill="url(#glow)" opacity="0.68"/>
+  <path fill="#513326" d="M134 229c5-82 57-137 125-137 69 0 119 56 119 137v102H134V229Z"/>
+  <path fill="#6B3E2B" d="M126 229c24-82 85-128 151-112 46 11 79 44 97 95-54 11-111-3-171-42-17 27-41 47-77 59Z"/>
+  <circle cx="256" cy="247" r="103" fill="#C9875C"/>
+  <circle cx="216" cy="244" r="12" fill="#14213D"/>
+  <circle cx="297" cy="244" r="12" fill="#14213D"/>
+  <circle cx="212" cy="239" r="4" fill="#FFFFFF"/>
+  <circle cx="293" cy="239" r="4" fill="#FFFFFF"/>
+  <path fill="none" stroke="#6A2F2B" stroke-linecap="round" stroke-width="8" d="M231 292c18 14 39 14 56 0"/>
+  <path fill="#C9875C" d="M151 253c-18-6-31 7-28 24 3 17 20 27 36 20l-8-44Zm210 0c18-6 31 7 28 24-3 17-20 27-36 20l8-44Z"/>
+  <path fill="#28666E" d="M116 417c18-63 71-98 140-98s122 35 140 98v33H116v-33Z"/>
+  <path fill="#B5F0C8" d="M174 388h164l-18 62H192l-18-62Z" opacity="0.76"/>
+  <g fill="none" stroke="#123047" stroke-linecap="round" stroke-linejoin="round" stroke-width="12">
+    <path d="M365 123l43-43"/>
+    <circle cx="345" cy="143" r="44" fill="#FFFFFF" fill-opacity="0.82"/>
+    <path d="M330 143h30M345 128v30"/>
+  </g>
+  <g fill="#FFFFFF" stroke="#0C2021" stroke-linejoin="round" stroke-width="5">
+    <path d="M95 143c38-35 78-35 116 0-38 22-78 22-116 0Z"/>
+    <circle cx="154" cy="142" r="14" fill="#4AA36F"/>
+    <path d="M83 310c37-21 72-15 103 17-39 7-73 1-103-17Z"/>
+    <circle cx="135" cy="314" r="12" fill="#FFC36D"/>
+  </g>
+  <path fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-width="10" d="M175 81c42-28 113-32 164 0" opacity="0.7"/>
+</svg>

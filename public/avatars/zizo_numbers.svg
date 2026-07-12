@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Zizo Numbers avatar">
+  <defs>
+    <linearGradient id="bg" x1="74" x2="438" y1="38" y2="476" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9DE2FF"/>
+      <stop offset="0.48" stop-color="#75D18B"/>
+      <stop offset="1" stop-color="#FFE070"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="matrix(0 206 -206 0 250 220)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="104" fill="#0B1A24"/>
+  <circle cx="256" cy="238" r="214" fill="url(#bg)"/>
+  <circle cx="250" cy="218" r="170" fill="url(#glow)" opacity="0.7"/>
+  <path fill="#243D55" d="M141 218c9-76 58-122 118-122 65 0 111 54 111 131v98H141V218Z"/>
+  <path fill="#315B78" d="M132 228c20-78 76-122 139-112 48 8 82 38 103 89-61 4-116-17-164-62-17 35-43 62-78 85Z"/>
+  <circle cx="255" cy="245" r="103" fill="#F3C69C"/>
+  <circle cx="214" cy="242" r="13" fill="#1F2937"/>
+  <circle cx="296" cy="242" r="13" fill="#1F2937"/>
+  <circle cx="209" cy="237" r="4" fill="#FFFFFF"/>
+  <circle cx="291" cy="237" r="4" fill="#FFFFFF"/>
+  <path fill="none" stroke="#7C3F3A" stroke-linecap="round" stroke-width="8" d="M231 292c18 13 38 13 56 0"/>
+  <path fill="#F3C69C" d="M150 252c-17-5-30 7-27 24 3 17 19 26 35 20l-8-44Zm209 0c17-5 30 7 27 24-3 17-19 26-35 20l8-44Z"/>
+  <path fill="#1F7A5A" d="M117 416c18-62 70-97 139-97s121 35 139 97v34H117v-34Z"/>
+  <path fill="#FFE070" d="M170 393h172l-24 57H194l-24-57Z" opacity="0.84"/>
+  <g fill="#FFFFFF" stroke="#123047" stroke-linejoin="round" stroke-width="6">
+    <rect x="75" y="108" width="72" height="72" rx="20"/>
+    <rect x="364" y="115" width="72" height="72" rx="20"/>
+    <rect x="74" y="292" width="72" height="72" rx="20"/>
+    <rect x="365" y="289" width="72" height="72" rx="20"/>
+  </g>
+  <g fill="#123047" font-family="Arial, sans-serif" font-size="48" font-weight="700" text-anchor="middle">
+    <text x="111" y="160">1</text>
+    <text x="400" y="168">2</text>
+    <text x="110" y="346">+</text>
+    <text x="401" y="343">=</text>
+  </g>
+  <path fill="none" stroke="#FFFFFF" stroke-dasharray="2 18" stroke-linecap="round" stroke-width="12" d="M169 82c50-34 126-35 178 3" opacity="0.72"/>
+</svg>

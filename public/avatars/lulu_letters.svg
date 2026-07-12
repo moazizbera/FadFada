@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Lulu Letters avatar">
+  <defs>
+    <linearGradient id="bg" x1="74" x2="438" y1="38" y2="476" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFE6A8"/>
+      <stop offset="0.55" stop-color="#F7A8B8"/>
+      <stop offset="1" stop-color="#8ED7C6"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="matrix(0 210 -210 0 256 220)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF8D8"/>
+      <stop offset="1" stop-color="#FFF8D8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="104" fill="#13211E"/>
+  <circle cx="256" cy="236" r="214" fill="url(#bg)"/>
+  <circle cx="256" cy="226" r="174" fill="url(#glow)" opacity="0.72"/>
+  <path fill="#5B3B2E" d="M150 228c0-76 48-133 109-133s109 57 109 133v103H150V228Z"/>
+  <path fill="#7B4B35" d="M121 238c18-85 78-139 150-130 63 8 106 63 115 140-49-30-86-74-105-123-33 62-84 100-160 113Z"/>
+  <circle cx="255" cy="240" r="102" fill="#FFD7B5"/>
+  <path fill="#F0B091" d="M188 269c32 54 108 55 138 0 0 58-28 100-70 100s-68-42-68-100Z" opacity="0.55"/>
+  <circle cx="217" cy="235" r="12" fill="#2B2B32"/>
+  <circle cx="297" cy="235" r="12" fill="#2B2B32"/>
+  <circle cx="212" cy="230" r="4" fill="#FFFFFF"/>
+  <circle cx="292" cy="230" r="4" fill="#FFFFFF"/>
+  <path fill="none" stroke="#8D4B47" stroke-linecap="round" stroke-width="8" d="M230 285c18 15 40 15 57 0"/>
+  <path fill="#FFD7B5" d="M152 246c-18-6-32 7-29 25 3 19 21 29 38 22l-9-47Zm208 0c18-6 32 7 29 25-3 19-21 29-38 22l9-47Z"/>
+  <path fill="#3A6F65" d="M118 416c18-62 70-97 139-97s121 35 139 97v34H118v-34Z"/>
+  <path fill="#8ED7C6" d="M168 401c21-33 50-49 89-49s68 16 89 49v49H168v-49Z" opacity="0.65"/>
+  <g fill="#FFF8D8" stroke="#5B3B2E" stroke-linejoin="round" stroke-width="6">
+    <rect x="83" y="105" width="76" height="72" rx="20"/>
+    <rect x="352" y="98" width="78" height="76" rx="22"/>
+    <rect x="60" y="287" width="76" height="72" rx="20"/>
+    <rect x="376" y="292" width="76" height="72" rx="20"/>
+  </g>
+  <g fill="#5B3B2E" font-family="Arial, sans-serif" font-size="52" font-weight="700" text-anchor="middle">
+    <text x="121" y="158">A</text>
+    <text x="391" y="152">ب</text>
+    <text x="98" y="341">3</text>
+    <text x="414" y="345">?</text>
+  </g>
+  <path fill="none" stroke="#FFF8D8" stroke-linecap="round" stroke-width="10" d="M178 83c18-22 46-34 80-34 32 0 58 11 77 31" opacity="0.7"/>
+</svg>
