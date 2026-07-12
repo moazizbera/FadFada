@@ -24,6 +24,7 @@ const avatarFrameClass = "relative aspect-square overflow-hidden rounded-[2rem] 
 const generatedAvatarStorageKey = "fadfada-generated-avatar-count";
 const freeGeneratedAvatarLimit = 3;
 const selectorFamilies: PersonaFamily[] = ["listen", "build"];
+const childrenPersonaIdSet = new Set<PersonaId>(["lulu_letters", "zizo_numbers", "tala_explorer", "biso_kindness"]);
 const customAvatarOptions = [
   { path: "/profile-logos/calm.svg", ar: "هادئ", en: "Calm" },
   { path: "/profile-logos/spark.svg", ar: "نشط", en: "Spark" },
@@ -129,11 +130,23 @@ export function PersonaDrawer({
       selected: activePersona === persona.id,
     };
   });
-  const personaCardsByFamily = selectorFamilies.map((family) => ({
-    family,
-    label: FAMILY_LABELS[family],
-    cards: personaCards.filter(({ persona }) => persona.family === family),
-  }));
+  const personaCardSections = [
+    {
+      id: "children",
+      label: {
+        ar: "رفاق الأطفال",
+        en: "Children avatars",
+        subAr: "حروف، أرقام، علوم، ومشاعر بأسلوب آمن وممتع للأطفال",
+        subEn: "Letters, numbers, science, and feelings in a safe playful style for children",
+      },
+      cards: personaCards.filter(({ persona }) => childrenPersonaIdSet.has(persona.id)),
+    },
+    ...selectorFamilies.map((family) => ({
+      id: family,
+      label: FAMILY_LABELS[family],
+      cards: personaCards.filter(({ persona }) => persona.family === family && !childrenPersonaIdSet.has(persona.id)),
+    })),
+  ].filter((section) => section.cards.length > 0);
 
   function chooseRecommendedPersona(personaId: PersonaId) {
     if (!unlockedPersonaIds.includes(personaId)) {
@@ -283,8 +296,8 @@ export function PersonaDrawer({
           </div>
         </div>
         <div className="space-y-6">
-          {personaCardsByFamily.map(({ family, label, cards }) => (
-            <section key={family} dir={isArabic ? "rtl" : "ltr"}>
+          {personaCardSections.map(({ id, label, cards }) => (
+            <section key={id} dir={isArabic ? "rtl" : "ltr"}>
               <div className="mb-3 px-1 text-start">
                 <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-sm font-semibold text-bone/90`}>{isArabic ? label.ar : label.en}</p>
                 <p className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 text-xs leading-5 text-bone/38`}>{isArabic ? label.subAr : label.subEn}</p>

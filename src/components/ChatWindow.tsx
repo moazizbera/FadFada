@@ -1494,6 +1494,7 @@ export function ChatWindow() {
   const [grantedPersonaIds, setGrantedPersonaIds] = useState<PersonaId[]>([]);
   const [experienceConfiguration, setExperienceConfiguration] = useState(defaultExperienceConfiguration);
   const [activeDiscountCode, setActiveDiscountCode] = useState("");
+  const [appVersion, setAppVersion] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
   const [offlineDraftSaved, setOfflineDraftSaved] = useState(false);
   const recorderRef = useRef<ISpeechRecognition | null>(null);
@@ -1908,6 +1909,19 @@ export function ChatWindow() {
       window.removeEventListener("offline", refreshOnlineStatus);
     };
   }, [globallyAvailablePersonas, language]);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/version", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() as Promise<{ version?: string; packageVersion?: string }> : null)
+      .then((data) => {
+        if (!active) return;
+        setAppVersion(data?.version || data?.packageVersion || null);
+      })
+      .catch(() => undefined);
+
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -3340,6 +3354,7 @@ export function ChatWindow() {
         {isThinking ? (
           <ThinkingShimmer language={language} personaName={language === "ar" ? activePersona.nameAr : activePersona.nameEn} />
         ) : null}
+        <ChatLegalLinks language={language} version={appVersion} />
         <div ref={chatEndRef} className="h-32" aria-hidden="true" />
       </section>
 
@@ -3437,7 +3452,6 @@ export function ChatWindow() {
       ) : null}
 
       <form onSubmit={submitMessage} className="fixed inset-x-3 bottom-24 z-30 mx-auto flex max-h-[46dvh] max-w-[42rem] flex-col gap-2 overflow-y-auto rounded-[1.1rem] border border-white/10 bg-[#111014]/92 p-2.5 shadow-[0_22px_70px_rgba(0,0,0,0.45)] backdrop-blur-2xl [scrollbar-width:thin] sm:max-h-none sm:rounded-[1.35rem] sm:p-3 md:bottom-6">
-        <ChatLegalLinks language={language} />
         {!effectiveUserName ? (
           <div className="rounded-2xl border border-[#C9A86A]/25 bg-[#0E0D10]/90 p-2.5 shadow-xl sm:p-3" dir={language === "ar" ? "rtl" : "ltr"}>
             <p className="hidden font-arsans text-xs leading-5 text-[#F7F3EC]/68 min-[360px]:block">
@@ -3579,7 +3593,7 @@ export function ChatWindow() {
   );
 }
 
-function ChatLegalLinks({ language }: { language: Language }) {
+function ChatLegalLinks({ language, version }: { language: Language; version: string | null }) {
   const isArabic = language === "ar";
   const links = [
     { href: "/pricing", label: isArabic ? "الأسعار" : "Pricing" },
@@ -3589,12 +3603,13 @@ function ChatLegalLinks({ language }: { language: Language }) {
   ];
 
   return (
-    <nav className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-white/10 pb-2 text-center font-arsans text-[11px] text-[#F7F3EC]/42" dir={isArabic ? "rtl" : "ltr"} aria-label={isArabic ? "روابط قانونية" : "Legal links"}>
+    <nav className="mx-auto mt-3 flex w-full max-w-md flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-full border border-white/10 bg-[#0E0D10]/64 px-3 py-2 text-center font-arsans text-[11px] text-[#F7F3EC]/42 shadow-xl backdrop-blur" dir={isArabic ? "rtl" : "ltr"} aria-label={isArabic ? "روابط قانونية وإصدار التطبيق" : "Legal links and app version"}>
       {links.map((link) => (
         <Link key={link.href} href={link.href} className="transition-colors hover:text-[#C9A86A]">
           {link.label}
         </Link>
       ))}
+      {version ? <span className="font-mono text-[10px] text-[#C9A86A]/64" dir="ltr">v{version}</span> : null}
     </nav>
   );
 }
