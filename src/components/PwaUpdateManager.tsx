@@ -177,12 +177,8 @@ export function PwaUpdateManager() {
     window.location.reload();
   }
 
-  const versionChip = currentVersion ? <VersionChip language={language} version={currentVersion} hasUpdate={updateAvailable} /> : null;
-
   if (updateAvailable) {
     return (
-      <>
-      {versionChip}
       <div className="fixed inset-x-3 bottom-20 z-[60] mx-auto max-w-md border border-[#C9A86A]/35 bg-[#0E0D10]/95 p-4 text-bone shadow-2xl backdrop-blur-xl" dir={isArabic ? "rtl" : "ltr"}>
         <p className={`${isArabic ? "font-arsans" : "font-mono uppercase tracking-[0.16em]"} text-[9px] text-[#C9A86A]/80`} dir={isArabic ? "rtl" : "ltr"}>{isArabic ? "تحديث جاهز" : "Update ready"}</p>
         <p className="mt-2 font-arsans text-sm leading-6 text-[#F7F3EC]/80">
@@ -201,14 +197,11 @@ export function PwaUpdateManager() {
           </button>
         </div>
       </div>
-      </>
     );
   }
 
   if (installPrompt && !installDismissed && isProductionHost) {
     return (
-      <>
-      {versionChip}
       <div className="fixed inset-x-3 bottom-20 z-[60] mx-auto max-w-md border border-[#F7F3EC]/12 bg-[#0E0D10]/92 p-4 text-bone shadow-2xl backdrop-blur-xl" dir={isArabic ? "rtl" : "ltr"}>
         <p className={`${isArabic ? "font-arsans" : "font-mono uppercase tracking-[0.16em]"} text-[9px] text-[#C9A86A]/75`} dir={isArabic ? "rtl" : "ltr"}>{isArabic ? "تثبيت التطبيق" : "Install app"}</p>
         <p className="mt-2 font-arsans text-sm leading-6 text-[#F7F3EC]/75">
@@ -223,14 +216,12 @@ export function PwaUpdateManager() {
           </button>
         </div>
       </div>
-      </>
     );
   }
 
   if (!isStandalone) {
     return (
       <>
-        {versionChip}
         <button
           type="button"
           onClick={() => void installApp()}
@@ -263,17 +254,7 @@ export function PwaUpdateManager() {
     );
   }
 
-  return versionChip;
-}
-
-function VersionChip({ language, version, hasUpdate }: { language: "ar" | "en"; version: string; hasUpdate: boolean }) {
-  const isArabic = language === "ar";
-
-  return (
-    <div className="fixed bottom-24 left-3 z-[54] rounded-full border border-white/10 bg-[#0E0D10]/80 px-3 py-1.5 font-mono text-[9px] text-[#F7F3EC]/45 shadow-2xl backdrop-blur-xl md:bottom-3" dir="ltr" aria-label={isArabic ? `إصدار فضفضة ${version}` : `FadFada version ${version}`}>
-      <span>{hasUpdate ? (isArabic ? "تحديث" : "update") : "v"}</span> <span>{version}</span>
-    </div>
-  );
+  return null;
 }
 
 function InstallIcon() {

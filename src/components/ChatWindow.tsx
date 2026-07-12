@@ -3317,17 +3317,13 @@ export function ChatWindow() {
                     instant={animatedAssistantMessageIds.includes(message.id)}
                     onComplete={() => setAnimatedAssistantMessageIds((current) => current.includes(message.id) ? current : [...current, message.id])}
                   />
-                <VoicePlaybackButton
-                  language={messageLanguage}
-                  speaking={speakingMessageId === message.id}
-                  loading={actionLoadingKey === `${message.id}:speak`}
-                  onClick={() => void runMomentAction(message.id, "speak", () => toggleVoicePlayback(message))}
-                />
                 <MomentActions
                   language={language}
                   saved={savedMomentIds.includes(message.id)}
                   feedbackSent={feedbackMomentIds.includes(message.id)}
+                  speaking={speakingMessageId === message.id}
                   pendingAction={actionLoadingKey?.startsWith(`${message.id}:`) ? actionLoadingKey.split(":")[1] as MomentActionKey : null}
+                  onSpeak={() => void runMomentAction(message.id, "speak", () => toggleVoicePlayback(message))}
                   onSave={() => void runMomentAction(message.id, "save", () => saveMoment(message))}
                   onPlan={() => void runMomentAction(message.id, "plan", () => saveTinyPlan(message))}
                   onShare={() => void runMomentAction(message.id, "share", () => shareMoment(message))}
@@ -3337,20 +3333,12 @@ export function ChatWindow() {
                   onHelpful={() => void runMomentAction(message.id, "helpful", () => sendFeedback(message, "helpful_feedback"))}
                   onSofter={() => void runMomentAction(message.id, "softer", () => sendFeedback(message, "softer_feedback"))}
                 />
-                <LearningResourceCards language={messageLanguage} resources={message.resources} />
                 </div>
               </div>
             )}
           </article>
           );
         })}
-        {latestAssistantMessage ? (
-          <button type="button" onClick={() => setReceiptOpen(true)} className="mx-auto w-full max-w-md rounded-2xl border border-[#C9A86A]/25 bg-[#C9A86A]/[0.055] px-4 py-3 text-start shadow-xl backdrop-blur transition-colors hover:border-[#C9A86A]/50 hover:bg-[#C9A86A]/10" dir={language === "ar" ? "rtl" : "ltr"}>
-            <span className="ui-kicker text-[#C9A86A]/85">{language === "ar" ? "خلاصة الفضفضة" : "Reflection summary"}</span>
-            <span className="mt-1 block font-arui text-lg font-semibold text-[#F7F3EC]/92">{language === "ar" ? "افتح ما فهمناه والخطوة التالية" : "Open what we understood and the next step"}</span>
-            <span className="mt-1 block truncate font-arsans text-xs text-[#F7F3EC]/46">{latestAssistantMessage.personaName || activePersonaDisplayName}</span>
-          </button>
-        ) : null}
         {isThinking ? (
           <ThinkingShimmer language={language} personaName={language === "ar" ? activePersona.nameAr : activePersona.nameEn} />
         ) : null}
@@ -6542,7 +6530,9 @@ function MomentActions({
   language,
   saved,
   feedbackSent,
+  speaking,
   pendingAction,
+  onSpeak,
   onSave,
   onPlan,
   onShare,
@@ -6555,7 +6545,9 @@ function MomentActions({
   language: Language;
   saved: boolean;
   feedbackSent: boolean;
+  speaking: boolean;
   pendingAction: MomentActionKey | null;
+  onSpeak: () => void;
   onSave: () => void;
   onPlan: () => void;
   onShare: () => void;
@@ -6569,6 +6561,7 @@ function MomentActions({
   const [open, setOpen] = useState(false);
   const loadingLabel = isArabic ? "جار التنفيذ" : "Working";
   const actionClass = "flex w-full items-center gap-3 rounded-xl border border-[#F7F3EC]/10 bg-white/[0.025] px-3 py-2.5 text-start font-arsans text-xs text-[#F7F3EC]/72 transition-colors hover:border-[#C9A86A]/45 hover:bg-[#C9A86A]/10 hover:text-[#C9A86A] disabled:animate-pulse disabled:opacity-65";
+  const toolbarButtonClass = "ui-action grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/[0.035] text-[#F7F3EC]/62 shadow-[0_10px_24px_rgba(0,0,0,0.18)] transition-all hover:-translate-y-0.5 hover:border-[#C9A86A]/45 hover:bg-[#C9A86A]/12 hover:text-[#C9A86A] disabled:animate-pulse disabled:opacity-60";
 
   function runFromMenu(action: () => void) {
     setOpen(false);
@@ -6599,31 +6592,34 @@ function MomentActions({
   ) : null;
 
   return (
-    <div className="mt-4 flex flex-wrap justify-end gap-2" dir={isArabic ? "rtl" : "ltr"}>
-      <button type="button" onClick={onSave} disabled={pendingAction === "save"} className="ui-action inline-flex items-center gap-1.5 rounded-full border border-emerald-200/30 bg-emerald-200/10 px-3 py-2 text-xs text-emerald-100 transition-colors hover:bg-emerald-200 hover:text-[#0E0D10] disabled:animate-pulse disabled:opacity-65">
-        <ActionGlyph name="save" />
-        <span>{pendingAction === "save" ? loadingLabel : saved ? (isArabic ? "محفوظ" : "Saved") : isArabic ? "احفظ" : "Save"}</span>
+    <div className="mt-3 flex justify-end" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-[#0E0D10]/62 p-1 shadow-[0_16px_40px_rgba(0,0,0,0.24)] backdrop-blur">
+      <button type="button" onClick={onSpeak} disabled={pendingAction === "speak"} className={`${toolbarButtonClass} ${speaking ? "border-red-200/35 bg-red-200/12 text-red-100" : ""}`} aria-label={pendingAction === "speak" ? loadingLabel : speaking ? (isArabic ? "إيقاف الصوت" : "Stop voice") : isArabic ? "استمع للرد" : "Listen to reply"} aria-pressed={speaking} title={speaking ? (isArabic ? "إيقاف الصوت" : "Stop voice") : isArabic ? "استمع للرد" : "Listen to reply"}>
+        <ActionGlyph name={speaking ? "stop" : "listen"} />
       </button>
-      <button type="button" onClick={onPlan} disabled={pendingAction === "plan"} className="ui-action inline-flex items-center gap-1.5 rounded-full border border-cyan-100/30 bg-cyan-100/10 px-3 py-2 text-xs text-cyan-100 transition-colors hover:bg-cyan-100 hover:text-[#0E0D10] disabled:animate-pulse disabled:opacity-65">
+      <button type="button" onClick={onSave} disabled={pendingAction === "save"} className={`${toolbarButtonClass} ${saved ? "border-emerald-200/35 bg-emerald-200/12 text-emerald-100" : ""}`} aria-label={pendingAction === "save" ? loadingLabel : saved ? (isArabic ? "محفوظ" : "Saved") : isArabic ? "احفظ" : "Save"} title={saved ? (isArabic ? "محفوظ" : "Saved") : isArabic ? "احفظ" : "Save"}>
+        <ActionGlyph name="save" />
+      </button>
+      <button type="button" onClick={onPlan} disabled={pendingAction === "plan"} className={toolbarButtonClass} aria-label={pendingAction === "plan" ? loadingLabel : isArabic ? "خطة" : "Plan"} title={isArabic ? "خطة" : "Plan"}>
         <ActionGlyph name="plan" />
-        <span>{pendingAction === "plan" ? loadingLabel : isArabic ? "خطة" : "Plan"}</span>
       </button>
       {onPersona ? (
-      <button type="button" onClick={onPersona} className="ui-action inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-[#F7F3EC]/62 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
+      <button type="button" onClick={onPersona} className={toolbarButtonClass} aria-label={isArabic ? "جرّب رفيق" : "Try companion"} title={isArabic ? "جرّب رفيق" : "Try companion"}>
         <ActionGlyph name="persona" />
-        <span>{isArabic ? "جرّب رفيق" : "Try companion"}</span>
       </button>
       ) : null}
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="ui-action inline-flex items-center gap-1.5 rounded-full border border-[#C9A86A]/35 bg-[#C9A86A]/10 px-3 py-2 text-xs text-[#C9A86A] shadow-[0_12px_30px_rgba(0,0,0,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#C9A86A] hover:text-[#0E0D10] hover:shadow-[0_18px_48px_rgba(201,168,106,0.22)]"
+        className="ui-action grid h-9 w-9 place-items-center rounded-full border border-[#C9A86A]/35 bg-[#C9A86A]/10 text-[#C9A86A] shadow-[0_12px_30px_rgba(0,0,0,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#C9A86A] hover:text-[#0E0D10] hover:shadow-[0_18px_48px_rgba(201,168,106,0.22)]"
         aria-expanded={open}
+        aria-label={isArabic ? "إجراءات" : "Actions"}
+        title={isArabic ? "إجراءات" : "Actions"}
       >
         <ActionGlyph name="more" />
-        <span>{isArabic ? "إجراءات" : "Actions"}</span>
       </button>
       {menu}
+      </div>
     </div>
   );
 }
