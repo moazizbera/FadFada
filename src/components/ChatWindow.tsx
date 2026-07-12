@@ -1505,6 +1505,7 @@ export function ChatWindow() {
   const chatRef = useRef<HTMLElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const pendingVisitorChallengeFocusRef = useRef<"composer" | "name" | null>(null);
+  const pendingReplyFocusRef = useRef(false);
 
   const activeWorld = worlds[world];
   const customPersona = useMemo(() => buildCustomPersona(customPersonaDraft), [customPersonaDraft]);
@@ -1772,6 +1773,20 @@ export function ChatWindow() {
   }, [messages.length, nameGateMessage]);
 
   useEffect(() => {
+    if (!pendingReplyFocusRef.current) return;
+
+    focusConversationTail(isThinking ? "auto" : "smooth");
+    if (isThinking) return;
+
+    const timeout = window.setTimeout(() => {
+      focusConversationTail("smooth");
+      pendingReplyFocusRef.current = false;
+    }, 220);
+
+    return () => window.clearTimeout(timeout);
+  }, [isThinking, messages.length]);
+
+  useEffect(() => {
     const storedName = normalizeGreetingName(localStorage.getItem(visitorNameStorageKey));
     if (!storedName) return;
     setVisitorName(storedName);
@@ -2022,6 +2037,15 @@ export function ChatWindow() {
 
   function scrollToConversationEnd() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }
+
+  function focusConversationTail(behavior: ScrollBehavior = "smooth") {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior });
+        chatEndRef.current?.scrollIntoView({ behavior, block: "end" });
+      });
+    });
   }
 
   function runHomeHeaderAction(action: HomeHeaderAction) {
@@ -2553,6 +2577,9 @@ export function ChatWindow() {
     if (!effectiveUserName && draftDisplayName) {
       registerVisitorName(draftDisplayName);
     }
+
+    pendingReplyFocusRef.current = true;
+    focusConversationTail("smooth");
 
     if (isOffline && !overrideText) {
       localStorage.setItem(offlineDraftStorageKey, text);
@@ -3410,6 +3437,7 @@ export function ChatWindow() {
       ) : null}
 
       <form onSubmit={submitMessage} className="fixed inset-x-3 bottom-24 z-30 mx-auto flex max-h-[46dvh] max-w-[42rem] flex-col gap-2 overflow-y-auto rounded-[1.1rem] border border-white/10 bg-[#111014]/92 p-2.5 shadow-[0_22px_70px_rgba(0,0,0,0.45)] backdrop-blur-2xl [scrollbar-width:thin] sm:max-h-none sm:rounded-[1.35rem] sm:p-3 md:bottom-6">
+        <ChatLegalLinks language={language} />
         {!effectiveUserName ? (
           <div className="rounded-2xl border border-[#C9A86A]/25 bg-[#0E0D10]/90 p-2.5 shadow-xl sm:p-3" dir={language === "ar" ? "rtl" : "ltr"}>
             <p className="hidden font-arsans text-xs leading-5 text-[#F7F3EC]/68 min-[360px]:block">
@@ -3548,6 +3576,26 @@ export function ChatWindow() {
         onAvatarRate={rateAvatar}
       />
     </main>
+  );
+}
+
+function ChatLegalLinks({ language }: { language: Language }) {
+  const isArabic = language === "ar";
+  const links = [
+    { href: "/pricing", label: isArabic ? "الأسعار" : "Pricing" },
+    { href: "/terms", label: isArabic ? "الشروط" : "Terms" },
+    { href: "/privacy", label: isArabic ? "الخصوصية" : "Privacy" },
+    { href: "/refund", label: isArabic ? "الاسترداد" : "Refunds" },
+  ];
+
+  return (
+    <nav className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-white/10 pb-2 text-center font-arsans text-[11px] text-[#F7F3EC]/42" dir={isArabic ? "rtl" : "ltr"} aria-label={isArabic ? "روابط قانونية" : "Legal links"}>
+      {links.map((link) => (
+        <Link key={link.href} href={link.href} className="transition-colors hover:text-[#C9A86A]">
+          {link.label}
+        </Link>
+      ))}
+    </nav>
   );
 }
 

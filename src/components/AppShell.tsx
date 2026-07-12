@@ -97,6 +97,7 @@ export function AppShell({ children, initialLanguage = "ar" }: AppShellProps) {
 
 function GlobalFooter() {
   const { language, direction } = useAppLocale();
+  const pathname = usePathname();
   const isArabic = language === "ar";
   const links = [
     { href: "/pricing", label: isArabic ? "الأسعار" : "Pricing" },
@@ -104,6 +105,8 @@ function GlobalFooter() {
     { href: "/privacy", label: isArabic ? "الخصوصية" : "Privacy" },
     { href: "/refund", label: isArabic ? "الاسترداد" : "Refunds" },
   ];
+
+  if (pathname === "/") return null;
 
   return (
     <footer className="border-t border-white/10 bg-[#0E0D10]/80 px-5 py-8" dir={direction}>
