@@ -1,8 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useEffect, useState } from "react";
-import { FAMILY_LABELS, personas, type Persona, type PersonaFamily, type PersonaId } from "../lib/personas";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { childStories, type ChildStory } from "../lib/childStories";
+import { FAMILY_LABELS, NEW_CHILDREN_ROSTER, personas, type Persona, type PersonaFamily, type PersonaId } from "../lib/personas";
 
 type Language = "ar" | "en";
 
@@ -12,9 +14,13 @@ type PersonaDrawerProps = {
   language: Language;
   unlockedPersonaIds: PersonaId[];
   blockedPersonaIds?: PersonaId[];
+  childrenOnly?: boolean;
+  mode?: "avatars" | "stories";
+  storyShelfSignal?: number;
   customPersona: Persona | null;
   onClose: () => void;
   onSelect: (personaId: PersonaId) => void;
+  onStoryGuideStart?: (story: ChildStory) => void;
   onLockedPersonaSelect: (personaId: PersonaId) => void;
   onCustomPersonaSave: (draft: { name: string; description: string; avatarPath?: string }) => void;
   onAvatarRate: (persona: Persona, rating: number) => Promise<boolean>;
@@ -24,7 +30,12 @@ const avatarFrameClass = "relative aspect-square overflow-hidden rounded-[2rem] 
 const generatedAvatarStorageKey = "fadfada-generated-avatar-count";
 const freeGeneratedAvatarLimit = 3;
 const selectorFamilies: PersonaFamily[] = ["listen", "build"];
-const childrenPersonaIdSet = new Set<PersonaId>(["lulu_letters", "zizo_numbers", "tala_explorer", "biso_kindness"]);
+const newChildrenPersonaIds = NEW_CHILDREN_ROSTER.map((persona) => persona.id);
+const newChildrenPersonaIdSet = new Set<string>(newChildrenPersonaIds);
+const childrenPersonaIdSet = new Set<PersonaId>([
+  "lulu_letters", "zizo_numbers", "tala_explorer", "biso_kindness",
+  ...newChildrenPersonaIds,
+]);
 const customAvatarOptions = [
   { path: "/profile-logos/calm.svg", ar: "هادئ", en: "Calm" },
   { path: "/profile-logos/spark.svg", ar: "نشط", en: "Spark" },
@@ -37,15 +48,9 @@ const customAvatarOptions = [
 const personaNeedRecommendations: Array<{ id: PersonaId; ar: string; en: string; hintAr: string; hintEn: string }> = [
   { id: "omar", ar: "اسمعني", en: "Listen", hintAr: "حضور هادئ", hintEn: "Calm presence" },
   { id: "nora", ar: "خطوة عملية", en: "Plan", hintAr: "تنفيذ سريع", hintEn: "Action steps" },
-  { id: "lulu_letters", ar: "تعلم ممتع", en: "Kids learn", hintAr: "حروف وحكايات", hintEn: "Letters and stories" },
   { id: "rawi", ar: "حكاية", en: "Story", hintAr: "مسافة رمزية", hintEn: "Symbolic distance" },
   { id: "sami", ar: "طمأنينة", en: "Comfort", hintAr: "حكمة ناعمة", hintEn: "Gentle wisdom" },
   { id: "sarah", ar: "وضوح", en: "Clarity", hintAr: "تبسيط هادئ", hintEn: "Calm simplifier" },
-];
-const personaValueCards = [
-  { ar: "رفيق مناسب للحالة", en: "Matched companion", hintAr: "اختيار سريع حسب الاحتياج بدل قائمة مربكة.", hintEn: "A quick need-based choice instead of a confusing list." },
-  { ar: "نتيجة يمكن رؤيتها", en: "Visible result", hintAr: "خطة، قصة، أو رد عملي يثبت القيمة فوراً.", hintEn: "A plan, story, or useful reply that proves value fast." },
-  { ar: "بلس واضح بدون إخفاء", en: "Clear Plus preview", hintAr: "الشخصيات المقفلة تظهر كمعاينة جذابة قبل الترقية.", hintEn: "Locked personas stay visible as attractive previews before upgrade." },
 ];
 
 type AvatarPresentation = {
@@ -93,15 +98,61 @@ function LockIcon() {
   );
 }
 
+type StoryChoiceIconName = "spark" | "mask" | "play";
+
+function StoryChoiceIcon({ name }: { name: StoryChoiceIconName }) {
+  if (name === "mask") {
+    return (
+      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M5 8.5c2.2-1.2 4.5-1.2 7 0 2.5-1.2 4.8-1.2 7 0v3.2c0 3.8-2.3 6.3-5.1 6.3-1.1 0-2-.4-2.9-1.2-.8.8-1.8 1.2-2.9 1.2C5.3 18 3 15.5 3 11.7V8.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+        <path d="M7.5 11.2h2M14.5 11.2h2M8 14.6c.9.6 1.8.6 2.7 0M13.3 14.6c.9.6 1.8.6 2.7 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (name === "play") {
+    return (
+      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M8 5.8v12.4c0 .9 1 1.4 1.7.9l8.9-6.2c.6-.4.6-1.3 0-1.7L9.7 4.9C9 4.4 8 4.9 8 5.8Z" fill="currentColor" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 3.5 13.8 9l5.7 1.8-5.7 1.8L12 18l-1.8-5.4-5.7-1.8L10.2 9 12 3.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="m18.5 15 .7 2.1 2.1.7-2.1.7-.7 2.1-.7-2.1-2.1-.7 2.1-.7.7-2.1Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function getStoryChoiceIcon(index: number): StoryChoiceIconName {
+  return index === 0 ? "mask" : index === 1 ? "spark" : "play";
+}
+
+function getCompactStoryChoiceLabel(choice: string, isArabic: boolean) {
+  const normalized = choice.toLowerCase();
+  if (normalized.includes("role") || choice.includes("دور")) return isArabic ? "دوري" : "Role";
+  if (normalized.includes("funny") || normalized.includes("scene") || choice.includes("مشه")) return isArabic ? "مشهد" : "Scene";
+  if (normalized.includes("curtain") || normalized.includes("open") || choice.includes("ستار")) return isArabic ? "ابدأ" : "Start";
+  if (normalized.includes("hint") || choice.includes("تلميح")) return isArabic ? "تلميح" : "Hint";
+  if (normalized.includes("quiz") || choice.includes("اختبار")) return isArabic ? "اختبار" : "Quiz";
+  return choice.split(/\s+/).slice(0, 2).join(" ");
+}
+
 export function PersonaDrawer({
   open,
   activePersona,
   language,
   unlockedPersonaIds,
   blockedPersonaIds = [],
+  childrenOnly = false,
+  mode = "avatars",
+  storyShelfSignal = 0,
   customPersona,
   onClose,
   onSelect,
+  onStoryGuideStart,
   onLockedPersonaSelect,
   onCustomPersonaSave,
   onAvatarRate,
@@ -113,9 +164,14 @@ export function PersonaDrawer({
   const [ratingStatus, setRatingStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [generatedAvatarCount, setGeneratedAvatarCount] = useState(0);
   const [avatarGenerationStatus, setAvatarGenerationStatus] = useState<"idle" | "generating" | "saved" | "limit" | "error">("idle");
+  const [selectedChildStory, setSelectedChildStory] = useState<ChildStory | null>(null);
+  const childStoriesSectionRef = useRef<HTMLElement | null>(null);
   const isArabic = language === "ar";
+  const storiesOnly = mode === "stories";
+  const avatarsOnly = mode === "avatars";
   const blockedPersonaIdSet = new Set(blockedPersonaIds);
-  const personaSource = customPersona ? [...personas, customPersona] : personas;
+  const basePersonaSource = childrenOnly ? personas.filter((persona) => childrenPersonaIdSet.has(persona.id)) : personas.filter((persona) => !childrenPersonaIdSet.has(persona.id));
+  const personaSource = !childrenOnly && customPersona ? [...basePersonaSource, customPersona] : basePersonaSource;
   const selectorPersonas = personaSource.filter((persona) => !blockedPersonaIdSet.has(persona.id));
   const selectedPersona = personaSource.find((persona) => persona.id === activePersona) || selectorPersonas[0] || personaSource[0];
   const personaCards = selectorPersonas.map((persona) => {
@@ -130,22 +186,26 @@ export function PersonaDrawer({
       selected: activePersona === persona.id,
     };
   });
+  const newChildrenRosterCards = NEW_CHILDREN_ROSTER
+    .map((childPersona) => personaCards.find(({ persona }) => persona.id === childPersona.id))
+    .filter((card): card is NonNullable<typeof card> => Boolean(card));
+  const legacyChildrenCards = childrenOnly ? [] : personaCards.filter(({ persona }) => childrenPersonaIdSet.has(persona.id) && !newChildrenPersonaIdSet.has(persona.id));
   const personaCardSections = [
-    {
+    ...(childrenOnly ? [{
       id: "children",
       label: {
-        ar: "رفاق الأطفال",
-        en: "Children avatars",
-        subAr: "حروف، أرقام، علوم، ومشاعر بأسلوب آمن وممتع للأطفال",
-        subEn: "Letters, numbers, science, and feelings in a safe playful style for children",
+        ar: "اختر رفيقك",
+        en: "Choose your friend",
+        subAr: "كل رفيق متخصص. اختر واحداً واللعب يبدأ.",
+        subEn: "Each companion has a specialty. Pick one and play starts.",
       },
-      cards: personaCards.filter(({ persona }) => childrenPersonaIdSet.has(persona.id)),
-    },
-    ...selectorFamilies.map((family) => ({
+      cards: [...legacyChildrenCards, ...newChildrenRosterCards],
+    }] : []),
+    ...(childrenOnly ? [] : selectorFamilies.map((family) => ({
       id: family,
       label: FAMILY_LABELS[family],
       cards: personaCards.filter(({ persona }) => persona.family === family && !childrenPersonaIdSet.has(persona.id)),
-    })),
+    }))),
   ].filter((section) => section.cards.length > 0);
 
   function chooseRecommendedPersona(personaId: PersonaId) {
@@ -232,6 +292,22 @@ export function PersonaDrawer({
     if (data?.url) window.location.assign(data.url);
   }
 
+  function chooseStoryGuide(story: ChildStory) {
+    const isFreeChildGuide = NEW_CHILDREN_ROSTER.some((persona) => persona.id === story.personaId);
+    if (!isFreeChildGuide && !unlockedPersonaIds.includes(story.personaId)) {
+      onLockedPersonaSelect(story.personaId);
+      return;
+    }
+
+    if (onStoryGuideStart) {
+      onStoryGuideStart(story);
+    } else {
+      onSelect(story.personaId);
+    }
+    setSelectedChildStory(null);
+    onClose();
+  }
+
   useEffect(() => {
     setCustomName(customPersona?.nameAr || "");
     setCustomDescription(customPersona?.coreSystemPrompt || "");
@@ -242,6 +318,13 @@ export function PersonaDrawer({
     setGeneratedAvatarCount(Number(localStorage.getItem(generatedAvatarStorageKey) || "0"));
   }, []);
 
+  useEffect(() => {
+    if (!open || storyShelfSignal <= 0) return;
+    window.requestAnimationFrame(() => {
+      childStoriesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [open, storyShelfSignal]);
+
   return (
     <div className={`fixed inset-0 z-[75] transition ${open ? "pointer-events-auto" : "pointer-events-none"}`}>
       <button type="button" aria-label="Close persona drawer" onClick={onClose} className={`absolute inset-0 bg-black/65 backdrop-blur-sm transition-opacity ${open ? "opacity-100" : "opacity-0"}`} />
@@ -250,54 +333,76 @@ export function PersonaDrawer({
           open ? "-translate-y-1/2 scale-100 opacity-100" : "translate-y-[8%] scale-95 opacity-0"
         }`}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-xs text-bone/45`}>{isArabic ? "اختر الرفيق" : "Choose companion"}</p>
-            <p className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 text-[11px] text-bone/35`}>
-              {isArabic ? "بعد الاختيار ابدأ مباشرة بكتابة ما تحتاجه من الرفيق." : "After choosing, start by writing what you need from the companion."}
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div className="min-w-0 text-start">
+            <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-lg font-semibold text-bone/92`}>{storiesOnly ? (isArabic ? "قصص الأطفال" : "Children stories") : isArabic ? "اختر رفيقك" : "Choose your companion"}</p>
+            <p className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 max-w-md text-xs leading-5 text-bone/42`}>
+              {storiesOnly ? (isArabic ? "اقرأ قصة جاهزة أو ابدأها مع رفيقها." : "Read a ready story or start it with its guide.") : isArabic ? "اختر وجهاً يناسب اللحظة. يمكنك تغييره في أي وقت." : "Pick the face that fits this moment. You can switch anytime."}
             </p>
           </div>
-          <button type="button" onClick={onClose} className={`${isArabic ? "font-arsans" : "font-ensans"} text-xs text-bone/50 transition-colors hover:text-[#C9A86A]`}>
+          <button type="button" onClick={onClose} className={`${isArabic ? "font-arsans" : "font-ensans"} shrink-0 rounded-full border border-white/10 px-3 py-1.5 text-xs text-bone/55 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]`}>
             {isArabic ? "إغلاق" : "Close"}
           </button>
         </div>
-        <div className="mb-5 rounded-2xl border border-[#C9A86A]/20 bg-[#C9A86A]/[0.045] p-3" dir={isArabic ? "rtl" : "ltr"}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 text-start">
-              <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-sm font-semibold text-bone/88`}>{isArabic ? "اختر حسب احتياجك الآن" : "Pick by what you need now"}</p>
-              <p className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 text-xs leading-5 text-bone/48`}>
-                {isArabic ? "كل رفيق يبيع نتيجة مختلفة للزائر: سماع أهدأ، خطوة عملية، أو حكاية تكشف المعنى." : "Each companion sells a different outcome: calmer listening, practical next steps, or a story that reveals meaning."}
-              </p>
-            </div>
-            <span className="w-fit shrink-0 rounded-full border border-[#C9A86A]/30 bg-black/20 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#C9A86A]" dir="ltr">
-              Plus preview
+        {avatarsOnly && !childrenOnly ? <div className="mb-5 rounded-2xl border border-white/10 bg-white/[0.035] p-3" dir={isArabic ? "rtl" : "ltr"}>
+          <div className="mb-2 flex items-center justify-between gap-3 px-1">
+            <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-xs font-semibold text-bone/72`}>{isArabic ? "اختيارات سريعة" : "Quick picks"}</p>
+            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#C9A86A]/70" dir="ltr">
+              Plus previews
             </span>
           </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
-            {personaValueCards.map((card) => (
-              <div key={card.en} className="rounded-xl border border-white/10 bg-black/18 p-3 text-start">
-                <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-xs font-semibold text-bone/82`}>{isArabic ? card.ar : card.en}</p>
-                <p className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 text-[11px] leading-5 text-bone/44`}>{isArabic ? card.hintAr : card.hintEn}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-5">
+          <div className="grid gap-2 sm:grid-cols-3">
             {personaNeedRecommendations.map((item) => {
               const persona = personaSource.find((candidate) => candidate.id === item.id);
               const locked = !unlockedPersonaIds.includes(item.id);
               return (
-                <button key={item.id} type="button" onClick={() => chooseRecommendedPersona(item.id)} className={`relative rounded-xl border px-3 py-2 text-start transition-colors ${locked ? "border-[#C9A86A]/26 bg-black/24 text-bone/70 hover:border-[#C9A86A]/48 hover:bg-[#C9A86A]/10" : "border-white/10 bg-white/[0.035] text-bone/78 hover:border-[#C9A86A]/45 hover:bg-[#C9A86A]/10"}`}>
-                  {locked ? <span className="absolute end-2 top-2 rounded-full border border-[#C9A86A]/35 bg-[#0E0D10]/70 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.08em] text-[#C9A86A]" dir="ltr">Plus</span> : null}
-                  <span className={`${isArabic ? "font-arsans" : "font-ensans"} block pe-8 text-sm font-semibold`}>{isArabic ? item.ar : item.en}</span>
-                  <span className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 block text-[10px] text-bone/42`}>{persona ? (isArabic ? persona.nameAr : persona.nameEn) : item.id} · {isArabic ? item.hintAr : item.hintEn}</span>
+                <button key={item.id} type="button" onClick={() => chooseRecommendedPersona(item.id)} className={`group grid grid-cols-[1fr_auto] items-center gap-2 rounded-xl border px-3 py-2 text-start transition-colors ${locked ? "border-[#C9A86A]/24 bg-black/24 text-bone/68 hover:border-[#C9A86A]/48 hover:bg-[#C9A86A]/10" : "border-white/10 bg-black/18 text-bone/78 hover:border-[#C9A86A]/45 hover:bg-[#C9A86A]/10"}`}>
+                  <span className="min-w-0">
+                    <span className={`${isArabic ? "font-arsans" : "font-ensans"} block truncate text-sm font-semibold`}>{isArabic ? item.ar : item.en}</span>
+                    <span className={`${isArabic ? "font-arsans" : "font-ensans"} mt-0.5 block truncate text-[10px] text-bone/42`}>{persona ? (isArabic ? persona.nameAr : persona.nameEn) : item.id}</span>
+                  </span>
+                  <span className={`rounded-full border px-2 py-1 font-mono text-[9px] uppercase tracking-[0.08em] ${locked ? "border-[#C9A86A]/35 text-[#C9A86A]" : "border-white/10 text-bone/36 group-hover:border-[#C9A86A]/35 group-hover:text-[#C9A86A]"}`} dir="ltr">
+                    {locked ? "Plus" : isArabic ? "اختر" : "Pick"}
+                  </span>
                 </button>
               );
             })}
           </div>
-        </div>
+        </div> : null}
+        {storiesOnly ? (
+          <section ref={childStoriesSectionRef} dir={isArabic ? "rtl" : "ltr"}>
+            <div className="mb-3 px-1 text-start">
+              <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-sm font-semibold text-bone/90`}>{isArabic ? "مكتبة القصص" : "Story library"}</p>
+              <p className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 text-xs leading-5 text-bone/38`}>{isArabic ? "قصص جاهزة ببوسترات جذابة، آمنة ومناسبة للأطفال." : "Ready stories with attractive posters, built for safe child reading."}</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {childStories.map((story) => (
+                <button
+                  key={story.id}
+                  type="button"
+                  onClick={() => setSelectedChildStory(story)}
+                  className="group overflow-hidden rounded-2xl border border-white/10 bg-[#0E0D10] text-start shadow-xl transition duration-300 hover:-translate-y-0.5 hover:border-[#C9A86A]/45 hover:shadow-[0_22px_52px_rgba(0,0,0,0.38)]"
+                >
+                  <span className={`relative block min-h-36 bg-gradient-to-br ${story.posterClassName} p-4`}>
+                    <span className="absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(255,255,255,0.28),transparent_18%),radial-gradient(circle_at_78%_28%,rgba(255,255,255,0.18),transparent_16%),linear-gradient(135deg,rgba(255,255,255,0.18),transparent_44%)]" aria-hidden="true" />
+                    <span className="absolute end-4 top-3 font-mono text-5xl text-white/70 drop-shadow-lg" aria-hidden="true">{story.posterGlyph}</span>
+                    <span className="relative flex min-h-28 flex-col justify-end">
+                      <span className="w-fit rounded-full border border-white/25 bg-black/22 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.08em] text-white/84" dir="ltr">
+                        {story.ageBand} · {story.readingMinutes} min
+                      </span>
+                      <span className={`${isArabic ? "font-arsans" : "font-ensans"} mt-3 block text-lg font-semibold leading-6 text-white drop-shadow`}>{isArabic ? story.titleAr : story.titleEn}</span>
+                      <span className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 line-clamp-2 text-xs leading-5 text-white/76`}>{isArabic ? story.subtitleAr : story.subtitleEn}</span>
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : null}
+        {avatarsOnly ? (
         <div className="space-y-6">
           {personaCardSections.map(({ id, label, cards }) => (
-            <section key={id} dir={isArabic ? "rtl" : "ltr"}>
+            <section key={id} ref={id === "children" ? childStoriesSectionRef : undefined} dir={isArabic ? "rtl" : "ltr"}>
               <div className="mb-3 px-1 text-start">
                 <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-sm font-semibold text-bone/90`}>{isArabic ? label.ar : label.en}</p>
                 <p className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 text-xs leading-5 text-bone/38`}>{isArabic ? label.subAr : label.subEn}</p>
@@ -315,6 +420,7 @@ export function PersonaDrawer({
                         }
 
                         onSelect(persona.id);
+                        onClose();
                       }}
                       className={`group text-start transition duration-300 ${selected ? "scale-[1.04] opacity-100" : locked ? "opacity-95 hover:scale-[1.02]" : "opacity-78 hover:scale-[1.02] hover:opacity-100"}`}
                       aria-pressed={selected}
@@ -347,68 +453,9 @@ export function PersonaDrawer({
             </section>
           ))}
         </div>
-
-        {selectedPersona ? (
-          <div className="mt-4 rounded-2xl border border-[#C9A86A]/25 bg-[#C9A86A]/[0.055] p-4" dir={isArabic ? "rtl" : "ltr"}>
-            <div className="flex items-center justify-between gap-3 max-sm:flex-col max-sm:items-stretch">
-              <div className="min-w-0 text-start">
-                <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-sm font-semibold text-bone/90`}>
-                  {isArabic ? "جاهز تبدأ مع هذا الرفيق؟" : "Ready to start with this companion?"}
-                </p>
-                <p className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 truncate text-xs text-bone/48`}>
-                  {getPersonaDisplayName(selectedPersona, language)} · {getPersonaRole(selectedPersona, language)}
-                </p>
-              </div>
-              <button type="button" onClick={onClose} className="ui-action rounded-xl bg-[#C9A86A] px-4 py-3 text-xs text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
-                {isArabic ? "ابدأ المحادثة" : "Start conversation"}
-              </button>
-            </div>
-          </div>
         ) : null}
 
-        {selectedPersona ? (
-          <div className="mt-4 border border-white/10 bg-white/[0.03] p-4">
-            <div className="flex items-center justify-between gap-3 max-sm:flex-col max-sm:items-stretch">
-              <div>
-                <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-sm text-bone/88`}>
-                  {isArabic ? "قيّم صورة الرفيق" : "Rate this avatar"}
-                </p>
-                <p className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 text-xs text-bone/42`}>
-                  {getPersonaDisplayName(selectedPersona, language)} · {isArabic ? "تقييمك يساعدنا نطوّر الوجوه القادمة." : "Your rating helps shape the next avatar set."}
-                </p>
-              </div>
-              <div className="flex items-center justify-center gap-1" dir="ltr">
-                {[1, 2, 3, 4, 5].map((rating) => (
-                  <button
-                    key={rating}
-                    type="button"
-                    onClick={() => void rateSelectedAvatar(selectedPersona, rating)}
-                    disabled={ratingStatus === "saving"}
-                    className={`group grid h-9 w-9 place-items-center border text-xl transition disabled:cursor-wait disabled:opacity-60 ${
-                      (ratedAvatars[selectedPersona.id] || 0) >= rating
-                        ? "border-gold/60 bg-gold/15 text-gold"
-                        : "border-white/10 bg-[#0E0D10] text-gold/45 hover:border-gold/50 hover:bg-gold/10 hover:text-gold"
-                    }`}
-                    aria-label={isArabic ? `تقييم ${rating} من 5` : `Rate ${rating} out of 5`}
-                  >
-                    <span className="transition-transform group-hover:scale-110">★</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <p className={`${isArabic ? "font-arsans" : "font-ensans"} mt-3 text-xs ${ratingStatus === "error" ? "text-red-200" : "text-bone/42"}`}>
-              {ratingStatus === "saving"
-                ? isArabic ? "جاري حفظ التقييم..." : "Saving rating..."
-                : ratingStatus === "saved"
-                  ? isArabic ? "تم حفظ تقييمك." : "Your rating was saved."
-                  : ratingStatus === "error"
-                    ? isArabic ? "تعذر حفظ التقييم. حاول مرة أخرى." : "Could not save the rating. Try again."
-                    : isArabic ? "اختر من نجمة إلى خمس نجوم." : "Choose from one to five stars."}
-            </p>
-          </div>
-        ) : null}
-
-        <form onSubmit={submitCustomPersona} className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4" dir={isArabic ? "rtl" : "ltr"}>
+        {avatarsOnly && !childrenOnly ? <form onSubmit={submitCustomPersona} className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4" dir={isArabic ? "rtl" : "ltr"}>
           <div className="mb-3">
             <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-sm font-semibold text-bone/90`}>{isArabic ? "اصنع رفيقك" : "Create your companion"}</p>
             <p className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 text-xs leading-5 text-bone/45`}>
@@ -486,7 +533,65 @@ export function PersonaDrawer({
           <button type="submit" className="ui-action mt-3 w-full rounded-lg bg-[#C9A86A] px-4 py-3 text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
             {isArabic ? "حفظ الرفيق واستخدامه" : "Save and use companion"}
           </button>
-        </form>
+        </form> : null}
+
+        {selectedChildStory && typeof document !== "undefined" ? createPortal((
+          <div className="fixed inset-0 z-[140] grid place-items-center bg-black/82 px-3 py-3 backdrop-blur-md sm:py-4" role="dialog" aria-modal="true" aria-label={isArabic ? selectedChildStory.titleAr : selectedChildStory.titleEn} dir={isArabic ? "rtl" : "ltr"}>
+            <button type="button" className="absolute inset-0" onClick={() => setSelectedChildStory(null)} aria-label={isArabic ? "إغلاق القصة" : "Close story"} />
+            <article className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-[1.35rem] border border-white/12 bg-[#0E0D10] shadow-2xl [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
+              <div className={`relative shrink-0 overflow-hidden bg-gradient-to-br ${selectedChildStory.posterClassName} p-5 sm:p-6`}>
+                <span className="absolute inset-0 bg-[radial-gradient(circle_at_24%_18%,rgba(255,255,255,0.32),transparent_18%),radial-gradient(circle_at_76%_24%,rgba(255,255,255,0.18),transparent_16%),linear-gradient(135deg,rgba(255,255,255,0.18),transparent_42%)]" aria-hidden="true" />
+                <span className="absolute end-5 top-4 font-mono text-7xl text-white/68 drop-shadow-xl" aria-hidden="true">{selectedChildStory.posterGlyph}</span>
+                <button type="button" onClick={() => setSelectedChildStory(null)} className="absolute start-4 top-4 rounded-full border border-white/25 bg-black/24 px-3 py-1.5 text-xs text-white/86 transition-colors hover:bg-white hover:text-[#0E0D10]">
+                  {isArabic ? "إغلاق" : "Close"}
+                </button>
+                <div className="relative pt-14 text-start sm:pt-16">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-white/78" dir="ltr">Story poster · {selectedChildStory.ageBand}</p>
+                  <h2 className={`${isArabic ? "font-arsans" : "font-ensans"} mt-3 max-w-xl text-2xl font-semibold leading-9 text-white sm:text-4xl sm:leading-[3rem]`}>{isArabic ? selectedChildStory.titleAr : selectedChildStory.titleEn}</h2>
+                  <p className={`${isArabic ? "font-arsans" : "font-ensans"} mt-2 max-w-xl text-sm leading-6 text-white/78`}>{isArabic ? selectedChildStory.subtitleAr : selectedChildStory.subtitleEn}</p>
+                </div>
+              </div>
+              <div className="min-h-0 overflow-y-auto bg-[#0E0D10] p-4 sm:p-5">
+                <div className="space-y-3 text-start">
+                  {(isArabic ? selectedChildStory.pagesAr : selectedChildStory.pagesEn).map((page, index) => (
+                    <p key={`${selectedChildStory.id}-${index}`} className={`${isArabic ? "font-arsans" : "font-ensans"} rounded-xl border border-white/10 bg-[#17151A] px-4 py-3 text-sm leading-7 text-bone/88`}>
+                      {page}
+                    </p>
+                  ))}
+                </div>
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.035] p-2.5">
+                  <p className={`${isArabic ? "font-arsans" : "font-ensans"} mb-2 px-1 text-[11px] font-semibold text-[#C9A86A]/76`}>{isArabic ? "اختر بسرعة" : "Quick taps"}</p>
+                  <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                    {(isArabic ? selectedChildStory.tapChoicesAr : selectedChildStory.tapChoicesEn).map((choice, index) => (
+                      <button
+                        key={choice}
+                        type="button"
+                        onClick={() => chooseStoryGuide(selectedChildStory)}
+                        className={`${isArabic ? "font-arsans" : "font-ensans"} ui-action group flex min-h-0 flex-col items-center justify-center gap-1 rounded-xl border border-[#C9A86A]/24 bg-[#C9A86A]/10 px-1.5 py-2 text-center text-[11px] font-semibold leading-4 text-[#F7F3EC]/82 transition-colors hover:border-[#C9A86A]/55 hover:bg-[#C9A86A]/18 hover:text-[#C9A86A] sm:min-h-16 sm:px-3 sm:py-3 sm:text-xs`}
+                        aria-label={choice}
+                        title={choice}
+                      >
+                        <span className="grid h-7 w-7 place-items-center rounded-full border border-white/12 bg-black/22 text-[#C9A86A] shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-colors group-hover:border-[#C9A86A]/45 group-hover:bg-[#C9A86A] group-hover:text-[#0E0D10] sm:h-8 sm:w-8">
+                          <StoryChoiceIcon name={getStoryChoiceIcon(index)} />
+                        </span>
+                        <span className="block sm:hidden">{getCompactStoryChoiceLabel(choice, isArabic)}</span>
+                        <span className="hidden sm:block">{choice}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                  <button type="button" onClick={() => chooseStoryGuide(selectedChildStory)} className="ui-action rounded-xl bg-[#C9A86A] px-4 py-3 text-xs text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
+                    {isArabic ? "ابدأ مع رفيق القصة" : "Start with story guide"}
+                  </button>
+                  <button type="button" onClick={() => setSelectedChildStory(null)} className="ui-action rounded-xl border border-white/12 px-4 py-3 text-xs text-bone/62 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
+                    {isArabic ? "رجوع للقصص" : "Back to stories"}
+                  </button>
+                </div>
+              </div>
+            </article>
+          </div>
+        ), document.body) : null}
       </section>
     </div>
   );

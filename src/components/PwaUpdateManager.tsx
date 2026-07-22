@@ -48,12 +48,14 @@ export function PwaUpdateManager() {
           installingWorker.addEventListener("statechange", () => {
             if (installingWorker.state === "installed" && navigator.serviceWorker.controller) {
               setUpdateAvailable(true);
+              installingWorker.postMessage({ type: "SKIP_WAITING" });
             }
           });
         });
 
         if (nextRegistration.waiting) {
           setUpdateAvailable(true);
+          nextRegistration.waiting.postMessage({ type: "SKIP_WAITING" });
         }
 
         void nextRegistration.update();
@@ -68,7 +70,7 @@ export function PwaUpdateManager() {
   useEffect(() => {
     async function checkVersion() {
       try {
-        const response = await fetch("/api/version", { cache: "no-store" });
+        const response = await fetch(`/api/version?ts=${Date.now()}`, { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
         const data = (await response.json()) as VersionPayload;
         const previousVersion = localStorage.getItem(versionStorageKey);
         const nextVersion = data.version || data.packageVersion;
@@ -77,6 +79,8 @@ export function PwaUpdateManager() {
         if (previousVersion && nextVersion && previousVersion !== nextVersion) {
           setCurrentVersion(previousVersion);
           setUpdateAvailable(true);
+          void registration?.update();
+          registration?.waiting?.postMessage({ type: "SKIP_WAITING" });
           return;
         }
 
@@ -177,6 +181,16 @@ export function PwaUpdateManager() {
     window.location.reload();
   }
 
+  function hardRefreshApp() {
+    if (latestVersion) {
+      localStorage.setItem(versionStorageKey, latestVersion);
+    }
+
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((key) => key.startsWith("fadfada-")).map((key) => caches.delete(key))))
+      .finally(() => window.location.replace(`/?refresh=${Date.now()}`));
+  }
+
   if (updateAvailable) {
     return (
       <div className="fixed inset-x-3 bottom-20 z-[60] mx-auto max-w-md border border-[#C9A86A]/35 bg-[#0E0D10]/95 p-4 text-bone shadow-2xl backdrop-blur-xl" dir={isArabic ? "rtl" : "ltr"}>
@@ -191,6 +205,9 @@ export function PwaUpdateManager() {
         <div className="mt-4 flex gap-2">
           <button type="button" onClick={applyUpdate} className="flex-1 bg-[#C9A86A] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.1em] text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
             {isArabic ? "حدّث الآن" : "Update now"}
+          </button>
+          <button type="button" onClick={hardRefreshApp} className="flex-1 border border-[#C9A86A]/35 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.1em] text-[#C9A86A] transition-colors hover:bg-[#C9A86A] hover:text-[#0E0D10]">
+            {isArabic ? "تحديث قوي" : "Hard refresh"}
           </button>
           <button type="button" onClick={() => setUpdateAvailable(false)} className="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.1em] text-[#F7F3EC]/45 transition-colors hover:text-[#F7F3EC]">
             {isArabic ? "لاحقاً" : "Later"}

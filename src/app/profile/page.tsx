@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../lib/auth";
+import { authOptions, requireParentWorkspace } from "../../lib/auth";
 import { prisma } from "../../lib/prisma";
 import { ProfileClient } from "./profile-client";
 
@@ -8,14 +8,18 @@ export const dynamic = "force-dynamic";
 
 export default async function ProfilePage() {
   const session = await getServerSession(authOptions);
-  const userId = session?.user && "id" in session.user ? String(session.user.id) : null;
+  const parentContext = requireParentWorkspace(session?.user);
 
-  if (!userId) {
+  if (!parentContext.ok && parentContext.status === 401) {
     redirect("/auth/signin?callbackUrl=/profile");
   }
 
+  if (!parentContext.ok) {
+    redirect("/");
+  }
+
   const user = await prisma.user.findUnique({
-    where: { id: userId },
+    where: { id: parentContext.userId },
     select: {
       id: true,
       name: true,

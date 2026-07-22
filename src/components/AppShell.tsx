@@ -4,13 +4,61 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SessionProvider, signOut, useSession } from "next-auth/react";
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, type ChangeEvent, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { NotificationCenter } from "./NotificationCenter";
 import { PwaUpdateManager } from "./PwaUpdateManager";
 
 type AppLanguage = "ar" | "en";
-type HomeHeaderAction = "start" | "avatars" | "newChat";
+type HomeHeaderAction = "start" | "avatars" | "stories" | "newChat";
 type AccountTier = "FREE" | "PLUS" | "BUSINESS";
+type ParentTool = "homework" | "playbook" | "plans";
+
+type ParentChildProfile = {
+  id: string;
+  nickname: string;
+  ageBand: "under_8" | "8_to_10" | "11_to_12" | "13_plus";
+};
+
+type HomeworkActivity = {
+  type: "quiz" | "trace" | "match" | "story" | "challenge";
+  title: string;
+  prompt: string;
+  hint: string;
+  answer: string;
+  choices?: string[];
+};
+
+type HomeworkResult = {
+  subject: "math" | "english" | "arabic" | "kg" | "mixed";
+  detectedTask: string;
+  parentSummary: string;
+  childIntro: string;
+  activities: HomeworkActivity[];
+  safetyNote: string;
+};
+
+type ParentPlaybookResult = {
+  title: string;
+  quickRead: string;
+  childLens: string;
+  sayThis: string[];
+  avoidThis: string[];
+  resetSteps: string[];
+  playBridge: string;
+  boundaryScript: string;
+  repairLine: string;
+  followUp: string;
+  safetyNote: string;
+  childNickname?: string | null;
+};
+
+type SavedParentPlan = ParentPlaybookResult & {
+  id: string;
+  createdAt: string;
+  situation: string;
+  goal: string;
+};
 
 type AppLocaleContextValue = {
   language: AppLanguage;
@@ -35,6 +83,8 @@ type AccountProfile = {
 const AppLocaleContext = createContext<AppLocaleContextValue | null>(null);
 const appLanguageStorageKey = "fadfada-language";
 const fadfadaHomeActionEventName = "fadfada:home-action";
+const parentReturnCodeStorageKey = "fadfada-parent-return-code";
+const savedParentPlansStorageKey = "fadfada-parent-plans";
 
 export function useAppLocale() {
   const context = useContext(AppLocaleContext);
@@ -98,7 +148,9 @@ export function AppShell({ children, initialLanguage = "ar" }: AppShellProps) {
 function GlobalFooter() {
   const { language, direction } = useAppLocale();
   const pathname = usePathname();
+  const { data: session } = useSession();
   const isArabic = language === "ar";
+  const isChildWorkspace = session?.user && "workspaceMode" in session.user && session.user.workspaceMode === "child";
   const links = [
     { href: "/pricing", label: isArabic ? "الأسعار" : "Pricing" },
     { href: "/terms", label: isArabic ? "الشروط" : "Terms" },
@@ -106,7 +158,7 @@ function GlobalFooter() {
     { href: "/refund", label: isArabic ? "الاسترداد" : "Refunds" },
   ];
 
-  if (pathname === "/") return null;
+  if (pathname === "/" || isChildWorkspace) return null;
 
   return (
     <footer className="border-t border-white/10 bg-[#0E0D10]/80 px-5 py-8" dir={direction}>
@@ -124,23 +176,36 @@ function GlobalFooter() {
 function GlobalHeader() {
   const { language, direction, toggleLanguage } = useAppLocale();
   const pathname = usePathname();
-  const { data: session, status } = useSession();
+  const { data: session, status, update: updateSession } = useSession();
   const [accountOpen, setAccountOpen] = useState(false);
+  const [activitiesOpen, setActivitiesOpen] = useState(false);
+  const [activeParentTool, setActiveParentTool] = useState<ParentTool | null>(null);
   const [accountProfile, setAccountProfile] = useState<AccountProfile | null>(null);
   const [activeAdminTab, setActiveAdminTab] = useState("dashboard");
+  const [parentReturnStatus, setParentReturnStatus] = useState<"idle" | "switching" | "error">("idle");
+  const [parentReturnOpen, setParentReturnOpen] = useState(false);
+  const [parentReturnCodeInput, setParentReturnCodeInput] = useState("");
+  const [, setEscapePressCount] = useState(0);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const activitiesMenuRef = useRef<HTMLDivElement | null>(null);
   const isArabic = language === "ar";
   const nextLanguageLabel = isArabic ? "EN" : "AR";
   const authenticatedImage = accountProfile?.image || session?.user?.image;
+  const sessionChildNickname = session?.user && "childNickname" in session.user && typeof session.user.childNickname === "string" ? session.user.childNickname : "";
+  const childWorkspaceName = sessionChildNickname || (isArabic ? "مساحة الطفل" : "Child space");
   const authenticatedName = accountProfile?.nickname || accountProfile?.name || session?.user?.name || accountProfile?.email || session?.user?.email || (isArabic ? "عضو فضفضة" : "FadFada member");
   const authenticatedEmail = accountProfile?.email || session?.user?.email || "";
   const sessionUserRole = session?.user && "role" in session.user ? session.user.role : "USER";
+  const isChildWorkspace = session?.user && "workspaceMode" in session.user && session.user.workspaceMode === "child";
   const accountTier = getAccountTier(accountProfile?.activeTier ?? (session?.user && "activeTier" in session.user ? session.user.activeTier : undefined));
   const isAdminArea = pathname?.startsWith("/admin") ?? false;
+  const isProfileArea = pathname === "/profile";
   const accountMenuAlignmentClass = isArabic ? "left-0 text-right" : "right-0 text-left";
+  const activitiesMenuAlignmentClass = isArabic ? "left-0 text-right" : "right-0 text-left";
   const headerActions: Array<{ action: HomeHeaderAction; label: string }> = [
     { action: "start", label: isArabic ? "ابدأ" : "Start" },
     { action: "avatars", label: isArabic ? "الرفاق" : "Avatars" },
+    ...(isChildWorkspace ? [{ action: "stories" as const, label: isArabic ? "القصص" : "Stories" }] : []),
     { action: "newChat", label: isArabic ? "محادثة جديدة" : "New chat" },
   ];
   const adminTabs = [
@@ -148,12 +213,25 @@ function GlobalHeader() {
     { id: "configuration", ar: "الإعدادات", en: "Config" },
     { id: "users", ar: "الهدايا", en: "Gifts" },
     { id: "personas", ar: "الرفاق", en: "Personas" },
+    { id: "families", ar: "الأطفال", en: "Children" },
     { id: "offers", ar: "الخصومات", en: "Offers" },
     { id: "sessions", ar: "الجلسات", en: "Sessions" },
   ];
+  const parentActivityLinks: Array<{ tool: ParentTool; label: string; accent: string }> = [
+    { tool: "homework", label: isArabic ? "محول الواجب" : "Homework transformer", accent: "text-emerald-100" },
+    { tool: "playbook", label: isArabic ? "دليل ولي الأمر" : "Parent Playbook", accent: "text-amber-100" },
+    { tool: "plans", label: isArabic ? "خطط أطفالي" : "My kids plans", accent: "text-cyan-100" },
+  ];
+
+  function openParentTool(tool: ParentTool) {
+    setActivitiesOpen(false);
+    setAccountOpen(false);
+    setActiveParentTool(tool);
+  }
 
   function runHeaderAction(action: HomeHeaderAction) {
     setAccountOpen(false);
+    setActivitiesOpen(false);
     if (typeof window === "undefined") return;
 
     if (window.location.pathname !== "/") {
@@ -164,8 +242,58 @@ function GlobalHeader() {
     window.dispatchEvent(new CustomEvent(fadfadaHomeActionEventName, { detail: { action } }));
   }
 
+  function openParentReturnGate() {
+    setParentReturnCodeInput("");
+    setEscapePressCount(0);
+    setParentReturnStatus("idle");
+    setParentReturnOpen(true);
+  }
+
+  function getOrCreateParentReturnCode() {
+    if (typeof window === "undefined") return "";
+
+    const storedCode = window.localStorage.getItem(parentReturnCodeStorageKey)?.trim();
+    if (/^\d{4}$/.test(storedCode || "")) return storedCode || "";
+
+    const nextCode = String(Math.floor(1000 + Math.random() * 9000));
+    window.localStorage.setItem(parentReturnCodeStorageKey, nextCode);
+    return nextCode;
+  }
+
+  async function returnToParentProfile(event?: FormEvent<HTMLFormElement>, bypassGate = false) {
+    event?.preventDefault();
+    if (parentReturnStatus === "switching") return;
+
+    if (!bypassGate && parentReturnCodeInput.replace(/\D/g, "") !== getOrCreateParentReturnCode()) {
+      setParentReturnStatus("error");
+      return;
+    }
+
+    setParentReturnStatus("switching");
+    try {
+      await updateSession({ clearChildProfile: true });
+      window.location.assign("/profile#child-profiles");
+    } catch {
+      setParentReturnStatus("error");
+    }
+  }
+
+  function handleParentReturnKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (event.key !== "Escape") return;
+
+    event.preventDefault();
+    setEscapePressCount((current) => {
+      const nextCount = current + 1;
+      if (nextCount >= 3) {
+        void returnToParentProfile(undefined, true);
+        return 0;
+      }
+      return nextCount;
+    });
+  }
+
   useEffect(() => {
-    if (status !== "authenticated") {
+    if (status !== "authenticated" || isChildWorkspace) {
       setAccountProfile(null);
       return;
     }
@@ -181,7 +309,7 @@ function GlobalHeader() {
     return () => {
       active = false;
     };
-  }, [status]);
+  }, [isChildWorkspace, status]);
 
   useEffect(() => {
     if (!isAdminArea || typeof window === "undefined") {
@@ -191,7 +319,7 @@ function GlobalHeader() {
 
     function syncActiveAdminTab() {
       const tab = new URLSearchParams(window.location.search).get("tab");
-      setActiveAdminTab(tab === "configuration" || tab === "users" || tab === "personas" || tab === "offers" || tab === "sessions" ? tab : "dashboard");
+      setActiveAdminTab(tab === "configuration" || tab === "users" || tab === "personas" || tab === "families" || tab === "offers" || tab === "sessions" ? tab : "dashboard");
     }
 
     syncActiveAdminTab();
@@ -222,19 +350,50 @@ function GlobalHeader() {
     };
   }, [accountOpen]);
 
+  useEffect(() => {
+    if (!activitiesOpen) return;
+
+    function closeActivitiesMenuOnOutsidePointer(event: MouseEvent | TouchEvent) {
+      const target = event.target;
+      if (!(target instanceof Node) || activitiesMenuRef.current?.contains(target)) return;
+      setActivitiesOpen(false);
+    }
+
+    function closeActivitiesMenuOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setActivitiesOpen(false);
+    }
+
+    document.addEventListener("mousedown", closeActivitiesMenuOnOutsidePointer);
+    document.addEventListener("touchstart", closeActivitiesMenuOnOutsidePointer);
+    document.addEventListener("keydown", closeActivitiesMenuOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeActivitiesMenuOnOutsidePointer);
+      document.removeEventListener("touchstart", closeActivitiesMenuOnOutsidePointer);
+      document.removeEventListener("keydown", closeActivitiesMenuOnEscape);
+    };
+  }, [activitiesOpen]);
+
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#0E0D10]/78 text-bone/90 shadow-2xl backdrop-blur-xl" dir={direction}>
-      <div className={`mx-auto flex h-16 items-center justify-between gap-2 px-3 sm:px-4 ${isAdminArea ? "max-w-6xl" : "max-w-5xl"}`}>
-      <div className="flex min-w-0 items-center gap-2">
+      <div className={`mx-auto flex h-16 items-center justify-between gap-1.5 px-2 sm:gap-2 sm:px-4 ${isAdminArea ? "max-w-6xl" : "max-w-5xl"}`}>
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
         <button
           type="button"
           onClick={toggleLanguage}
-          className="shrink-0 rounded-full border border-white/10 bg-slate-950/70 px-3 py-2 font-arsans text-sm text-bone/90 shadow-xl backdrop-blur-xl transition-colors hover:border-gold/50 hover:text-gold"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-slate-950/70 font-arsans text-xs text-bone/90 shadow-xl backdrop-blur-xl transition-colors hover:border-gold/50 hover:text-gold sm:w-auto sm:px-3 sm:text-sm"
           aria-label={isArabic ? "تغيير اللغة إلى الإنجليزية" : "Switch language to Arabic"}
         >
           {nextLanguageLabel}
         </button>
-        {isAdminArea ? (
+        {isProfileArea ? (
+          <nav className="flex min-w-0 items-center gap-1 rounded-full border border-gold/20 bg-gold/[0.06] p-1 shadow-xl backdrop-blur-xl" aria-label={isArabic ? "قائمة ملف الحساب" : "Account profile menu"}>
+            <Link href="/" className="group relative inline-flex shrink-0 items-center gap-1.5 overflow-hidden rounded-full px-3 py-1.5 font-arsans text-[11px] text-gold transition-all duration-200 hover:-translate-y-0.5 hover:text-ink sm:px-3.5 sm:text-xs">
+              <span className="absolute inset-0 translate-y-full rounded-full bg-gold transition-transform duration-200 group-hover:translate-y-0" aria-hidden="true" />
+              <span className="relative">{isArabic ? "العودة للرئيسية" : "Back home"}</span>
+            </Link>
+            <span className="hidden px-3 py-1.5 font-arsans text-xs text-bone/55 sm:inline">{isArabic ? "ملف الحساب" : "Account"}</span>
+          </nav>
+        ) : isAdminArea ? (
           <nav className="flex min-w-0 items-center gap-1 overflow-x-auto rounded-full border border-gold/20 bg-gold/[0.06] p-1 shadow-xl backdrop-blur-xl [scrollbar-width:none]" aria-label={isArabic ? "تبويبات الإدارة" : "Admin tabs"}>
             {adminTabs.map((tab) => {
               const active = activeAdminTab === tab.id;
@@ -252,31 +411,97 @@ function GlobalHeader() {
             })}
           </nav>
         ) : (
-          <nav className="hidden min-w-0 items-center gap-1 overflow-x-auto rounded-full border border-white/10 bg-white/[0.035] p-1 shadow-xl backdrop-blur-xl min-[420px]:flex" aria-label={isArabic ? "اختصارات فضفضة الرئيسية" : "FadFada quick actions"}>
+          <nav className="flex min-w-0 items-center gap-1 overflow-x-auto rounded-full border border-white/10 bg-white/[0.035] p-1 shadow-xl backdrop-blur-xl [scrollbar-width:none]" aria-label={isArabic ? "اختصارات فضفضة الرئيسية" : "FadFada quick actions"}>
             {headerActions.map((item) => (
               <button
                 key={item.action}
                 type="button"
                 onClick={() => runHeaderAction(item.action)}
-                className="group relative inline-flex shrink-0 items-center gap-1.5 overflow-hidden rounded-full px-3 py-1.5 font-arsans text-[11px] text-bone/72 transition-all duration-200 hover:-translate-y-0.5 hover:text-ink sm:px-3.5 sm:text-xs"
+                className="group relative inline-flex h-9 w-9 shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-full font-arsans text-[11px] text-bone/72 transition-all duration-200 hover:-translate-y-0.5 hover:text-ink sm:w-auto sm:px-3.5 sm:text-xs"
+                title={item.label}
+                aria-label={item.label}
               >
                 <span className="absolute inset-0 translate-y-full rounded-full bg-gold transition-transform duration-200 group-hover:translate-y-0" aria-hidden="true" />
-                {item.action === "newChat" ? <NewChatIcon /> : null}
-                <span className="relative">{item.label}</span>
+                <HeaderActionIcon action={item.action} />
+                <span className="sr-only sm:not-sr-only sm:relative">{item.label}</span>
               </button>
             ))}
           </nav>
         )}
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
-        {sessionUserRole === "ADMIN" ? (
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        {sessionUserRole === "ADMIN" && !isChildWorkspace ? (
           <Link href={isAdminArea ? "/" : "/admin/dashboard"} className={`hidden rounded-full border px-3 py-2 font-arsans text-xs shadow-xl transition-all duration-200 hover:-translate-y-0.5 sm:inline-flex ${isAdminArea ? "border-white/10 bg-white/[0.035] text-bone/72 hover:border-gold/45 hover:text-gold" : "border-gold/35 bg-gold/[0.08] text-gold hover:bg-gold hover:text-ink"}`}>
             {isAdminArea ? (isArabic ? "فتح الشات" : "Chat") : isArabic ? "الإدارة" : "Admin"}
           </Link>
         ) : null}
+        {session?.user && !isChildWorkspace && !isAdminArea ? (
+          <>
+            <div ref={activitiesMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setActivitiesOpen((open) => !open);
+                  setAccountOpen(false);
+                }}
+                className="inline-flex h-10 w-10 items-center justify-center gap-1.5 rounded-full border border-gold/30 bg-gold/[0.09] font-arsans text-xs text-gold shadow-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-gold hover:text-ink sm:w-auto sm:px-3"
+                aria-haspopup="menu"
+                aria-expanded={activitiesOpen}
+                aria-label={isArabic ? "الأنشطة" : "Activities"}
+                title={isArabic ? "الأنشطة" : "Activities"}
+              >
+                <ActivityMenuIcon />
+                <span className="sr-only sm:not-sr-only">{isArabic ? "الأنشطة" : "Activities"}</span>
+              </button>
+              {activitiesOpen ? (
+                <div className={`absolute top-11 z-50 w-[min(16rem,calc(100vw-1.5rem))] border border-gold/28 bg-[#0E0D10] p-2 shadow-2xl shadow-black/60 ${activitiesMenuAlignmentClass}`} role="menu" dir={direction}>
+                  <p className="px-2 py-1 font-arsans text-[11px] font-semibold uppercase tracking-[0.08em] text-gold/78">{isArabic ? "وصول سريع" : "Fast access"}</p>
+                  <div className="mt-1 grid gap-1">
+                    {parentActivityLinks.map((link) => (
+                      <button key={link.tool} type="button" onClick={() => openParentTool(link.tool)} className="group flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#1A171C] px-2 py-2 text-start font-arsans text-sm text-bone/88 transition-colors hover:border-gold/35 hover:bg-[#231E22] hover:text-gold" role="menuitem">
+                        <span>{link.label}</span>
+                        <span className={`h-2 w-2 rounded-full ${link.accent} bg-current shadow-[0_0_18px_currentColor]`} aria-hidden="true" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <Link href="/profile#child-profiles" className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-cyan-200/24 bg-cyan-200/10 font-arsans text-xs text-cyan-100 shadow-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-cyan-200 hover:text-ink sm:w-auto sm:px-3" aria-label={isArabic ? "الأطفال" : "Children"} title={isArabic ? "الأطفال" : "Children"}>
+              <ChildrenHeaderIcon />
+              <span className="sr-only sm:not-sr-only sm:ms-1.5">{isArabic ? "الأطفال" : "Children"}</span>
+            </Link>
+          </>
+        ) : null}
         {status === "loading" ? (
           <span className="h-8 w-8 rounded-2xl border border-white/10 bg-slate-950/70 shadow-xl" aria-hidden="true" />
+        ) : session?.user && isChildWorkspace ? (
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={openParentReturnGate}
+              disabled={parentReturnStatus === "switching"}
+              className="hidden rounded-full border border-cyan-200/24 bg-cyan-200/10 px-3 py-2 font-arsans text-xs text-cyan-100 shadow-xl transition-colors hover:bg-cyan-200 hover:text-ink disabled:cursor-wait disabled:opacity-60 min-[420px]:inline-flex"
+            >
+              {parentReturnStatus === "switching" ? (isArabic ? "جار الرجوع..." : "Returning...") : isArabic ? "ولي الأمر" : "Parent"}
+            </button>
+            <div className="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-slate-950/82 p-1 pr-2 shadow-xl" aria-label={isArabic ? `مساحة الطفل ${childWorkspaceName}` : `Child space ${childWorkspaceName}`}>
+              <span className="grid h-8 w-8 place-items-center rounded-xl bg-gold/15 font-arsans text-xs text-gold">
+                {childWorkspaceName.slice(0, 1).toUpperCase()}
+              </span>
+              <span className="hidden max-w-28 truncate font-arsans text-xs text-bone/78 sm:inline">{childWorkspaceName}</span>
+            </div>
+            <button
+              type="button"
+              onClick={openParentReturnGate}
+              disabled={parentReturnStatus === "switching"}
+              className="grid h-10 w-10 place-items-center rounded-2xl border border-cyan-200/24 bg-cyan-200/10 font-arsans text-xs text-cyan-100 shadow-xl transition-colors hover:bg-cyan-200 hover:text-ink disabled:cursor-wait disabled:opacity-60 min-[420px]:hidden"
+              aria-label={isArabic ? "الرجوع لمساحة ولي الأمر" : "Return to parent space"}
+            >
+              {isArabic ? "ولي" : "P"}
+            </button>
+          </div>
         ) : session?.user ? (
           <div ref={accountMenuRef} className="relative">
             <button type="button" onClick={() => setAccountOpen((open) => !open)} className="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-slate-950/82 p-1 pr-2 shadow-xl transition-colors hover:border-gold/45" aria-label={`Open account menu for ${authenticatedName}`} aria-expanded={accountOpen}>
@@ -286,7 +511,7 @@ function GlobalHeader() {
               <TierBadge tier={accountTier} language={language} />
             </button>
             {accountOpen ? (
-              <div className={`absolute top-12 z-50 w-[min(18rem,calc(100vw-1.5rem))] border border-white/10 bg-[#0E0D10]/95 p-3 shadow-2xl backdrop-blur-xl ${accountMenuAlignmentClass}`} dir={direction}>
+              <div className={`absolute top-12 z-50 w-[min(18rem,calc(100vw-1.5rem))] border border-white/14 bg-[#0E0D10] p-3 shadow-2xl shadow-black/60 ${accountMenuAlignmentClass}`} dir={direction}>
                 <p className="truncate font-arsans text-sm text-bone/85">{authenticatedName}</p>
                 <p className="mt-1 truncate font-ensans text-xs text-bone/45" dir="ltr">{authenticatedEmail}</p>
                 <div className="mt-3 flex justify-start">
@@ -294,15 +519,20 @@ function GlobalHeader() {
                 </div>
                 <PlusUnlockList tier={accountTier} language={language} />
                 <div className="mt-3 grid gap-1 border-t border-white/10 pt-3">
-                  <Link href="/profile" onClick={() => setAccountOpen(false)} className="px-2 py-2 font-arsans text-sm text-bone/70 transition-colors hover:bg-white/[0.04] hover:text-gold">
+                  {!isAdminArea ? (
+                    <Link href="/profile#child-profiles" onClick={() => setAccountOpen(false)} className="rounded-xl border border-white/10 bg-[#1A171C] px-2 py-2 font-arsans text-sm text-bone/86 transition-colors hover:border-gold/35 hover:bg-[#231E22] hover:text-gold">
+                      {isArabic ? "ملفات الأطفال" : "Children profiles"}
+                    </Link>
+                  ) : null}
+                  <Link href="/profile" onClick={() => setAccountOpen(false)} className="rounded-xl border border-white/10 bg-[#1A171C] px-2 py-2 font-arsans text-sm text-bone/86 transition-colors hover:border-gold/35 hover:bg-[#231E22] hover:text-gold">
                     {isArabic ? "الملف واللحظات المحفوظة" : "Profile and saved moments"}
                   </Link>
                   {sessionUserRole === "ADMIN" ? (
-                    <Link href="/admin/dashboard" onClick={() => setAccountOpen(false)} className="px-2 py-2 font-arsans text-sm text-bone/70 transition-colors hover:bg-white/[0.04] hover:text-gold">
+                    <Link href="/admin/dashboard" onClick={() => setAccountOpen(false)} className="rounded-xl border border-white/10 bg-[#1A171C] px-2 py-2 font-arsans text-sm text-bone/86 transition-colors hover:border-gold/35 hover:bg-[#231E22] hover:text-gold">
                       {isArabic ? "لوحة الإدارة" : "Admin dashboard"}
                     </Link>
                   ) : null}
-                  <button type="button" onClick={() => void signOut({ callbackUrl: "/" })} className="px-2 py-2 text-start font-arsans text-sm text-red-200/75 transition-colors hover:bg-red-300/10 hover:text-red-100">
+                  <button type="button" onClick={() => void signOut({ callbackUrl: "/" })} className="rounded-xl border border-red-200/16 bg-red-950/40 px-2 py-2 text-start font-arsans text-sm text-red-100/86 transition-colors hover:border-red-200/35 hover:bg-red-900/55 hover:text-red-50">
                     {isArabic ? "تسجيل الخروج" : "Sign out"}
                   </button>
                 </div>
@@ -321,7 +551,558 @@ function GlobalHeader() {
         )}
       </div>
       </div>
+      {parentReturnOpen ? (
+        <div onKeyDown={handleParentReturnKeyDown} className="fixed inset-0 z-[120] grid place-items-center bg-[#050607] px-4" role="dialog" aria-modal="true" aria-label={isArabic ? "رمز ولي الأمر" : "Parent return code"} dir={direction}>
+          <form onSubmit={(event) => void returnToParentProfile(event)} className="w-full max-w-sm rounded-2xl border border-cyan-200/22 bg-[#0E0D10] p-4 shadow-2xl shadow-black">
+            <p className="font-arsans text-sm font-semibold text-cyan-100">{isArabic ? "رمز ولي الأمر" : "Parent return code"}</p>
+            <p className="mt-2 font-arsans text-xs leading-6 text-bone/58">
+              {isArabic ? "اكتب رمز الرجوع الموجود في صفحة ملفات الأطفال عند ولي الأمر." : "Enter the return code shown in the parent Children profiles page."}
+            </p>
+            <input
+              value={parentReturnCodeInput}
+              onChange={(event) => {
+                setParentReturnCodeInput(event.target.value.replace(/\D/g, "").slice(0, 4));
+                if (parentReturnStatus === "error") setParentReturnStatus("idle");
+              }}
+              type="password"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              dir="ltr"
+              autoComplete="one-time-code"
+              autoFocus
+              placeholder="••••"
+              className="mt-3 min-h-11 w-full rounded-xl border border-white/12 bg-[#050607] px-3 text-center font-ensans text-lg tracking-[0.35em] text-bone/95 outline-none placeholder:text-bone/42 focus:border-cyan-200/55"
+            />
+            {parentReturnStatus === "error" ? <p className="mt-2 font-arsans text-xs text-red-200">{isArabic ? "الرمز غير صحيح." : "The code is not correct."}</p> : null}
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setParentReturnOpen(false)} className="ui-action rounded-xl border border-white/10 px-3 py-2 text-xs text-bone/70 hover:border-bone/35 hover:text-bone">
+                {isArabic ? "إلغاء" : "Cancel"}
+              </button>
+              <button type="submit" disabled={parentReturnStatus === "switching"} className="ui-action rounded-xl border border-cyan-200/35 bg-cyan-200/12 px-3 py-2 text-xs text-cyan-100 hover:bg-cyan-200 hover:text-ink disabled:cursor-wait disabled:opacity-60">
+                {parentReturnStatus === "switching" ? (isArabic ? "جار الرجوع..." : "Returning...") : isArabic ? "فتح ملف الوالد" : "Open parent profile"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+      {activeParentTool && typeof document !== "undefined" ? createPortal(<ParentToolDialog tool={activeParentTool} onClose={() => setActiveParentTool(null)} />, document.body) : null}
     </header>
+  );
+}
+
+function ParentToolDialog({ tool, onClose }: { tool: ParentTool; onClose: () => void }) {
+  const { language, direction } = useAppLocale();
+  const isArabic = language === "ar";
+  const [childProfiles, setChildProfiles] = useState<ParentChildProfile[]>([]);
+  const [childProfileId, setChildProfileId] = useState("");
+  const [loadStatus, setLoadStatus] = useState<"loading" | "idle" | "error">("loading");
+  const [homeworkImage, setHomeworkImage] = useState<File | null>(null);
+  const [homeworkImagePreviewUrl, setHomeworkImagePreviewUrl] = useState("");
+  const [homeworkHint, setHomeworkHint] = useState("");
+  const [homeworkAgeBand, setHomeworkAgeBand] = useState<ParentChildProfile["ageBand"] | "unknown">("unknown");
+  const [homeworkStatus, setHomeworkStatus] = useState<"idle" | "analyzing" | "ready" | "error">("idle");
+  const [homeworkMessage, setHomeworkMessage] = useState("");
+  const [homeworkResult, setHomeworkResult] = useState<HomeworkResult | null>(null);
+  const [playbookSituation, setPlaybookSituation] = useState("");
+  const [playbookGoal, setPlaybookGoal] = useState("");
+  const [playbookEnergy, setPlaybookEnergy] = useState<"calm" | "tired" | "stressed" | "angry">("calm");
+  const [playbookStatus, setPlaybookStatus] = useState<"idle" | "building" | "ready" | "error">("idle");
+  const [playbookMessage, setPlaybookMessage] = useState("");
+  const [playbookResult, setPlaybookResult] = useState<ParentPlaybookResult | null>(null);
+  const [savedParentPlans, setSavedParentPlans] = useState<SavedParentPlan[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    setLoadStatus("loading");
+    fetch("/api/parent/child", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() as Promise<{ childProfiles?: ParentChildProfile[] }> : Promise.reject(new Error(String(response.status))))
+      .then((data) => {
+        if (!active) return;
+        const nextProfiles = Array.isArray(data.childProfiles) ? data.childProfiles : [];
+        setChildProfiles(nextProfiles);
+        setChildProfileId((current) => current || nextProfiles[0]?.id || "");
+        setLoadStatus("idle");
+      })
+      .catch(() => {
+        if (!active) return;
+        setLoadStatus("error");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    setSavedParentPlans(readSavedParentPlans());
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (homeworkImagePreviewUrl) URL.revokeObjectURL(homeworkImagePreviewUrl);
+    };
+  }, [homeworkImagePreviewUrl]);
+
+  function selectHomeworkImage(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    setHomeworkImage(file);
+    setHomeworkImagePreviewUrl(file ? URL.createObjectURL(file) : "");
+    if (homeworkStatus !== "idle") {
+      setHomeworkStatus("idle");
+      setHomeworkMessage("");
+    }
+  }
+
+  async function submitHomework(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (homeworkStatus === "analyzing") return;
+    if (!childProfileId) {
+      setHomeworkStatus("error");
+      setHomeworkMessage(isArabic ? "اختر الطفل الذي سيستلم الواجب أولاً." : "Choose the child who should receive this homework first.");
+      return;
+    }
+    if (!homeworkImage && !homeworkHint.trim()) {
+      setHomeworkStatus("error");
+      setHomeworkMessage(isArabic ? "ارفع صورة الواجب أو اكتب وصفاً قصيراً له." : "Upload a homework image or type a short description.");
+      return;
+    }
+
+    setHomeworkStatus("analyzing");
+    setHomeworkMessage("");
+
+    const formData = new FormData();
+    formData.set("language", language);
+    formData.set("childAgeBand", homeworkAgeBand);
+    formData.set("childProfileId", childProfileId);
+    formData.set("hint", homeworkHint.trim());
+    if (homeworkImage) formData.set("image", homeworkImage);
+
+    try {
+      const response = await fetch("/api/parent/homework", { method: "POST", body: formData });
+      const data = await response.json().catch(() => ({})) as HomeworkResult & { error?: string };
+      if (!response.ok || !Array.isArray(data.activities)) throw new Error(data.error || "HOMEWORK_HELPER_FAILED");
+      const child = childProfiles.find((profile) => profile.id === childProfileId);
+      setHomeworkResult(data);
+      setHomeworkStatus("ready");
+      setHomeworkMessage(isArabic ? `تم إرسال الواجب إلى مساحة ${child?.nickname || "الطفل"}.` : `Homework sent to ${child?.nickname || "the child"}'s space.`);
+    } catch (error) {
+      setHomeworkStatus("error");
+      setHomeworkMessage(formatParentToolHomeworkError(error instanceof Error ? error.message : undefined, language));
+    }
+  }
+
+  async function submitPlaybook(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (playbookStatus === "building") return;
+    if (!playbookSituation.trim()) {
+      setPlaybookStatus("error");
+      setPlaybookMessage(isArabic ? "اكتب الموقف الذي تريد خطة له." : "Write the situation you want a plan for.");
+      return;
+    }
+
+    setPlaybookStatus("building");
+    setPlaybookMessage("");
+    const child = childProfiles.find((profile) => profile.id === childProfileId);
+
+    try {
+      const response = await fetch("/api/parent/playbook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          language,
+          childProfileId,
+          childAgeBand: child?.ageBand || "unknown",
+          parentEnergy: playbookEnergy,
+          situation: playbookSituation.trim(),
+          goal: playbookGoal.trim(),
+        }),
+      });
+      const data = await response.json().catch(() => ({})) as ParentPlaybookResult & { error?: string };
+      if (!response.ok || !data.title) throw new Error(data.error || "PARENT_PLAYBOOK_FAILED");
+      setPlaybookResult(data);
+      const savedPlan = saveParentPlan({ ...data, situation: playbookSituation.trim(), goal: playbookGoal.trim() });
+      setSavedParentPlans((current) => [savedPlan, ...current.filter((plan) => plan.id !== savedPlan.id)].slice(0, 20));
+      setPlaybookStatus("ready");
+      setPlaybookMessage(isArabic ? "جهزت الخطة وحفظتها في خطط أطفالي." : "Parent playbook is ready and saved to My kids plans.");
+    } catch (error) {
+      setPlaybookStatus("error");
+      setPlaybookMessage(formatParentToolPlaybookError(error instanceof Error ? error.message : undefined, language));
+    }
+  }
+
+  function createAnotherPlan() {
+    setPlaybookSituation("");
+    setPlaybookGoal("");
+    setPlaybookResult(null);
+    setPlaybookStatus("idle");
+    setPlaybookMessage("");
+  }
+
+  const title = tool === "homework" ? (isArabic ? "محول الواجب" : "Homework transformer") : tool === "plans" ? (isArabic ? "خطط أطفالي" : "My kids plans") : (isArabic ? "دليل ولي الأمر" : "Parent Playbook");
+
+  return (
+    <div className="fixed inset-0 z-[120] flex flex-col bg-[#050607] px-3 py-4 sm:px-6" role="dialog" aria-modal="true" aria-label={title} dir={direction}>
+      <section className={`mx-auto flex w-full max-w-6xl flex-1 flex-col min-h-0 border bg-[#0E0D10] p-4 shadow-2xl shadow-black ${tool === "homework" ? "border-emerald-200/22" : "border-amber-200/22"}`}>
+        <div className="mb-4 flex flex-shrink-0 items-start justify-between gap-3">
+          <div>
+            <p className={`ui-kicker ${tool === "homework" ? "text-emerald-100" : "text-amber-100"}`}>{title}</p>
+            <h2 className="mt-2 font-arserif text-2xl text-bone/90">{tool === "homework" ? (isArabic ? "نافذة تحويل الواجب" : "Homework popup") : tool === "plans" ? (isArabic ? "الخطط المحفوظة" : "Saved plans") : (isArabic ? "نافذة خطة ولي الأمر" : "Parent plan popup")}</h2>
+          </div>
+          <button type="button" onClick={onClose} className={`ui-action border border-white/10 px-3 py-2 text-xs text-bone/65 ${tool === "homework" ? "hover:border-emerald-200/35 hover:text-emerald-100" : "hover:border-amber-200/35 hover:text-amber-100"}`}>
+            {isArabic ? "إغلاق" : "Close"}
+          </button>
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto">
+        {loadStatus === "error" ? <p className="mb-3 border border-red-200/18 bg-red-950/35 p-3 font-arsans text-sm text-red-100">{isArabic ? "تعذر تحميل ملفات الأطفال. افتح ملف الحساب إذا احتجت إدارة الأطفال." : "Could not load child profiles. Open the profile if you need to manage children."}</p> : null}
+        {tool === "plans" ? (
+          <SavedParentPlansPanel plans={savedParentPlans} language={language} onDelete={(planId) => {
+            const nextPlans = savedParentPlans.filter((plan) => plan.id !== planId);
+            setSavedParentPlans(nextPlans);
+            writeSavedParentPlans(nextPlans);
+          }} />
+        ) : tool === "homework" ? (
+          <div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+            <form onSubmit={submitHomework} className="space-y-3 text-start">
+              <p className="font-arsans text-sm leading-6 text-bone/70">{isArabic ? "ارفع صورة واجب أو اكتب وصفاً، ثم أرسل النشاط مباشرة إلى مساحة الطفل." : "Upload a worksheet or type a note, then send the activity directly to the child workspace."}</p>
+              <label className="block text-start">
+                <span className="mb-2 block font-arsans text-xs text-bone/55">{isArabic ? "إرسال إلى الطفل" : "Send to child"}</span>
+                <select value={childProfileId} onChange={(event) => setChildProfileId(event.target.value)} className="w-full rounded-lg border border-emerald-200/18 bg-[#050607] px-3 py-2.5 font-arsans text-sm text-bone/90 outline-none focus:border-emerald-200/45">
+                  {childProfiles.length === 0 ? <option value="">{loadStatus === "loading" ? (isArabic ? "تحميل الأطفال..." : "Loading children...") : (isArabic ? "أنشئ ملف طفل أولاً" : "Create a child profile first")}</option> : null}
+                  {childProfiles.map((child) => <option key={child.id} value={child.id}>{child.nickname}</option>)}
+                </select>
+              </label>
+              <div className="block border border-emerald-200/18 bg-[#050607] p-3">
+                <span className="block font-arsans text-xs font-semibold text-emerald-100/82">{isArabic ? "صورة الواجب أو لقطة الكاميرا" : "Homework image or camera capture"}</span>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <label className="ui-action cursor-pointer border border-emerald-200/28 bg-emerald-200/10 px-3 py-2.5 text-center text-xs text-emerald-50 transition-colors hover:bg-emerald-200 hover:text-ink">
+                    <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={selectHomeworkImage} className="sr-only" />
+                    {isArabic ? "رفع صورة" : "Upload image"}
+                  </label>
+                  <label className="ui-action cursor-pointer bg-emerald-200 px-3 py-2.5 text-center text-xs text-ink transition-colors hover:bg-bone">
+                    <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" capture="environment" onChange={selectHomeworkImage} className="sr-only" />
+                    {isArabic ? "فتح الكاميرا" : "Open camera"}
+                  </label>
+                </div>
+                {homeworkImage ? <span className="mt-2 block truncate font-arsans text-[11px] text-emerald-100/72" dir="auto">{homeworkImage.name}</span> : null}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-[0.8fr_1.2fr]">
+                <label className="block text-start">
+                  <span className="mb-2 block font-arsans text-xs text-bone/55">{isArabic ? "مرحلة الطفل" : "Child stage"}</span>
+                  <select value={homeworkAgeBand} onChange={(event) => setHomeworkAgeBand(event.target.value as ParentChildProfile["ageBand"] | "unknown")} className="w-full rounded-lg border border-white/10 bg-[#050607] px-3 py-2.5 font-arsans text-sm text-bone/90 outline-none focus:border-emerald-200/45">
+                    <option value="unknown">{isArabic ? "تلقائي" : "Auto"}</option>
+                    <option value="under_8">{formatParentToolAgeBand("under_8", language)}</option>
+                    <option value="8_to_10">{formatParentToolAgeBand("8_to_10", language)}</option>
+                    <option value="11_to_12">{formatParentToolAgeBand("11_to_12", language)}</option>
+                    <option value="13_plus">{formatParentToolAgeBand("13_plus", language)}</option>
+                  </select>
+                </label>
+                <label className="block text-start">
+                  <span className="mb-2 block font-arsans text-xs text-bone/55">{isArabic ? "ملاحظة اختيارية" : "Optional note"}</span>
+                  <input value={homeworkHint} onChange={(event) => setHomeworkHint(event.target.value)} placeholder={isArabic ? "مثلاً: جمع حتى ٢٠ أو حروف A/B/C" : "Example: addition to 20 or A/B/C letters"} className="w-full rounded-lg border border-white/10 bg-[#050607] px-3 py-2.5 font-arsans text-sm text-bone/90 outline-none placeholder:text-bone/36 focus:border-emerald-200/45" />
+                </label>
+              </div>
+              <button type="submit" disabled={homeworkStatus === "analyzing"} className="ui-action w-full bg-emerald-200 px-4 py-3 text-ink transition-colors hover:bg-bone disabled:cursor-wait disabled:opacity-60">
+                {homeworkStatus === "analyzing" ? (isArabic ? "يقرأ الواجب..." : "Reading homework...") : isArabic ? "اصنع وأرسل للطفل" : "Create and send to child"}
+              </button>
+              {homeworkMessage ? <p className={`font-arsans text-xs leading-5 ${homeworkStatus === "error" ? "text-red-100" : "text-emerald-100/78"}`}>{homeworkMessage}</p> : null}
+            </form>
+            <ParentHomeworkResultPanel result={homeworkResult} language={language} imagePreviewUrl={homeworkImagePreviewUrl} imageName={homeworkImage?.name} />
+          </div>
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+            <form onSubmit={submitPlaybook} className="space-y-3 text-start">
+              <p className="font-arsans text-sm leading-6 text-bone/70">{isArabic ? "اكتب موقفاً مثل رفض الواجب أو الشاشات لتحصل على جملة وحد واضح وخطوة اتصال." : "Write a moment like homework refusal or screens to get phrases, a boundary, and a connection move."}</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block text-start">
+                  <span className="mb-2 block font-arsans text-xs text-bone/55">{isArabic ? "الطفل" : "Child"}</span>
+                  <select value={childProfileId} onChange={(event) => setChildProfileId(event.target.value)} className="w-full rounded-lg border border-amber-200/18 bg-[#050607] px-3 py-2.5 font-arsans text-sm text-bone/90 outline-none focus:border-amber-200/45">
+                    <option value="">{isArabic ? "بدون طفل محدد" : "No specific child"}</option>
+                    {childProfiles.map((child) => <option key={child.id} value={child.id}>{child.nickname}</option>)}
+                  </select>
+                </label>
+                <label className="block text-start">
+                  <span className="mb-2 block font-arsans text-xs text-bone/55">{isArabic ? "طاقتك الآن" : "Your energy now"}</span>
+                  <select value={playbookEnergy} onChange={(event) => setPlaybookEnergy(event.target.value as "calm" | "tired" | "stressed" | "angry")} className="w-full rounded-lg border border-amber-200/18 bg-[#050607] px-3 py-2.5 font-arsans text-sm text-bone/90 outline-none focus:border-amber-200/45">
+                    <option value="calm">{isArabic ? "هادئ" : "Calm"}</option>
+                    <option value="tired">{isArabic ? "متعب" : "Tired"}</option>
+                    <option value="stressed">{isArabic ? "مضغوط" : "Stressed"}</option>
+                    <option value="angry">{isArabic ? "غاضب" : "Angry"}</option>
+                  </select>
+                </label>
+              </div>
+              <label className="block text-start">
+                <span className="mb-2 block font-arsans text-xs text-bone/55">{isArabic ? "ما الموقف؟" : "What happened?"}</span>
+                <textarea value={playbookSituation} onChange={(event) => setPlaybookSituation(event.target.value)} rows={4} placeholder={isArabic ? "مثلاً: ابني يرفض الواجب ويبكي كل مرة أطلب منه يبدأ." : "Example: My child refuses homework and cries every time I ask them to start."} className="w-full resize-none rounded-lg border border-white/10 bg-[#050607] px-3 py-2.5 font-arsans text-sm leading-6 text-bone/90 outline-none placeholder:text-bone/36 focus:border-amber-200/45" />
+              </label>
+              <label className="block text-start">
+                <span className="mb-2 block font-arsans text-xs text-bone/55">{isArabic ? "هدفك الاختياري" : "Optional goal"}</span>
+                <input value={playbookGoal} onChange={(event) => setPlaybookGoal(event.target.value)} placeholder={isArabic ? "أريد أن أساعده يبدأ بدون صراخ" : "I want to help them start without shouting"} className="w-full rounded-lg border border-white/10 bg-[#050607] px-3 py-2.5 font-arsans text-sm text-bone/90 outline-none placeholder:text-bone/36 focus:border-amber-200/45" />
+              </label>
+              <button type="submit" disabled={playbookStatus === "building"} className="ui-action w-full bg-amber-200 px-4 py-3 text-ink transition-colors hover:bg-bone disabled:cursor-wait disabled:opacity-60">
+                {playbookStatus === "building" ? (isArabic ? "يبني الخطة..." : "Building playbook...") : isArabic ? "اصنع خطة ولي الأمر" : "Create parent playbook"}
+              </button>
+              {playbookMessage ? <p className={`font-arsans text-xs leading-5 ${playbookStatus === "error" ? "text-red-100" : "text-amber-100/78"}`}>{playbookMessage}</p> : null}
+            </form>
+            <div className="flex flex-col gap-2">
+              <div className="max-h-[45vh] overflow-y-auto lg:max-h-none [scrollbar-color:rgba(251,191,36,0.4)_transparent]">
+                <ParentPlaybookResultPanel result={playbookResult} language={language} />
+              </div>
+              {playbookResult ? (
+                <button type="button" onClick={createAnotherPlan} className="ui-action border border-amber-200/28 bg-amber-200/10 px-4 py-3 font-arsans text-xs text-amber-50 hover:bg-amber-200 hover:text-ink">
+                  {isArabic ? "اصنع خطة أخرى" : "Create another plan"}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ParentHomeworkResultPanel({ result, language, imagePreviewUrl, imageName }: { result: HomeworkResult | null; language: AppLanguage; imagePreviewUrl?: string; imageName?: string }) {
+  const isArabic = language === "ar";
+  return (
+    <div className="border border-white/10 bg-[#050607] p-3 text-start">
+      {result ? (
+        <div>
+          {imagePreviewUrl ? (
+            <figure className="mb-3 overflow-hidden border border-emerald-200/18 bg-[#050607]">
+              <img src={imagePreviewUrl} alt={isArabic ? "صورة الواجب الأصلية" : "Original homework image"} className="max-h-72 w-full object-contain" />
+              <figcaption className="border-t border-emerald-200/12 px-3 py-2 font-arsans text-[11px] text-emerald-100/68" dir="auto">
+                {isArabic ? "مرجع الواجب الأصلي" : "Original homework reference"}{imageName ? ` · ${imageName}` : ""}
+              </figcaption>
+            </figure>
+          ) : null}
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <p className="font-arsans text-xs font-semibold uppercase tracking-[0.08em] text-emerald-100/70">{formatParentToolHomeworkSubject(result.subject, language)}</p>
+              <h4 className="mt-1 font-arsans text-lg font-semibold text-bone/90">{result.detectedTask}</h4>
+            </div>
+            <span className="rounded-full border border-emerald-200/25 px-2.5 py-1 font-arsans text-[10px] text-emerald-100/72">{isArabic ? "جاهز للطفل" : "child-ready"}</span>
+          </div>
+          <p className="mt-2 font-arsans text-sm leading-6 text-bone/58">{result.parentSummary}</p>
+          <p className="mt-3 rounded-xl border border-emerald-200/16 bg-emerald-200/[0.055] px-3 py-2 font-arsans text-sm font-semibold text-emerald-50/88">{result.childIntro}</p>
+          <div className="mt-3 max-h-[28rem] space-y-2 overflow-y-auto pr-1 [scrollbar-color:rgba(110,231,183,0.4)_transparent]">
+            {result.activities.map((activity, index) => (
+              <article key={`${activity.title}-${index}`} className="border border-white/10 bg-[#0E0D10] p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-arsans text-sm font-semibold text-bone/88">{activity.title}</p>
+                  <span className="rounded-full border border-white/10 px-2 py-0.5 font-arsans text-[10px] text-bone/45">{formatParentToolHomeworkActivityType(activity.type, language)}</span>
+                </div>
+                <p className="mt-2 font-arsans text-xs leading-5 text-bone/70">{activity.prompt}</p>
+                {activity.choices && activity.choices.length > 0 ? <div className="mt-2 flex flex-wrap gap-1.5">{activity.choices.map((choice) => <span key={choice} className="rounded-full border border-emerald-200/16 bg-emerald-200/[0.045] px-2 py-1 font-arsans text-[11px] text-emerald-100/72">{choice}</span>)}</div> : null}
+                <p className="mt-2 font-arsans text-[11px] leading-5 text-amber-100/72"><span className="font-semibold">{isArabic ? "تلميح: " : "Hint: "}</span>{activity.hint}</p>
+                <p className="mt-1 font-arsans text-[11px] leading-5 text-cyan-100/66"><span className="font-semibold">{isArabic ? "إجابة ولي الأمر: " : "Parent answer: "}</span>{activity.answer}</p>
+              </article>
+            ))}
+          </div>
+          <p className="mt-3 font-arsans text-[11px] leading-5 text-bone/38">{result.safetyNote}</p>
+        </div>
+      ) : (
+        <div className="grid min-h-64 place-items-center rounded-2xl border border-dashed border-emerald-200/18 bg-emerald-200/[0.025] p-5 text-center">
+          <div>
+            <p className="font-arserif text-2xl text-emerald-100/86">{isArabic ? "من ورقة واجب إلى لعبة" : "From worksheet to game"}</p>
+            <p className="mt-2 font-arsans text-sm leading-6 text-bone/48">{isArabic ? "ستظهر هنا أسئلة قصيرة وتلميحات وإجابات ولي الأمر." : "Short questions, hints, and parent answers will appear here."}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ParentPlaybookResultPanel({ result, language }: { result: ParentPlaybookResult | null; language: AppLanguage }) {
+  const isArabic = language === "ar";
+  return (
+    <div className="border border-white/10 bg-[#050607] p-3 text-start">
+      {result ? (
+        <div>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <p className="font-arsans text-xs font-semibold uppercase tracking-[0.08em] text-amber-100/70">{result.childNickname || (isArabic ? "خطة عامة" : "general plan")}</p>
+              <h4 className="mt-1 font-arsans text-lg font-semibold text-bone/90">{result.title}</h4>
+            </div>
+            <span className="rounded-full border border-amber-200/25 px-2.5 py-1 font-arsans text-[10px] text-amber-100/72">{isArabic ? "جاهزة الآن" : "ready now"}</span>
+          </div>
+          <p className="mt-2 font-arsans text-sm leading-6 text-bone/62">{result.quickRead}</p>
+          <p className="mt-3 rounded-xl border border-amber-200/16 bg-amber-200/[0.055] px-3 py-2 font-arsans text-sm leading-6 text-amber-50/88">{result.childLens}</p>
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            <div className="border border-emerald-200/16 bg-emerald-200/[0.04] p-3">
+              <p className="font-arsans text-xs font-semibold text-emerald-100/78">{isArabic ? "قل هذا" : "Say this"}</p>
+              <ul className="mt-2 space-y-1.5">{result.sayThis.map((item) => <li key={item} className="font-arsans text-xs leading-5 text-bone/66">{item}</li>)}</ul>
+            </div>
+            <div className="border border-red-200/14 bg-red-200/[0.035] p-3">
+              <p className="font-arsans text-xs font-semibold text-red-100/72">{isArabic ? "تجنب هذا" : "Avoid this"}</p>
+              <ul className="mt-2 space-y-1.5">{result.avoidThis.map((item) => <li key={item} className="font-arsans text-xs leading-5 text-bone/58">{item}</li>)}</ul>
+            </div>
+          </div>
+          <div className="mt-2 border border-white/10 bg-[#0E0D10] p-3">
+            <p className="font-arsans text-xs font-semibold text-bone/68">{isArabic ? "إعادة ضبط من ٤ خطوات" : "4-step reset"}</p>
+            <div className="mt-2 grid gap-1.5">{result.resetSteps.map((item, index) => <span key={item} className="font-arsans text-xs leading-5 text-bone/62"><span className="text-amber-100/72">{index + 1}. </span>{item}</span>)}</div>
+          </div>
+          <div className="mt-2 grid gap-2 md:grid-cols-2">
+            <p className="border border-cyan-200/14 bg-cyan-200/[0.035] p-3 font-arsans text-xs leading-5 text-cyan-50/72"><span className="font-semibold">{isArabic ? "لعبة اتصال: " : "Play bridge: "}</span>{result.playBridge}</p>
+            <p className="border border-gold/18 bg-gold/[0.045] p-3 font-arsans text-xs leading-5 text-bone/66"><span className="font-semibold text-gold/76">{isArabic ? "الحد: " : "Boundary: "}</span>{result.boundaryScript}</p>
+          </div>
+          <p className="mt-2 font-arsans text-xs leading-5 text-bone/56"><span className="font-semibold text-amber-100/74">{isArabic ? "إصلاح: " : "Repair: "}</span>{result.repairLine}</p>
+          <p className="mt-1 font-arsans text-xs leading-5 text-bone/46"><span className="font-semibold">{isArabic ? "متابعة: " : "Follow-up: "}</span>{result.followUp}</p>
+          <p className="mt-3 font-arsans text-[11px] leading-5 text-bone/34">{result.safetyNote}</p>
+        </div>
+      ) : (
+        <div className="grid min-h-64 place-items-center rounded-2xl border border-dashed border-amber-200/18 bg-amber-200/[0.025] p-5 text-center">
+          <div>
+            <p className="font-arserif text-2xl text-amber-100/86">{isArabic ? "خطة جاهزة قبل رد الفعل" : "A plan before the reaction"}</p>
+            <p className="mt-2 font-arsans text-sm leading-6 text-bone/48">{isArabic ? "ستظهر هنا جمل جاهزة، حدود، وخطوة اتصال صغيرة." : "Ready phrases, boundaries, and one connection move will appear here."}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SavedParentPlansPanel({ plans, language, onDelete }: { plans: SavedParentPlan[]; language: AppLanguage; onDelete: (planId: string) => void }) {
+  const isArabic = language === "ar";
+
+  if (!plans.length) {
+    return (
+      <div className="grid min-h-64 place-items-center rounded-2xl border border-dashed border-cyan-200/20 bg-[#050607] p-5 text-center">
+        <div>
+          <p className="font-arserif text-2xl text-cyan-100/86">{isArabic ? "لا توجد خطط محفوظة بعد" : "No saved plans yet"}</p>
+          <p className="mt-2 font-arsans text-sm leading-6 text-bone/56">{isArabic ? "افتح دليل ولي الأمر، اصنع خطة، وستظهر هنا." : "Open Parent Playbook, create a plan, and it will appear here."}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-3">
+      {plans.map((plan) => (
+        <article key={plan.id} className="border border-cyan-200/16 bg-[#050607] p-3 text-start">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <p className="font-arsans text-[11px] text-cyan-100/62">{new Date(plan.createdAt).toLocaleString(isArabic ? "ar" : "en", { dateStyle: "medium", timeStyle: "short" })}</p>
+              <h3 className="mt-1 font-arsans text-base font-bold text-bone/90">{plan.title}</h3>
+            </div>
+            <button type="button" onClick={() => onDelete(plan.id)} className="ui-action border border-red-200/18 px-2.5 py-1.5 font-arsans text-[11px] text-red-100/76 hover:bg-red-200 hover:text-ink">
+              {isArabic ? "حذف" : "Delete"}
+            </button>
+          </div>
+          {plan.situation ? <p className="mt-2 rounded-xl border border-white/10 bg-[#0E0D10] px-3 py-2 font-arsans text-xs leading-5 text-bone/62">{plan.situation}</p> : null}
+          <p className="mt-2 font-arsans text-sm leading-6 text-bone/68">{plan.quickRead}</p>
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            <div className="border border-emerald-200/14 bg-emerald-200/[0.045] p-3">
+              <p className="font-arsans text-xs font-semibold text-emerald-100/78">{isArabic ? "قل هذا" : "Say this"}</p>
+              <ul className="mt-2 space-y-1.5">{plan.sayThis.slice(0, 3).map((item) => <li key={item} className="font-arsans text-xs leading-5 text-bone/66">{item}</li>)}</ul>
+            </div>
+            <div className="border border-gold/18 bg-gold/[0.045] p-3">
+              <p className="font-arsans text-xs font-semibold text-gold/78">{isArabic ? "الحد" : "Boundary"}</p>
+              <p className="mt-2 font-arsans text-xs leading-5 text-bone/66">{plan.boundaryScript}</p>
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function readSavedParentPlans(): SavedParentPlan[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(savedParentPlansStorageKey) || "[]") as SavedParentPlan[];
+    return Array.isArray(parsed) ? parsed.filter((plan) => plan && typeof plan.id === "string" && typeof plan.title === "string").slice(0, 20) : [];
+  } catch {
+    localStorage.removeItem(savedParentPlansStorageKey);
+    return [];
+  }
+}
+
+function writeSavedParentPlans(plans: SavedParentPlan[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(savedParentPlansStorageKey, JSON.stringify(plans.slice(0, 20)));
+}
+
+function saveParentPlan(plan: ParentPlaybookResult & { situation: string; goal: string }): SavedParentPlan {
+  const savedPlan: SavedParentPlan = {
+    ...plan,
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+  };
+  const nextPlans = [savedPlan, ...readSavedParentPlans()].slice(0, 20);
+  writeSavedParentPlans(nextPlans);
+  return savedPlan;
+}
+
+function formatParentToolAgeBand(ageBand: ParentChildProfile["ageBand"], language: AppLanguage) {
+  const labels: Record<ParentChildProfile["ageBand"], { ar: string; en: string }> = {
+    under_8: { ar: "أقل من ٨", en: "Under 8" },
+    "8_to_10": { ar: "٨ إلى ١٠", en: "8 to 10" },
+    "11_to_12": { ar: "١١ إلى ١٢", en: "11 to 12" },
+    "13_plus": { ar: "١٣+", en: "13+" },
+  };
+  return labels[ageBand][language];
+}
+
+function formatParentToolHomeworkSubject(value: HomeworkResult["subject"], language: AppLanguage) {
+  const labels: Record<HomeworkResult["subject"], { ar: string; en: string }> = {
+    math: { ar: "رياضيات", en: "Math" },
+    english: { ar: "إنجليزي", en: "English" },
+    arabic: { ar: "عربي", en: "Arabic" },
+    kg: { ar: "KG", en: "KG" },
+    mixed: { ar: "مختلط", en: "Mixed" },
+  };
+  return labels[value]?.[language] || value;
+}
+
+function formatParentToolHomeworkActivityType(value: HomeworkActivity["type"], language: AppLanguage) {
+  const labels: Record<HomeworkActivity["type"], { ar: string; en: string }> = {
+    quiz: { ar: "سؤال", en: "Quiz" },
+    trace: { ar: "تتبّع", en: "Trace" },
+    match: { ar: "توصيل", en: "Match" },
+    story: { ar: "قصة", en: "Story" },
+    challenge: { ar: "تحدي", en: "Challenge" },
+  };
+  return labels[value]?.[language] || value;
+}
+
+function formatParentToolHomeworkError(error: string | undefined, language: AppLanguage) {
+  if (error === "UNSUPPORTED_IMAGE_TYPE") return language === "ar" ? "نوع الصورة غير مدعوم. استخدم PNG أو JPG أو WEBP." : "Unsupported image type. Use PNG, JPG, or WEBP.";
+  if (error === "IMAGE_TOO_LARGE") return language === "ar" ? "الصورة كبيرة جداً. جرّب صورة أقل من ٨ ميجابايت." : "The image is too large. Try an image under 8 MB.";
+  if (error === "CHILD_PROFILE_REQUIRED") return language === "ar" ? "اختر الطفل الذي سيستلم الواجب." : "Choose the child who should receive this homework.";
+  if (error === "CHILD_PROFILE_NOT_FOUND") return language === "ar" ? "لم نجد ملف الطفل المختار. حدّث الصفحة وحاول مرة أخرى." : "Could not find the selected child profile. Refresh and try again.";
+  if (error === "PARENT_WORKSPACE_REQUIRED") return language === "ar" ? "هذه الميزة لولي الأمر فقط." : "This feature is parent-only.";
+  return language === "ar" ? "لم نتمكن من قراءة الواجب الآن. جرّب صورة أوضح أو اكتب وصفاً قصيراً." : "Could not read the homework right now. Try a clearer image or type a short description.";
+}
+
+function formatParentToolPlaybookError(error: string | undefined, language: AppLanguage) {
+  if (error === "SITUATION_REQUIRED") return language === "ar" ? "اكتب موقفاً واضحاً أولاً." : "Write a clear situation first.";
+  if (error === "CHILD_PROFILE_NOT_FOUND") return language === "ar" ? "لم نجد ملف الطفل المختار. حدّث الصفحة وحاول مرة أخرى." : "Could not find the selected child profile. Refresh and try again.";
+  if (error === "PARENT_WORKSPACE_REQUIRED") return language === "ar" ? "هذه الميزة لولي الأمر فقط." : "This feature is parent-only.";
+  return language === "ar" ? "لم نتمكن من بناء الخطة الآن. جرّب وصفاً أقصر أو حاول مرة أخرى." : "Could not build the playbook right now. Try a shorter description or try again.";
+}
+
+function HeaderActionIcon({ action }: { action: HomeHeaderAction }) {
+  if (action === "start") return <StartHeaderIcon />;
+  if (action === "avatars") return <AvatarsHeaderIcon />;
+  if (action === "stories") return <StoryHeaderIcon />;
+  return <NewChatIcon />;
+}
+
+function StartHeaderIcon() {
+  return (
+    <svg className="relative h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M8 2.2v11.6M2.2 8h11.6" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" />
+      <path d="M4.2 4.2 11.8 11.8M11.8 4.2 4.2 11.8" stroke="currentColor" strokeWidth="1.05" strokeLinecap="round" opacity="0.55" />
+    </svg>
+  );
+}
+
+function AvatarsHeaderIcon() {
+  return (
+    <svg className="relative h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M5.9 7.2a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4ZM10.9 6.8a1.8 1.8 0 1 0 0-3.6 1.8 1.8 0 0 0 0 3.6Z" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M2.9 12.8c.4-2 1.6-3.1 3-3.1s2.6 1.1 3 3.1M8.6 11.2c.45-.7 1.2-1.1 2.2-1.1 1.25 0 2.2.85 2.55 2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
   );
 }
 
@@ -334,6 +1115,33 @@ function NewChatIcon() {
   );
 }
 
+function StoryHeaderIcon() {
+  return (
+    <svg className="relative h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M3.25 3.4A1.4 1.4 0 0 1 4.65 2h7.1v9.4h-7.1a1.4 1.4 0 0 0-1.4 1.4V3.4Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M3.25 12.8a1.4 1.4 0 0 1 1.4-1.4h7.1M5.7 5h3.7M5.7 7h2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ActivityMenuIcon() {
+  return (
+    <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M3.2 4.2h9.6M3.2 8h9.6M3.2 11.8h5.7" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" />
+      <path d="m10.7 10.2 1.45 1.45 1.45-1.45" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ChildrenHeaderIcon() {
+  return (
+    <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M5.9 7.2a2.15 2.15 0 1 0 0-4.3 2.15 2.15 0 0 0 0 4.3ZM10.8 6.7a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4Z" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M2.8 12.7c.42-1.95 1.65-3.05 3.1-3.05s2.68 1.1 3.1 3.05M8.9 10.9c.45-.52 1.08-.8 1.9-.8 1.18 0 2.08.78 2.45 2.25" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function TierBadge({ tier, language, expanded = false }: { tier: AccountTier; language: AppLanguage; expanded?: boolean }) {
   const isPlus = tier === "PLUS" || tier === "BUSINESS";
   const label = isPlus ? (language === "ar" ? "بلس" : "Plus") : language === "ar" ? "مجاني" : "Free";
@@ -342,7 +1150,7 @@ function TierBadge({ tier, language, expanded = false }: { tier: AccountTier; la
   return (
     <span title={title} className={`inline-flex items-center gap-1 rounded-full border font-arsans text-[10px] leading-none ${expanded ? "px-2.5 py-1.5" : "px-1.5 py-1"} ${isPlus ? "border-gold/45 bg-gold/18 text-gold" : "border-white/12 bg-white/[0.045] text-bone/58"}`}>
       {isPlus ? <PlusTierIcon /> : <FreeTierIcon />}
-      <span>{label}</span>
+      <span className={expanded ? "" : "hidden sm:inline"}>{label}</span>
     </span>
   );
 }

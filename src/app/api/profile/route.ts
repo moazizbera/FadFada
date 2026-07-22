@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
-import { authOptions } from "../../../lib/auth";
+import { authOptions, requireParentWorkspace } from "../../../lib/auth";
 import { applyLifetimePlus } from "../../../lib/lifetimeAccess";
 import { personas } from "../../../lib/personas";
 import { prisma } from "../../../lib/prisma";
@@ -16,14 +16,14 @@ export const runtime = "nodejs";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  const userId = session?.user && "id" in session.user ? String(session.user.id) : null;
+  const parentContext = requireParentWorkspace(session?.user);
 
-  if (!userId) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  if (!parentContext.ok) {
+    return NextResponse.json({ error: parentContext.error }, { status: parentContext.status });
   }
 
   const user = await prisma.user.findUnique({
-    where: { id: userId },
+    where: { id: parentContext.userId },
     select: {
       id: true,
       name: true,
@@ -44,7 +44,7 @@ export async function GET() {
     return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
   }
 
-  const grantedPersonaIds = await getGrantedPersonaIds(userId);
+  const grantedPersonaIds = await getGrantedPersonaIds(parentContext.userId);
 
   const effectiveUser = applyLifetimePlus(user);
 
@@ -53,10 +53,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
-  const userId = session?.user && "id" in session.user ? String(session.user.id) : null;
+  const parentContext = requireParentWorkspace(session?.user);
 
-  if (!userId) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  if (!parentContext.ok) {
+    return NextResponse.json({ error: parentContext.error }, { status: parentContext.status });
   }
 
   const body = (await request.json()) as {
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
   const socialLinks = cleanSocialLinks(body.socialLinks);
 
   const user = await prisma.user.update({
-    where: { id: userId },
+    where: { id: parentContext.userId },
     data: {
       name: fullName,
       nickname,

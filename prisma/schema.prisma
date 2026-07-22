@@ -43,8 +43,25 @@ model User {
   sessions          Session[]
   transactions      Transaction[]
   capsules          MomentCapsule[]
+  childProfiles     ChildProfile[]
   visitorLogs       VisitorLog[]
   interactionEvents InteractionEvent[]
+}
+
+model ChildProfile {
+  id                    String   @id @default(uuid()) @db.Uuid
+  parentId              String
+  nickname              String
+  birthYear             Int
+  avatarPreference      String
+  gamePoints            Int      @default(0)
+  dailyTimeLimitMinutes Int      @default(30)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  parent                User     @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@index([parentId])
+  @@index([parentId, createdAt])
 }
 
 model Account {

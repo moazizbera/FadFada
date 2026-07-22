@@ -12,6 +12,7 @@ type AdminSessionUser = {
   id?: string;
   email?: string | null;
   role?: "USER" | "ADMIN";
+  workspaceMode?: "parent" | "child";
 };
 
 const regionDisplayNames = new Intl.DisplayNames(["en"], { type: "region" });
@@ -136,7 +137,7 @@ async function buildDashboardData() {
   monthStart.setUTCDate(1);
   monthStart.setUTCHours(0, 0, 0, 0);
 
-  const [totalVisitors, registeredUsers, interactionCounts, visitorsByRegion, registrationsByRegionRaw, recentUsers, tierCounts, monthlyTransactions, visibleVisitorCommentCount, visiblePwaInstallCount, recentCommentEvents, nameOnlyVisitorEvents, pwaInstallEvents, avatarRatingEvents, adminNotifications, adminConfigEvents, adminGiftEvents, adminPersonaGrantEvents, adminPersonaGrantSetEvents, adminDiscountEvents, chatSessionEvents] = await Promise.all([
+  const [totalVisitors, registeredUsers, interactionCounts, visitorsByRegion, registrationsByRegionRaw, recentUsers, tierCounts, monthlyTransactions, visibleVisitorCommentCount, visiblePwaInstallCount, recentCommentEvents, nameOnlyVisitorEvents, pwaInstallEvents, avatarRatingEvents, adminNotifications, adminConfigEvents, adminGiftEvents, adminPersonaGrantEvents, adminPersonaGrantSetEvents, adminDiscountEvents, chatSessionEvents, childProfiles, childConversationEvents] = await Promise.all([
     prisma.visitorLog.count(),
     prisma.user.count({ where: registeredUserWhere }),
     prisma.interactionEvent.groupBy({
@@ -264,14 +265,45 @@ async function buildDashboardData() {
     prisma.interactionEvent.findMany({
       where: { eventType: "chat_session_snapshot" },
       orderBy: { createdAt: "desc" },
-      take: 100,
+      take: 1000,
       include: {
         user: {
           select: {
+            id: true,
             name: true,
             email: true,
           },
         },
+      },
+    }),
+    prisma.childProfile.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 500,
+      include: {
+        parent: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            activeTier: true,
+            createdAt: true,
+            sessions: {
+              orderBy: { updatedAt: "desc" },
+              select: { updatedAt: true, createdAt: true },
+              take: 1,
+            },
+          },
+        },
+      },
+    }),
+    prisma.interactionEvent.findMany({
+      where: { eventType: "child_conversation_turn" },
+      orderBy: { createdAt: "desc" },
+      take: 2000,
+      select: {
+        userId: true,
+        metadataJson: true,
+        createdAt: true,
       },
     }),
   ]);
@@ -419,6 +451,8 @@ async function buildDashboardData() {
     signedGiftReflectionLimit: metadataNumber(latestConfig, "signedGiftReflectionLimit") || 15,
     anonymousPersonaLimit: metadataNumber(latestConfig, "anonymousPersonaLimit") || 4,
     signedPersonaLimit: metadataNumber(latestConfig, "signedPersonaLimit") || 10,
+    freeChildProfileLimit: metadataNumber(latestConfig, "freeChildProfileLimit") || 1,
+    plusChildProfileLimit: metadataNumber(latestConfig, "plusChildProfileLimit") || 5,
     avatarsEnabled: latestConfig.avatarsEnabled !== false,
     blockedPersonaIds: cleanPersonaIds(latestConfig.blockedPersonaIds),
     anonymousPersonaIds: cleanPersonaIdsOrDefault(latestConfig.anonymousPersonaIds, personas.slice(0, metadataNumber(latestConfig, "anonymousPersonaLimit") || 4).map((persona) => persona.id)),
@@ -490,6 +524,88 @@ async function buildDashboardData() {
     });
   }
   const chatSessions = Array.from(latestChatSessionsById.values()).slice(0, 24);
+  const parentSessionIdsByUser = new Map<string, Set<string>>();
+  const parentLastChatByUser = new Map<string, string>();
+
+  for (const event of chatSessionEvents) {
+    const metadata = parseEventMetadata(event.metadataJson);
+    const userId = event.userId || event.user?.id || "";
+    if (!userId) continue;
+    const sessionId = metadataString(metadata, "sessionId", event.id);
+    const currentSet = parentSessionIdsByUser.get(userId) ?? new Set<string>();
+    currentSet.add(sessionId);
+    parentSessionIdsByUser.set(userId, currentSet);
+    if (!parentLastChatByUser.has(userId)) parentLastChatByUser.set(userId, event.createdAt.toISOString());
+  }
+
+  const childActivityById = new Map<string, { count: number; lastAt: string }>();
+
+  for (const event of childConversationEvents) {
+    const metadata = parseEventMetadata(event.metadataJson);
+    const childProfileId = metadataString(metadata, "childProfileId", "");
+    if (!childProfileId) continue;
+    const current = childActivityById.get(childProfileId) ?? { count: 0, lastAt: event.createdAt.toISOString() };
+    childActivityById.set(childProfileId, {
+      count: current.count + 1,
+      lastAt: current.lastAt || event.createdAt.toISOString(),
+    });
+  }
+
+  const parentChildrenById = childProfiles.reduce<Record<string, {
+    parentId: string;
+    parentName: string | null;
+    parentEmail: string | null;
+    parentTier: string;
+    parentRegisteredAt: string;
+    parentLastSignInAt: string | null;
+    children: Array<{ id: string; nickname: string; birthYear: number; avatarPreference: string; createdAt: string; childSessionCount: number; lastChildActivityAt: string | null }>;
+  }>>((accumulator, child) => {
+    const parent = child.parent;
+    const current = accumulator[parent.id] ?? {
+      parentId: parent.id,
+      parentName: parent.name,
+      parentEmail: parent.email,
+      parentTier: parent.activeTier,
+      parentRegisteredAt: parent.createdAt.toISOString(),
+      parentLastSignInAt: parent.sessions[0]?.updatedAt.toISOString() || parent.sessions[0]?.createdAt.toISOString() || null,
+      children: [],
+    };
+    const childActivity = childActivityById.get(child.id);
+    current.children.push({
+      id: child.id,
+      nickname: child.nickname,
+      birthYear: child.birthYear,
+      avatarPreference: child.avatarPreference,
+      createdAt: child.createdAt.toISOString(),
+      childSessionCount: childActivity?.count || 0,
+      lastChildActivityAt: childActivity?.lastAt || null,
+    });
+    accumulator[parent.id] = current;
+    return accumulator;
+  }, {});
+  const activeSince = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const parentChildSummaries = Object.values(parentChildrenById).map((entry) => {
+    const parentLastChatAt = parentLastChatByUser.get(entry.parentId) || null;
+    const lastChildActivityAt = entry.children
+      .map((child) => child.lastChildActivityAt)
+      .filter((value): value is string => Boolean(value))
+      .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] || null;
+    const latestActivityAt = [parentLastChatAt, lastChildActivityAt, entry.parentLastSignInAt]
+      .filter((value): value is string => Boolean(value))
+      .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] || entry.parentRegisteredAt;
+
+    return {
+      ...entry,
+      children: entry.children.sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()),
+      childCount: entry.children.length,
+      parentSessionCount: parentSessionIdsByUser.get(entry.parentId)?.size || 0,
+      childSessionCount: entry.children.reduce((sum, child) => sum + child.childSessionCount, 0),
+      parentLastChatAt,
+      lastChildActivityAt,
+      latestActivityAt,
+      active: new Date(latestActivityAt).getTime() >= activeSince,
+    };
+  }).sort((left, right) => new Date(right.latestActivityAt).getTime() - new Date(left.latestActivityAt).getTime());
 
   const auditSnapshot: AuditSnapshot = {
     generatedAt: new Date().toISOString(),
@@ -550,6 +666,7 @@ async function buildDashboardData() {
     personaGrantsByUser,
     discountOffers,
     chatSessions,
+    parentChildSummaries,
     auditSnapshot,
     encryptedAuditSnapshot: encryptAuditSnapshot(auditSnapshot),
   };
@@ -577,11 +694,11 @@ export default async function AdminDashboardPage() {
     redirect("/admin/login");
   }
 
-  if (sessionUser.role !== "ADMIN") {
+  if (sessionUser.role !== "ADMIN" || sessionUser.workspaceMode === "child") {
     redirect("/admin/login");
   }
 
-  const { totalVisitors, registeredUsers, interactionTotals, visitorsByRegion, registrationsByRegion, recentUsers, distribution, nameOnlyVisitors, visitorComments, pwaInstalls, pwaDeviceBreakdown, avatarRatings, recentNotifications, configuration, giftTotalsByUser, personaGrantsByUser, discountOffers, chatSessions, encryptedAuditSnapshot } = await buildDashboardData();
+  const { totalVisitors, registeredUsers, interactionTotals, visitorsByRegion, registrationsByRegion, recentUsers, distribution, nameOnlyVisitors, visitorComments, pwaInstalls, pwaDeviceBreakdown, avatarRatings, recentNotifications, configuration, giftTotalsByUser, personaGrantsByUser, discountOffers, chatSessions, parentChildSummaries, encryptedAuditSnapshot } = await buildDashboardData();
   const auditHref = `data:application/json;base64,${Buffer.from(JSON.stringify(encryptedAuditSnapshot, null, 2)).toString("base64")}`;
   const dashboardData: AdminDashboardData = {
     configuration,
@@ -612,6 +729,7 @@ export default async function AdminDashboardPage() {
     })),
     discountOffers,
     chatSessions,
+    parentChildSummaries,
     distribution,
     nameOnlyVisitors,
     visitorComments,

@@ -20,6 +20,33 @@ type AuthUserWithFadFadaState = {
   activeTier?: "FREE" | "PLUS" | "BUSINESS";
   tokenBalance?: number;
   currentLanguage?: string;
+  childProfileId?: string | null;
+  childNickname?: string | null;
+  childBirthYear?: number | null;
+  childAgeBand?: ChildAgeBand | null;
+  workspaceMode?: WorkspaceMode;
+};
+
+export type WorkspaceMode = "parent" | "child";
+export type ChildAgeBand = "under_8" | "8_to_10" | "11_to_12" | "13_plus";
+
+export type FadFadaSessionUser = {
+  id?: string | null;
+  role?: "USER" | "ADMIN";
+  activeTier?: "FREE" | "PLUS" | "BUSINESS";
+  tokenBalance?: number;
+  currentLanguage?: string;
+  childProfileId?: string | null;
+  childNickname?: string | null;
+  childBirthYear?: number | null;
+  childAgeBand?: ChildAgeBand | null;
+  workspaceMode?: WorkspaceMode;
+};
+
+type ChildWorkspaceSessionUpdate = {
+  childProfileId?: unknown;
+  activeChildProfileId?: unknown;
+  clearChildProfile?: unknown;
 };
 
 function getConfiguredProviders(): NextAuthOptions["providers"] {
@@ -110,6 +137,50 @@ function normalizeAdminEmails() {
 function inferEmailDomain(email: string) {
   const domain = email.split("@")[1]?.trim().toLowerCase();
   return domain || null;
+}
+
+export function readAuthenticatedUserId(sessionUser: unknown) {
+  const user = sessionUser as FadFadaSessionUser | undefined;
+  const userId = typeof user?.id === "string" ? user.id.trim() : "";
+  return userId || null;
+}
+
+export function getChildWorkspaceContext(sessionUser: unknown) {
+  const user = sessionUser as FadFadaSessionUser | undefined;
+  const childProfileId = typeof user?.childProfileId === "string" ? user.childProfileId.trim() : "";
+
+  if (user?.workspaceMode !== "child" || !childProfileId || typeof user.childBirthYear !== "number") {
+    return null;
+  }
+
+  return {
+    childProfileId,
+    birthYear: user.childBirthYear,
+    ageBand: user.childAgeBand ?? inferChildAgeBand(user.childBirthYear),
+  };
+}
+
+export function requireParentWorkspace(sessionUser: unknown) {
+  const userId = readAuthenticatedUserId(sessionUser);
+
+  if (!userId) {
+    return { ok: false as const, status: 401, error: "UNAUTHORIZED" };
+  }
+
+  if (getChildWorkspaceContext(sessionUser)) {
+    return { ok: false as const, status: 403, error: "PARENT_WORKSPACE_REQUIRED" };
+  }
+
+  return { ok: true as const, userId };
+}
+
+export function inferChildAgeBand(birthYear: number, referenceDate = new Date()): ChildAgeBand {
+  const age = referenceDate.getUTCFullYear() - birthYear;
+
+  if (age < 8) return "under_8";
+  if (age <= 10) return "8_to_10";
+  if (age <= 12) return "11_to_12";
+  return "13_plus";
 }
 
 function timingSafeEqual(left: string, right: string) {
@@ -276,7 +347,7 @@ export const authOptions: NextAuthOptions = {
 
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       const email = (user?.email || token.email)?.trim().toLowerCase();
 
       if (email) {
@@ -293,6 +364,61 @@ export const authOptions: NextAuthOptions = {
           token.tokenBalance = effectiveUser.tokenBalance;
           token.currentLanguage = effectiveUser.currentLanguage;
         }
+      }
+
+      if (trigger === "update") {
+        const childUpdate = session as ChildWorkspaceSessionUpdate | undefined;
+        const requestedChildProfileId = typeof childUpdate?.childProfileId === "string"
+          ? childUpdate.childProfileId.trim()
+          : typeof childUpdate?.activeChildProfileId === "string"
+            ? childUpdate.activeChildProfileId.trim()
+            : "";
+
+        if (childUpdate?.clearChildProfile === true || childUpdate?.childProfileId === null || childUpdate?.activeChildProfileId === null) {
+          token.childProfileId = null;
+          token.childNickname = null;
+          token.childBirthYear = null;
+          token.childAgeBand = null;
+          token.workspaceMode = "parent";
+        } else if (requestedChildProfileId && token.sub) {
+          const childProfile = await prisma.childProfile.findFirst({
+            where: { id: requestedChildProfileId, parentId: String(token.sub) },
+            select: { id: true, nickname: true, birthYear: true },
+          });
+
+          if (childProfile) {
+            token.childProfileId = childProfile.id;
+            token.childNickname = childProfile.nickname;
+            token.childBirthYear = childProfile.birthYear;
+            token.childAgeBand = inferChildAgeBand(childProfile.birthYear);
+            token.workspaceMode = "child";
+          }
+        }
+      }
+
+      const activeChildProfileId = typeof token.childProfileId === "string" ? token.childProfileId.trim() : "";
+
+      if (activeChildProfileId && token.sub) {
+        const childProfile = await prisma.childProfile.findFirst({
+          where: { id: activeChildProfileId, parentId: String(token.sub) },
+          select: { id: true, nickname: true, birthYear: true },
+        });
+
+        if (childProfile) {
+          token.childProfileId = childProfile.id;
+          token.childNickname = childProfile.nickname;
+          token.childBirthYear = childProfile.birthYear;
+          token.childAgeBand = inferChildAgeBand(childProfile.birthYear);
+          token.workspaceMode = "child";
+        } else {
+          token.childProfileId = null;
+          token.childNickname = null;
+          token.childBirthYear = null;
+          token.childAgeBand = null;
+          token.workspaceMode = "parent";
+        }
+      } else {
+        token.workspaceMode = "parent";
       }
 
       return token;
@@ -315,6 +441,11 @@ export const authOptions: NextAuthOptions = {
           activeTier: fadfadaUser.activeTier ?? "FREE",
           tokenBalance: fadfadaUser.tokenBalance ?? complimentaryTokenBalance,
           currentLanguage: fadfadaUser.currentLanguage ?? "ar",
+          childProfileId: fadfadaUser.childProfileId ?? null,
+          childNickname: fadfadaUser.childNickname ?? null,
+          childBirthYear: fadfadaUser.childBirthYear ?? null,
+          childAgeBand: fadfadaUser.childAgeBand ?? null,
+          workspaceMode: fadfadaUser.workspaceMode ?? "parent",
         },
       };
     },

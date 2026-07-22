@@ -6,7 +6,8 @@ import { useSession } from "next-auth/react";
 import { createPortal } from "react-dom";
 import { type ChangeEvent, FormEvent, type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { prepareArabicForSpeech } from "../lib/arabicSpeech";
-import { personas, type Persona, type PersonaId, type PersonaVoiceConfig } from "../lib/personas";
+import { childStories, type ChildStory } from "../lib/childStories";
+import { NEW_CHILDREN_ROSTER, personas, type Persona, type PersonaId, type PersonaVoiceConfig } from "../lib/personas";
 import { selectableWorlds, worlds, type WorldId } from "../lib/worlds";
 import { useAppLocale } from "./AppShell";
 import { PersonaDrawer } from "./PersonaDrawer";
@@ -43,7 +44,7 @@ interface SpeechRecognitionErrorEvent {
 }
 
 type Language = "ar" | "en";
-type HomeHeaderAction = "start" | "avatars" | "newChat";
+type HomeHeaderAction = "start" | "avatars" | "stories" | "newChat";
 
 type BehaviorStyle = "signature" | "deep" | "coach" | "quick";
 type HomeToolPanel = "checkin" | "sessions" | "progress" | "tone" | "prompts" | "plans" | "about";
@@ -58,6 +59,37 @@ type PersonaEnvironmentProfile = {
   formatAssistantText?: (text: string) => string;
 };
 
+type ChildChallenge = {
+  type: "riddle" | "quiz" | "dare";
+  question: string;
+  pointsReward: number;
+};
+
+type ChildHomeworkActivity = {
+  type: "quiz" | "trace" | "match" | "story" | "challenge";
+  title: string;
+  prompt: string;
+  hint: string;
+  choices?: string[];
+  visual?: ChildHomeworkVisual;
+};
+
+type ChildHomeworkVisual = {
+  kind: "stars" | "circles" | "triangles" | "squares" | "letters" | "numbers" | "mixed";
+  count?: number;
+  label?: string;
+};
+
+type ChildHomeworkAssignment = {
+  id: string;
+  subject: "math" | "english" | "arabic" | "kg" | "mixed";
+  detectedTask: string;
+  childIntro: string;
+  activities: ChildHomeworkActivity[];
+  assignedAt: string;
+  source: "image" | "hint";
+};
+
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -67,9 +99,13 @@ type ChatMessage = {
   cadence?: EmotionalCadence;
   resources?: LearningResource[];
   generatedMedia?: GeneratedMediaAsset;
+  challenge?: ChildChallenge;
+  childHomeworkActivities?: ChildHomeworkActivity[];
+  suggestions?: string[];
   personaId?: PersonaId;
   personaName?: string;
   avatarPath?: string;
+  childStoryId?: string;
 };
 
 type ChatSessionSummary = {
@@ -81,6 +117,19 @@ type ChatSessionSummary = {
   messages: ChatMessage[];
   messageCount?: number;
   updatedAt?: string;
+};
+
+type ChildChoiceVisual = {
+  label: string;
+  kind: "castle" | "forest" | "sea" | "letters" | "numbers" | "story" | "spark";
+  gradientClassName: string;
+};
+
+type DailyChildMoment = {
+  dateKey: string;
+  learn: { label: string; text: string; world: WorldId };
+  feel: { label: string; text: string; world: WorldId };
+  connect: { label: string; text: string; world: WorldId };
 };
 
 type LearningResource = {
@@ -149,6 +198,9 @@ type StoryMirrorImageState = {
 type ReflectResponse = {
   text?: string;
   world?: WorldId;
+  challenge?: ChildChallenge;
+  suggestions?: string[];
+  triggerAudioPlayback?: boolean;
   emotionalCadence?: {
     speed?: EmotionalCadence;
   };
@@ -236,6 +288,13 @@ function buildOpeningMessage(language: Language, userName: string | null) {
     : `Hi ${userName}. Write what is inside you in any language. I will listen calmly, then help you leave with one small clear step.`;
 }
 
+function buildChildOpeningMessage(language: Language, childName: string | null) {
+  const name = childName || (language === "ar" ? "يا بطل" : "friend");
+  return language === "ar"
+    ? `أهلاً ${name}. هذه مساحتك الآمنة للقصص والتعلم واللعب الهادئ. اختر رفيقاً من الأطفال أو اكتب ما تريد تجربته الآن.`
+    : `Hi ${name}. This is your safe space for stories, learning, and calm play. Choose a children companion or write what you want to try now.`;
+}
+
 function normalizeGreetingName(value: string | null | undefined) {
   const rawName = value?.trim();
   if (!rawName) return null;
@@ -251,13 +310,14 @@ function cleanClientDiscountCode(value: string | null) {
 
 function cleanDemoCommand(value: string | null) {
   const cleanedValue = value?.trim().toLowerCase();
-  const allowedCommands = new Set(["/judge", "/story", "/proof", "/quest", "/pitch", "/launch", "/badge"]);
+  const allowedCommands = new Set(["/judge", "/story", "/proof", "/pitch", "/launch", "/badge", "/capsule", "/quest"]);
   return cleanedValue && allowedCommands.has(cleanedValue) ? cleanedValue : "";
 }
 
 const visitorUserIdKey = "fadfada-user-id";
 const chatSessionIdStorageKey = "fadfada-active-chat-session-id";
 const conversationStorageKey = "fadfada-chat-session-v1";
+const personaStorageKey = "fadfada-active-persona-id";
 const customPersonaStorageKey = "fadfada-custom-persona";
 const localCreditStorageKey = "fadfada-beta-credits-used";
 const dailyPulseStorageKey = "fadfada-daily-pulse";
@@ -281,6 +341,14 @@ const defaultExperienceConfiguration = {
   plusPersonaIds: personas.map((persona) => persona.id),
 };
 
+const childPersonaIdSet = new Set<string>([
+  "lulu_letters",
+  "zizo_numbers",
+  "tala_explorer",
+  "biso_kindness",
+  ...NEW_CHILDREN_ROSTER.map((persona) => persona.id),
+]);
+
 function cleanPersonaIdList(value: unknown) {
   const validPersonaIds = new Set(personas.map((persona) => persona.id));
   return Array.from(new Set((Array.isArray(value) ? value : [])
@@ -295,6 +363,7 @@ function cleanPersonaIdListOrDefault(value: unknown, fallback: PersonaId[]) {
 
 const maxStoredMessages = 80;
 const fadfadaHomeActionEventName = "fadfada:home-action";
+const childHistorySyncedStorageKey = "fadfada-child-history-synced";
 
 const starterMoments: Record<Language, Array<{ label: string; text: string; world: WorldId }>> = {
   ar: [
@@ -310,6 +379,51 @@ const starterMoments: Record<Language, Array<{ label: string; text: string; worl
     { label: "Tell it as a story", text: "Turn this feeling into a short story that helps me understand myself.", world: "story" },
   ],
 };
+
+const dailyChildMomentOptions: Record<Language, Array<Omit<DailyChildMoment, "dateKey">>> = {
+  ar: [
+    {
+      learn: { label: "لماذا السماء زرقاء؟", text: "علّمني شيئاً صغيراً: لماذا تبدو السماء زرقاء؟ اشرحها كقصة قصيرة.", world: "learning" },
+      feel: { label: "لون يومي", text: "أريد أن أختار لوناً ليومي وأفهم ماذا يعني شعوري.", world: "calm" },
+      connect: { label: "سؤال قبل النوم", text: "ساعدني أختار سؤالاً لطيفاً أسأله لوالدي قبل النوم.", world: "story" },
+    },
+    {
+      learn: { label: "سر النوم", text: "علّمني ماذا يفعل جسمي وأنا نائم بطريقة سهلة وممتعة.", world: "learning" },
+      feel: { label: "غيمة أم شمس؟", text: "ساعدني أقول هل شعوري اليوم مثل غيمة أم شمس، ولماذا.", world: "calm" },
+      connect: { label: "شكر صغير", text: "ساعدني أكتب جملة شكر صغيرة لشخص في البيت.", world: "celebration" },
+    },
+    {
+      learn: { label: "كيف يعمل الصوت؟", text: "علّمني كيف يصل الصوت إلى أذني كأنها مغامرة صغيرة.", world: "learning" },
+      feel: { label: "اسم الشعور", text: "اسألني أسئلة سهلة حتى أجد اسماً لشعوري الآن.", world: "calm" },
+      connect: { label: "لعبة دقيقتين", text: "اقترح لي لعبة دقيقتين ألعبها مع والدي بدون شاشة.", world: "build" },
+    },
+  ],
+  en: [
+    {
+      learn: { label: "Why is the sky blue?", text: "Teach me one tiny thing: why does the sky look blue? Explain it like a short story.", world: "learning" },
+      feel: { label: "My day color", text: "I want to choose a color for my day and understand what my feeling means.", world: "calm" },
+      connect: { label: "Bedtime question", text: "Help me choose a kind question to ask my parent before sleep.", world: "story" },
+    },
+    {
+      learn: { label: "Sleep secret", text: "Teach me what my body does while I sleep in a simple fun way.", world: "learning" },
+      feel: { label: "Cloud or sun?", text: "Help me say whether my feeling today is like a cloud or the sun, and why.", world: "calm" },
+      connect: { label: "Tiny thank-you", text: "Help me write one small thank-you sentence for someone at home.", world: "celebration" },
+    },
+    {
+      learn: { label: "How sound works", text: "Teach me how sound reaches my ears like a tiny adventure.", world: "learning" },
+      feel: { label: "Name the feeling", text: "Ask me easy questions so I can find a name for my feeling now.", world: "calm" },
+      connect: { label: "Two-minute game", text: "Suggest a two-minute no-screen game I can play with my parent.", world: "build" },
+    },
+  ],
+};
+
+function buildDailyChildMoment(language: Language, childProfileId: string, childName: string | null): DailyChildMoment {
+  const dateKey = new Date().toISOString().slice(0, 10);
+  const seedText = `${dateKey}:${childProfileId || childName || "child"}`;
+  const seed = Array.from(seedText).reduce((total, char) => total + char.charCodeAt(0), 0);
+  const options = dailyChildMomentOptions[language];
+  return { dateKey, ...options[seed % options.length] };
+}
 
 const visitorChallengeMoments: Record<Language, Array<{ badge: string; title: string; description: string; text: string; world: WorldId; personaId: PersonaId }>> = {
   ar: [
@@ -341,8 +455,8 @@ const visitorChallengeMoments: Record<Language, Array<{ badge: string; title: st
   en: [
     {
       badge: "30 sec",
-      title: "Find your companion",
-      description: "A quick match that turns your state into the right avatar and one step.",
+      title: "Quick companion match",
+      description: "A 3-question quiz that maps your current state to the right companion and gives you one clear first step.",
       text: "Ask me 3 short questions to find which FadFada companion fits me right now, then choose the companion and give me one first step.",
       world: "calm",
       personaId: "noor_companion",
@@ -1325,6 +1439,319 @@ function isSvgAvatarPath(value: string | undefined) {
   return Boolean(value?.endsWith(".svg"));
 }
 
+function cleanChildChoiceLabel(value: string) {
+  return value
+    .trim()
+    .replace(/^[أابجABCabc][\)\-\.\s]+/u, "")
+    .replace(/^[A-Ca-c]\)\s*/u, "")
+    .trim();
+}
+
+function getChildChoiceVisual(value: string): ChildChoiceVisual {
+  const label = cleanChildChoiceLabel(value);
+  const normalized = label.toLowerCase();
+
+  if (/قصر|castle|princess|أمير|امير|ملكة|ملك/.test(normalized)) return { label, kind: "castle", gradientClassName: "from-rose-200/28 via-amber-100/18 to-sky-200/20" };
+  if (/غابة|forest|tree|شجر|حديقة|نبات/.test(normalized)) return { label, kind: "forest", gradientClassName: "from-emerald-200/26 via-lime-100/16 to-cyan-200/18" };
+  if (/بحر|sea|ocean|water|ماء|موج|نهر/.test(normalized)) return { label, kind: "sea", gradientClassName: "from-cyan-200/28 via-sky-200/18 to-blue-300/18" };
+  if (/حرف|حروف|letter|letters|كلمة|قراءة/.test(normalized)) return { label, kind: "letters", gradientClassName: "from-fuchsia-200/24 via-rose-100/18 to-amber-100/18" };
+  if (/رقم|أرقام|ارقام|number|numbers|عد|حساب/.test(normalized)) return { label, kind: "numbers", gradientClassName: "from-amber-200/26 via-orange-100/16 to-emerald-100/18" };
+  if (/قصة|حكاية|story|قصص|مشهد/.test(normalized)) return { label, kind: "story", gradientClassName: "from-indigo-200/24 via-sky-100/16 to-amber-100/20" };
+  return { label, kind: "spark", gradientClassName: "from-[#C9A86A]/24 via-white/10 to-sky-200/14" };
+}
+
+function ChildChoicePicture({ visual }: { visual: ChildChoiceVisual }) {
+  const commonPathClass = "stroke-[#0E0D10]/72";
+  const shortLabel = visual.label.split(/\s+/).filter(Boolean).slice(0, 2).join(" ").slice(0, 10);
+
+  return (
+    <span className={`relative grid h-14 w-full place-items-center overflow-hidden rounded-xl bg-gradient-to-br sm:h-20 sm:rounded-2xl ${visual.gradientClassName}`} aria-hidden="true">
+      <span className="absolute inset-0 bg-[radial-gradient(circle_at_28%_24%,rgba(255,255,255,0.5),transparent_1.8rem),radial-gradient(circle_at_72%_18%,rgba(255,255,255,0.28),transparent_1.5rem)]" />
+      {visual.kind === "castle" ? (
+        <svg viewBox="0 0 96 72" className="relative h-10 w-14 drop-shadow-xl sm:h-14 sm:w-20">
+          <path d="M16 62h64V31l-8 5-8-5-8 5-8-5-8 5-8-5-8 5-8-5v31Z" fill="#F7D7A7" className={commonPathClass} strokeWidth="3" strokeLinejoin="round" />
+          <path d="M26 62V23l8-8 8 8v39M54 62V23l8-8 8 8v39" fill="#F3B7C8" className={commonPathClass} strokeWidth="3" strokeLinejoin="round" />
+          <path d="M44 62V47a4 4 0 0 1 8 0v15" fill="#8A5A44" className={commonPathClass} strokeWidth="3" />
+          <path d="M30 34h8M58 34h8" className={commonPathClass} strokeWidth="4" strokeLinecap="round" />
+        </svg>
+      ) : visual.kind === "forest" ? (
+        <svg viewBox="0 0 96 72" className="relative h-10 w-14 drop-shadow-xl sm:h-14 sm:w-20">
+          <path d="M18 60h60" className={commonPathClass} strokeWidth="4" strokeLinecap="round" />
+          <path d="M30 54V31M48 58V22M66 54V34" className={commonPathClass} strokeWidth="5" strokeLinecap="round" />
+          <path d="M30 13 14 42h32L30 13ZM48 6 29 45h38L48 6ZM66 18 51 44h30L66 18Z" fill="#86D98B" className={commonPathClass} strokeWidth="3" strokeLinejoin="round" />
+        </svg>
+      ) : visual.kind === "sea" ? (
+        <svg viewBox="0 0 96 72" className="relative h-10 w-14 drop-shadow-xl sm:h-14 sm:w-20">
+          <path d="M15 44c8-8 16-8 24 0s16 8 24 0 16-8 24 0M15 57c8-8 16-8 24 0s16 8 24 0 16-8 24 0" fill="none" className={commonPathClass} strokeWidth="5" strokeLinecap="round" />
+          <path d="M21 30c9-13 23-16 36-7 8 6 13 5 20 0-4 12-14 20-28 20-12 0-21-5-28-13Z" fill="#8BD7FF" className={commonPathClass} strokeWidth="3" strokeLinejoin="round" />
+        </svg>
+      ) : visual.kind === "letters" ? (
+        <span className="relative flex h-10 w-14 items-center justify-center gap-1 rounded-xl bg-white/72 text-xl font-bold text-[#0E0D10]/78 shadow-xl sm:h-14 sm:w-20 sm:gap-2 sm:rounded-2xl sm:text-3xl">أ B</span>
+      ) : visual.kind === "numbers" ? (
+        <span className="relative flex h-10 w-14 items-center justify-center gap-1 rounded-xl bg-white/72 text-xl font-bold text-[#0E0D10]/78 shadow-xl sm:h-14 sm:w-20 sm:gap-2 sm:rounded-2xl sm:text-3xl">١ 2</span>
+      ) : visual.kind === "story" ? (
+        <svg viewBox="0 0 96 72" className="relative h-10 w-14 drop-shadow-xl sm:h-14 sm:w-20">
+          <path d="M18 16h25c5 0 9 4 9 9v35H27a9 9 0 0 1-9-9V16ZM52 25c0-5 4-9 9-9h17v35a9 9 0 0 1-9 9H52V25Z" fill="#F7F3EC" className={commonPathClass} strokeWidth="3" strokeLinejoin="round" />
+          <path d="M29 30h12M29 42h11M62 30h8M62 42h7" className={commonPathClass} strokeWidth="4" strokeLinecap="round" />
+        </svg>
+      ) : (
+        <span className="relative grid h-10 min-w-14 max-w-[5.75rem] place-items-center rounded-xl bg-white/72 px-2 text-center font-arsans text-sm font-bold leading-4 text-[#0E0D10]/78 shadow-xl sm:h-14 sm:max-w-[7rem] sm:rounded-2xl sm:text-base">
+          {shortLabel || "★"}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function ChildStorySceneCard({ story, language }: { story: ChildStory; language: Language }) {
+  const isArabic = language === "ar";
+  const storyTitle = isArabic ? story.titleAr : story.titleEn;
+  const storySubtitle = isArabic ? story.subtitleAr : story.subtitleEn;
+  const firstPage = isArabic ? story.pagesAr[0] : story.pagesEn[0];
+
+  return (
+    <div className="mb-4 overflow-hidden rounded-[1.4rem] border border-sky-100/18 bg-[#0E0D10] shadow-[0_22px_60px_rgba(0,0,0,0.34)]">
+      <div className={`relative min-h-44 overflow-hidden bg-gradient-to-br ${story.posterClassName}`}>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_22%,rgba(255,255,255,0.5),transparent_2.7rem),radial-gradient(circle_at_82%_18%,rgba(255,255,255,0.22),transparent_3rem),radial-gradient(circle_at_50%_92%,rgba(14,13,16,0.42),transparent_8rem)]" />
+        <div className="absolute left-5 top-5 flex h-16 w-16 items-center justify-center rounded-[1.25rem] border border-white/24 bg-white/18 font-arserif text-4xl text-white shadow-2xl backdrop-blur-md">
+          {story.posterGlyph}
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 p-4 text-start">
+          <p className="font-arsans text-[11px] font-semibold uppercase tracking-[0.12em] text-white/72">{isArabic ? "صورة القصة" : "story image"}</p>
+          <h3 className="mt-1 font-arserif text-2xl leading-8 text-white drop-shadow-lg">{storyTitle}</h3>
+          <p className="mt-1 max-w-xl font-arsans text-sm leading-6 text-white/82">{storySubtitle}</p>
+        </div>
+      </div>
+      <div className="grid gap-3 p-3 sm:grid-cols-[1fr_0.78fr]">
+        <p className="rounded-2xl border border-white/10 bg-white/[0.045] p-3 font-arsans text-sm leading-6 text-bone/72">{firstPage}</p>
+        <div className="grid gap-2">
+          {(isArabic ? story.tapChoicesAr : story.tapChoicesEn).slice(0, 3).map((choice) => (
+            <span key={choice} className="rounded-full border border-sky-100/16 bg-sky-100/[0.055] px-3 py-2 font-arsans text-xs text-sky-50/78">{choice}</span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getHomeworkActivityVisual(activity: ChildHomeworkActivity, index: number): { kind: ChildHomeworkVisual["kind"]; count: number; label: string } {
+  const text = `${activity.title} ${activity.prompt} ${activity.hint}`.toLowerCase();
+  const kind = activity.visual?.kind
+    ?? (/نجوم|نجمة|star/.test(text) ? "stars"
+      : /دوائر|دائرة|circle/.test(text) ? "circles"
+        : /مثلث|triang/.test(text) ? "triangles"
+          : /مربع|square|box/.test(text) ? "squares"
+            : /حرف|letter|abc|أ|ب|ت/.test(text) ? "letters"
+              : /عدد|رقم|number|count|عد/.test(text) ? "numbers"
+                : "mixed");
+  const count = typeof activity.visual?.count === "number" && Number.isFinite(activity.visual.count)
+    ? Math.min(8, Math.max(2, Math.round(activity.visual.count)))
+    : [5, 4, 3, 6][index % 4];
+  const label = activity.visual?.label?.trim() || activity.title || activity.prompt.slice(0, 32);
+  return { kind, count, label };
+}
+
+function ChildHomeworkVisualCard({ activity, index, language }: { activity: ChildHomeworkActivity; index: number; language: Language }) {
+  const visual = getHomeworkActivityVisual(activity, index);
+  const isArabic = language === "ar";
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [voiceAnswerStatus, setVoiceAnswerStatus] = useState<"idle" | "listening" | "unsupported" | "no-match">("idle");
+  const shapes = Array.from({ length: visual.count }, (_, shapeIndex) => shapeIndex);
+  const letterTiles = isArabic ? ["أ", "ب", "ت", "ث", "ج", "ح", "خ", "د"] : ["A", "B", "C", "D", "E", "F", "G", "H"];
+  const countKinds: ChildHomeworkVisual["kind"][] = ["stars", "circles", "triangles", "squares", "numbers", "mixed"];
+  const answerOptions = countKinds.includes(visual.kind)
+    ? buildCountingAnswerOptions(visual.count, isArabic)
+    : (activity.choices || []).slice(0, 4).map((choice) => ({ value: choice, label: choice }));
+  const selectedIsCorrect = selectedAnswer ? normalizeAnswerValue(selectedAnswer) === String(visual.count) : false;
+
+  function speakQuestion() {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(prepareArabicForSpeech(`${activity.title}. ${activity.prompt}`, language, "egyptian"));
+    utterance.lang = language === "ar" ? "ar-EG" : "en-US";
+    utterance.rate = language === "ar" ? 0.92 : 0.96;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function listenForAnswer() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SpeechRecognitionAPI = typeof window !== "undefined" ? ((window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition) as (new () => ISpeechRecognition) | undefined : undefined;
+    if (!SpeechRecognitionAPI) {
+      setVoiceAnswerStatus("unsupported");
+      return;
+    }
+
+    const recognition = new SpeechRecognitionAPI();
+    recognition.lang = language === "ar" ? "ar-EG" : "en-US";
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.maxAlternatives = 1;
+    recognition.onstart = () => setVoiceAnswerStatus("listening");
+    recognition.onend = () => setVoiceAnswerStatus((current) => current === "listening" ? "idle" : current);
+    recognition.onerror = () => setVoiceAnswerStatus("no-match");
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = event.results[0]?.[0]?.transcript || "";
+      const spokenNumber = extractSpokenNumber(transcript);
+      if (!spokenNumber) {
+        setVoiceAnswerStatus("no-match");
+        return;
+      }
+      setSelectedAnswer(spokenNumber);
+      setVoiceAnswerStatus("idle");
+    };
+    recognition.start();
+  }
+
+  return (
+    <article className="rounded-[1.35rem] border border-amber-100/18 bg-[#0E0D10] p-3 shadow-[0_18px_42px_rgba(0,0,0,0.26)]">
+      <div className="grid gap-3 sm:grid-cols-[9rem_1fr]">
+        <div className="relative min-h-32 overflow-hidden rounded-[1.15rem] border border-white/12 bg-gradient-to-br from-[#FFF1B8] via-[#7DD3FC] to-[#F9A8D4] p-3">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(255,255,255,0.62),transparent_2rem),radial-gradient(circle_at_82%_24%,rgba(255,255,255,0.35),transparent_2.5rem)]" />
+          <div className="relative grid h-full min-h-24 grid-cols-3 place-items-center gap-2">
+            {shapes.map((shapeIndex) => {
+              const tileClass = "grid h-9 w-9 place-items-center bg-white/78 font-arsans text-lg font-black text-[#0E0D10]/78 shadow-lg";
+              if (visual.kind === "stars") return <span key={shapeIndex} className={`${tileClass} rounded-full text-2xl text-amber-500`}>★</span>;
+              if (visual.kind === "circles") return <span key={shapeIndex} className="h-9 w-9 rounded-full border-4 border-[#0E0D10]/70 bg-white/78 shadow-lg" />;
+              if (visual.kind === "triangles") return <span key={shapeIndex} className="h-0 w-0 border-x-[18px] border-b-[32px] border-x-transparent border-b-emerald-400 drop-shadow-lg" />;
+              if (visual.kind === "squares") return <span key={shapeIndex} className="h-9 w-9 rounded-lg border-4 border-[#0E0D10]/70 bg-white/78 shadow-lg" />;
+              if (visual.kind === "letters") return <span key={shapeIndex} className={`${tileClass} rounded-xl`}>{letterTiles[shapeIndex % letterTiles.length]}</span>;
+              if (visual.kind === "numbers") return <span key={shapeIndex} className={`${tileClass} rounded-xl`}>{isArabic ? ["١", "٢", "٣", "٤", "٥", "٦", "٧", "٨"][shapeIndex] : shapeIndex + 1}</span>;
+              return <span key={shapeIndex} className={`${tileClass} rounded-xl`}>{["★", "●", "▲", "■"][shapeIndex % 4]}</span>;
+            })}
+          </div>
+        </div>
+        <div className="text-start">
+          <p className="font-arsans text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-100/70">{isArabic ? `سؤال ${index + 1}` : `Question ${index + 1}`}</p>
+          <h3 className="mt-1 font-arsans text-base font-bold leading-6 text-bone/92">{activity.title || visual.label}</h3>
+          <p className="mt-2 font-arsans text-sm leading-6 text-bone/72">{activity.prompt}</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button type="button" onClick={speakQuestion} className="ui-action rounded-xl border border-cyan-100/20 bg-cyan-100/[0.07] px-2 py-2 font-arsans text-xs text-cyan-50 hover:bg-cyan-100 hover:text-[#0E0D10]">
+              {isArabic ? "اسمع السؤال" : "Hear question"}
+            </button>
+            <button type="button" onClick={listenForAnswer} className="ui-action rounded-xl border border-emerald-100/20 bg-emerald-100/[0.07] px-2 py-2 font-arsans text-xs text-emerald-50 hover:bg-emerald-100 hover:text-[#0E0D10]">
+              {voiceAnswerStatus === "listening" ? (isArabic ? "أسمعك..." : "Listening...") : isArabic ? "جاوب بصوتك" : "Answer by voice"}
+            </button>
+          </div>
+          {voiceAnswerStatus === "unsupported" || voiceAnswerStatus === "no-match" ? <p className="mt-2 font-arsans text-[11px] text-rose-100/78">{voiceAnswerStatus === "unsupported" ? (isArabic ? "المتصفح لا يدعم إجابة الصوت هنا." : "This browser does not support voice answers here.") : (isArabic ? "لم أفهم الرقم. جرّب مرة أخرى أو اضغط الإجابة." : "I did not catch the number. Try again or tap the answer.")}</p> : null}
+          {answerOptions.length ? (
+            <div className="mt-3 rounded-2xl border border-amber-100/16 bg-amber-100/[0.045] p-2">
+              <p className="px-1 font-arsans text-[11px] font-semibold text-amber-50/70">{isArabic ? "اختر الإجابة" : "Choose your answer"}</p>
+              <div className="mt-2 grid grid-cols-3 gap-1.5">
+                {answerOptions.map((option) => {
+                  const active = selectedAnswer === option.value;
+                  const correct = normalizeAnswerValue(option.value) === String(visual.count);
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setSelectedAnswer(option.value)}
+                      className={`min-h-10 rounded-xl border px-2 py-2 font-arsans text-sm font-bold transition-colors ${active ? correct ? "border-emerald-200/55 bg-emerald-200 text-[#0E0D10]" : "border-rose-200/55 bg-rose-200 text-[#0E0D10]" : "border-white/12 bg-[#050607] text-bone/84 hover:border-amber-100/45 hover:text-amber-50"}`}
+                      aria-pressed={active}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedAnswer ? <p className={`mt-2 font-arsans text-xs font-semibold ${selectedIsCorrect ? "text-emerald-100" : "text-rose-100"}`}>{selectedIsCorrect ? (isArabic ? "أحسنت! إجابة صحيحة." : "Great! Correct answer.") : (isArabic ? "قريب! عدّ الصورة مرة أخرى." : "Close! Count the picture again.")}</p> : null}
+            </div>
+          ) : null}
+          {activity.hint ? <p className="mt-2 rounded-xl border border-cyan-100/14 bg-cyan-100/[0.055] px-3 py-2 font-arsans text-xs leading-5 text-cyan-50/76">{isArabic ? "تلميح: " : "Hint: "}{activity.hint}</p> : null}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function ChildHomeworkActivityCards({ activities, language }: { activities: ChildHomeworkActivity[]; language: Language }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  if (!activities.length) return null;
+  const activeActivity = activities[Math.min(activeIndex, activities.length - 1)];
+
+  return (
+    <div className="mb-4 grid gap-3">
+      <div className="flex items-center justify-between gap-2 rounded-2xl border border-amber-100/14 bg-[#050607] px-3 py-2 font-arsans text-xs text-amber-50/76">
+        <span>{language === "ar" ? "واجب مصور" : "Picture homework"}</span>
+        <span dir="ltr">{activeIndex + 1}/{activities.length}</span>
+      </div>
+      <ChildHomeworkVisualCard key={`${activeActivity.title}-${activeActivity.prompt}-${activeIndex}`} activity={activeActivity} index={activeIndex} language={language} />
+      {activities.length > 1 ? (
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => setActiveIndex((current) => Math.max(0, current - 1))} disabled={activeIndex === 0} className="ui-action rounded-xl border border-white/10 px-3 py-2 font-arsans text-xs text-bone/70 hover:border-amber-100/35 hover:text-amber-100 disabled:opacity-40">
+            {language === "ar" ? "السابق" : "Previous"}
+          </button>
+          <button type="button" onClick={() => setActiveIndex((current) => Math.min(activities.length - 1, current + 1))} disabled={activeIndex >= activities.length - 1} className="ui-action rounded-xl border border-amber-100/28 bg-amber-100/10 px-3 py-2 font-arsans text-xs text-amber-50 hover:bg-amber-100 hover:text-[#0E0D10] disabled:opacity-40">
+            {language === "ar" ? "التالي" : "Next"}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function buildCountingAnswerOptions(count: number, isArabic: boolean) {
+  const values = Array.from(new Set([Math.max(1, count - 1), count, count + 1])).slice(0, 3);
+  return values.map((value) => ({ value: String(value), label: isArabic ? toArabicDigits(value) : String(value) }));
+}
+
+function normalizeAnswerValue(value: string) {
+  return value.replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit))).replace(/[^0-9]/g, "");
+}
+
+function toArabicDigits(value: number) {
+  return String(value).replace(/[0-9]/g, (digit) => "٠١٢٣٤٥٦٧٨٩"[Number(digit)] || digit);
+}
+
+function extractSpokenNumber(value: string) {
+  const normalized = value.toLowerCase().replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
+  const digitMatch = normalized.match(/\d+/);
+  if (digitMatch) return digitMatch[0];
+  const words: Record<string, string> = {
+    one: "1", two: "2", three: "3", four: "4", five: "5", six: "6", seven: "7", eight: "8",
+    واحد: "1", واحدة: "1", اثنين: "2", اتنين: "2", اثنان: "2", ثلاثة: "3", ثلاثه: "3", اربعة: "4", أربعة: "4", خمسه: "5", خمسة: "5", ستة: "6", سته: "6", سبعة: "7", سبعه: "7", ثمانية: "8", ثمانيه: "8",
+  };
+  const token = normalized.split(/\s+/).find((part) => words[part]);
+  return token ? words[token] : "";
+}
+
+function parseLegacyChildHomeworkActivities(message: ChatMessage): ChildHomeworkActivity[] {
+  if (message.role !== "assistant" || message.world !== "learning" || !childPersonaIdSet.has(message.personaId || "")) return [];
+  if (!/(?:^|\n)\s*(?:\d+|[٠-٩]+)[\.)]\s+/.test(message.text) || !/(تلميح|hint)\s*:/i.test(message.text)) return [];
+
+  const activities: ChildHomeworkActivity[] = [];
+  const questionPattern = /(?:^|\n)\s*(?:\d+|[٠-٩]+)[\.)]\s+([\s\S]*?)(?=(?:\n\s*(?:\d+|[٠-٩]+)[\.)]\s+)|$)/g;
+  for (const match of message.text.matchAll(questionPattern)) {
+    const block = match[1]?.trim();
+    if (!block) continue;
+    const [promptPart, hintPart = ""] = block.split(/\n\s*(?:تلميح|hint)\s*:/i);
+    const prompt = promptPart.trim();
+    const hint = hintPart.trim();
+    if (!prompt) continue;
+    activities.push({
+      type: "quiz",
+      title: buildLegacyHomeworkTitle(prompt, message.language || "ar"),
+      prompt,
+      hint,
+    });
+  }
+
+  return activities.slice(0, 5);
+}
+
+function buildLegacyHomeworkTitle(prompt: string, language: Language) {
+  const text = prompt.toLowerCase();
+  if (/نجوم|نجمة|star/.test(text)) return language === "ar" ? "كم نجمة؟" : "How many stars?";
+  if (/دوائر|دائرة|circle/.test(text)) return language === "ar" ? "كم دائرة؟" : "How many circles?";
+  if (/مثلث|triang/.test(text)) return language === "ar" ? "كم مثلثاً؟" : "How many triangles?";
+  if (/مربع|square/.test(text)) return language === "ar" ? "كم مربعاً؟" : "How many squares?";
+  return prompt.split(/\s+/).slice(0, 4).join(" ");
+}
+
+function getLegacyHomeworkIntroText(text: string, language: Language) {
+  const intro = text.split(/\n\s*(?:\d+|[٠-٩]+)[\.)]\s+/)[0]?.trim();
+  return intro || (language === "ar" ? "هيا نحل الواجب خطوة خطوة." : "Let’s solve the homework step by step.");
+}
+
 function isAllowedCustomAvatarPath(value: string | undefined) {
   return isProfileLogoPath(value) || isGeneratedAvatarPath(value);
 }
@@ -1432,11 +1859,13 @@ async function copyTextToClipboard(text: string) {
 }
 
 export function ChatWindow() {
-  const { data: session } = useSession();
+  const { data: session, status: authStatus } = useSession();
   const [world, setWorld] = useState<WorldId>("calm");
   const { language, setLanguage } = useAppLocale();
   const [personaId, setPersonaId] = useState<PersonaId>("omar");
   const [personaOpen, setPersonaOpen] = useState(false);
+  const [personaDrawerMode, setPersonaDrawerMode] = useState<"avatars" | "stories">("avatars");
+  const [storyShelfSignal, setStoryShelfSignal] = useState(0);
   const [input, setInput] = useState("");
   const [visitorName, setVisitorName] = useState("");
   const [visitorNameDraft, setVisitorNameDraft] = useState("");
@@ -1447,12 +1876,9 @@ export function ChatWindow() {
     {
       id: "opening",
       role: "assistant",
-      text: openingMessages.ar,
+      text: "...",
       world: "calm",
       language: "ar",
-      personaId: "omar",
-      personaName: "عمر",
-      avatarPath: "/avatars/omar.png",
     },
   ]);
   const [isThinking, setIsThinking] = useState(false);
@@ -1471,6 +1897,7 @@ export function ChatWindow() {
   const [visitorShowcaseOpen, setVisitorShowcaseOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [storyOpen, setStoryOpen] = useState(false);
+  const [storyboardGalleryOpen, setStoryboardGalleryOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [activeHomePanel, setActiveHomePanel] = useState<HomeToolPanel>("checkin");
   const [conversationHydrated, setConversationHydrated] = useState(false);
@@ -1481,6 +1908,8 @@ export function ChatWindow() {
   const [visitorCommentStatus, setVisitorCommentStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [savedMomentIds, setSavedMomentIds] = useState<string[]>([]);
   const [feedbackMomentIds, setFeedbackMomentIds] = useState<string[]>([]);
+  const [activeAvatarRatings, setActiveAvatarRatings] = useState<Record<string, number>>({});
+  const [activeAvatarRatingStatus, setActiveAvatarRatingStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [dailyPulse, setDailyPulse] = useState<DailyPulseState>({ mood: "steady", energy: "okay", need: "calm" });
   const [dailyPulseStats, setDailyPulseStats] = useState<DailyPulseStats>({ count: 0, streak: 0, lastDate: null });
   const [customPersonaDraft, setCustomPersonaDraft] = useState<CustomPersonaDraft | null>(null);
@@ -1488,6 +1917,7 @@ export function ChatWindow() {
   const [activeChatSessionId, setActiveChatSessionId] = useState("");
   const [chatSessions, setChatSessions] = useState<ChatSessionSummary[]>([]);
   const [sessionStatus, setSessionStatus] = useState<"idle" | "saving" | "saved" | "loading" | "error">("idle");
+  const [hydratedConversationScope, setHydratedConversationScope] = useState("");
   const [animatedAssistantMessageIds, setAnimatedAssistantMessageIds] = useState<string[]>([]);
   const [accountTokenBalance, setAccountTokenBalance] = useState<number | null>(null);
   const [accountActiveTier, setAccountActiveTier] = useState<string | null>(null);
@@ -1497,6 +1927,9 @@ export function ChatWindow() {
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
   const [offlineDraftSaved, setOfflineDraftSaved] = useState(false);
+  const [childRewardToast, setChildRewardToast] = useState<{ id: string; text: string } | null>(null);
+  const [childHomeworkAssignments, setChildHomeworkAssignments] = useState<ChildHomeworkAssignment[]>([]);
+  const [childHomeworkStatus, setChildHomeworkStatus] = useState<"idle" | "loading" | "error">("idle");
   const recorderRef = useRef<ISpeechRecognition | null>(null);
   const keepRecordingRef = useRef(false);
   const recordingRestartCountRef = useRef(0);
@@ -1509,29 +1942,64 @@ export function ChatWindow() {
   const pendingReplyFocusRef = useRef(false);
 
   const activeWorld = worlds[world];
+  const sessionUser = session?.user as ({ id?: string; activeTier?: string; tokenBalance?: number } & Record<string, unknown>) | undefined;
+  const sessionReady = authStatus !== "loading";
+  const isChildWorkspace = sessionUser?.workspaceMode === "child";
+  const activeChildProfileId = isChildWorkspace && typeof sessionUser?.childProfileId === "string" ? sessionUser.childProfileId : "";
+  const activeChildNickname = isChildWorkspace && typeof sessionUser?.childNickname === "string" ? normalizeGreetingName(sessionUser.childNickname) : null;
+  const dailyChildMoment = useMemo(() => buildDailyChildMoment(language, activeChildProfileId, activeChildNickname), [activeChildProfileId, activeChildNickname, language]);
+  const conversationScopeKey = activeChildProfileId ? `child:${activeChildProfileId}` : "parent";
+  const scopedConversationStorageKey = `${conversationStorageKey}:${conversationScopeKey}`;
+  const scopedChatSessionIdStorageKey = `${chatSessionIdStorageKey}:${conversationScopeKey}`;
+  const scopedPersonaStorageKey = `${personaStorageKey}:${conversationScopeKey}`;
   const customPersona = useMemo(() => buildCustomPersona(customPersonaDraft), [customPersonaDraft]);
   const blockedPersonaIds = experienceConfiguration.blockedPersonaIds ?? [];
   const blockedPersonaIdSet = useMemo(() => new Set(blockedPersonaIds), [blockedPersonaIds]);
-  const globallyAvailablePersonas = useMemo(() => personas.filter((persona) => !blockedPersonaIdSet.has(persona.id)), [blockedPersonaIdSet]);
-  const fallbackPersona = globallyAvailablePersonas[0] ?? personas[0];
+  const allAvailablePersonas = useMemo(() => personas.filter((persona) => !blockedPersonaIdSet.has(persona.id)), [blockedPersonaIdSet]);
+  const childAvailablePersonas = useMemo(() => allAvailablePersonas.filter((persona) => childPersonaIdSet.has(persona.id)), [allAvailablePersonas]);
+  const globallyAvailablePersonas = useMemo(() => allAvailablePersonas.filter((persona) => !childPersonaIdSet.has(persona.id)), [allAvailablePersonas]);
+  const visiblePersonas = isChildWorkspace ? childAvailablePersonas : globallyAvailablePersonas;
+  const fallbackPersona = visiblePersonas[0] ?? allAvailablePersonas[0] ?? personas[0];
   const activePersona = useMemo(() => {
-    if (personaId === "custom" && customPersona) return customPersona;
-    return globallyAvailablePersonas.find((persona) => persona.id === personaId) ?? fallbackPersona;
-  }, [customPersona, fallbackPersona, globallyAvailablePersonas, personaId]);
+    if (!isChildWorkspace && personaId === "custom" && customPersona) return customPersona;
+    return visiblePersonas.find((persona) => persona.id === personaId) ?? fallbackPersona;
+  }, [customPersona, fallbackPersona, isChildWorkspace, personaId, visiblePersonas]);
   const activeHeaderPresentation = getHeaderAvatarPresentation(activePersona);
   const personaAura = activeHeaderPresentation.auraHex;
   const activePersonaDisplayName = getHeaderDisplayName(activePersona, language);
   const personaEnvironment = getPersonaEnvironmentProfile(activePersona.id);
+  const activePersonaIsChild = childPersonaIdSet.has(activePersona.id);
   const activeBehavior = behaviorStyles[behaviorStyle];
   const conversationContinuity = useMemo(() => buildConversationContinuity(messages, language), [messages, language]);
   const latestAssistantMessage = useMemo(() => [...messages].reverse().find((message) => message.role === "assistant" && message.id !== "opening"), [messages]);
+  const latestChildAssistantMessage = useMemo(() => {
+    if (!isChildWorkspace || !activePersonaIsChild) return undefined;
+    return [...messages].reverse().find((message) => message.role === "assistant" && childPersonaIdSet.has(message.personaId || "") && message.suggestions?.length);
+  }, [activePersonaIsChild, isChildWorkspace, messages]);
+  const childSuggestionChips = isChildWorkspace && activePersonaIsChild ? latestChildAssistantMessage?.suggestions?.slice(0, 3) ?? [] : [];
   const latestUserMessage = useMemo(() => [...messages].reverse().find((message) => message.role === "user"), [messages]);
+  const storyboardGallerySourceMessage = useMemo<ChatMessage>(() => latestAssistantMessage ?? {
+    id: "storyboard-gallery-demo",
+    role: "assistant",
+    text: language === "ar"
+      ? "شعور مضغوط يتحول إلى مشهد رمزي: مساحة هادئة، ضباب خفيف، ونافذة ضوء تقود إلى خطوة صغيرة واضحة."
+      : "A pressured feeling becomes a symbolic scene: a quiet room, light fog, and a window of light leading toward one small clear step.",
+    world: "story",
+    language,
+    cadence: normalizeCadence("steady_calm", "story"),
+    personaId: "rawi",
+    personaName: language === "ar" ? "راوية" : "Rawiya",
+    avatarPath: "/avatars/rawi.png",
+  }, [language, latestAssistantMessage]);
+  const storyboardGalleryShots = useMemo(
+    () => buildStoryMirrorBoard(storyboardGallerySourceMessage, latestUserMessage, storyboardGallerySourceMessage.personaName || activePersonaDisplayName, language),
+    [activePersonaDisplayName, language, latestUserMessage, storyboardGallerySourceMessage]
+  );
   const greetingName = useMemo(() => normalizeGreetingName(session?.user?.name || session?.user?.email), [session?.user?.email, session?.user?.name]);
   const visitorDisplayName = useMemo(() => normalizeGreetingName(visitorName), [visitorName]);
   const effectiveUserName = greetingName ?? visitorDisplayName;
   const accountName = session?.user?.name || session?.user?.email || effectiveUserName || (language === "ar" ? "حسابي" : "Account");
   const accountImage = session?.user?.image || null;
-  const sessionUser = session?.user as ({ id?: string; activeTier?: string; tokenBalance?: number } & Record<string, unknown>) | undefined;
   const effectiveAccountTier = accountActiveTier ?? sessionUser?.activeTier ?? null;
   const accessState: AccessState = effectiveAccountTier === "PLUS" || effectiveAccountTier === "BUSINESS" ? "plus" : sessionUser?.id ? "signed" : "anonymous";
   const { anonymousReflectionLimit, signedGiftReflectionLimit, anonymousPersonaLimit, signedPersonaLimit, avatarsEnabled, anonymousPersonaIds, signedPersonaIds, plusPersonaIds } = experienceConfiguration;
@@ -1540,28 +2008,42 @@ export function ChatWindow() {
   const usedReflections = accessState === "plus" ? 0 : trialCounter;
   const remainingReflections = accessState === "plus" ? Number.POSITIVE_INFINITY : Math.max(0, reflectionLimit - usedReflections);
   const unlockedPersonaIds = useMemo<PersonaId[]>(() => {
+    if (isChildWorkspace) return childAvailablePersonas.map((persona) => persona.id);
     const tierPersonaIds = accessState === "plus" ? plusPersonaIds : accessState === "signed" ? signedPersonaIds : anonymousPersonaIds;
     const tierPersonaIdSet = new Set(tierPersonaIds);
     const allowedTierPersonaIds = globallyAvailablePersonas.map((persona) => persona.id).filter((personaIdValue) => tierPersonaIdSet.has(personaIdValue));
-    if (accessState === "anonymous") return allowedTierPersonaIds;
-    const grantedAvailablePersonaIds = grantedPersonaIds.filter((personaIdValue) => !blockedPersonaIdSet.has(personaIdValue));
+    if (accessState === "anonymous") return Array.from(new Set(allowedTierPersonaIds));
+    const globallyAvailablePersonaIdSet = new Set(globallyAvailablePersonas.map((persona) => persona.id));
+    const grantedAvailablePersonaIds = grantedPersonaIds.filter((personaIdValue) => globallyAvailablePersonaIdSet.has(personaIdValue));
     return Array.from(new Set([...allowedTierPersonaIds, ...grantedAvailablePersonaIds]));
-  }, [accessState, anonymousPersonaIds, blockedPersonaIdSet, globallyAvailablePersonas, grantedPersonaIds, plusPersonaIds, signedPersonaIds]);
+  }, [accessState, anonymousPersonaIds, blockedPersonaIdSet, childAvailablePersonas, globallyAvailablePersonas, grantedPersonaIds, isChildWorkspace, plusPersonaIds, signedPersonaIds]);
 
   useEffect(() => {
     if (!avatarsEnabled) setPersonaOpen(false);
   }, [avatarsEnabled]);
 
   useEffect(() => {
-    if (personaId !== "custom" && !globallyAvailablePersonas.some((persona) => persona.id === personaId)) {
+    if (personaId !== "custom" && !visiblePersonas.some((persona) => persona.id === personaId)) {
       setPersonaId(fallbackPersona.id);
     }
-  }, [fallbackPersona.id, globallyAvailablePersonas, personaId]);
+  }, [fallbackPersona.id, personaId, visiblePersonas]);
 
   useEffect(() => {
     if (personaId === "custom" || unlockedPersonaIds.includes(personaId)) return;
     setPersonaId(unlockedPersonaIds[0] ?? fallbackPersona.id);
   }, [fallbackPersona.id, personaId, unlockedPersonaIds]);
+
+  useEffect(() => {
+    if (authStatus === "loading") return;
+
+    const storedPersonaId = localStorage.getItem(scopedPersonaStorageKey) as PersonaId | null;
+    const scopedPersona = storedPersonaId && visiblePersonas.some((persona) => persona.id === storedPersonaId) && (isChildWorkspace || !childPersonaIdSet.has(storedPersonaId)) ? storedPersonaId : null;
+    const parentDefaultPersona = visiblePersonas.find((persona) => persona.id === "omar")?.id ?? fallbackPersona.id;
+    const nextPersonaId = scopedPersona ?? (isChildWorkspace ? fallbackPersona.id : parentDefaultPersona);
+
+    setPersonaId(nextPersonaId);
+    window.setTimeout(() => focusConversationTail("auto"), 80);
+  }, [authStatus, conversationScopeKey, fallbackPersona.id, isChildWorkspace, scopedPersonaStorageKey, visiblePersonas]);
 
   function getUsedCredits() {
     const parsedCredits = Number(localStorage.getItem(getCreditStorageKey()) || "0");
@@ -1577,6 +2059,26 @@ export function ChatWindow() {
 
   function getCreditStorageKey() {
     return accessState === "signed" && sessionUser?.id ? `${localCreditStorageKey}:${sessionUser.id}` : localCreditStorageKey;
+  }
+
+  function buildOpeningChatMessageForPersona(openingPersona: Persona): ChatMessage {
+    const openingWorld = isChildWorkspace && openingPersona.primaryWorldId in worlds ? openingPersona.primaryWorldId as WorldId : "calm";
+
+    return {
+      id: "opening",
+      role: "assistant",
+      text: isChildWorkspace ? buildChildOpeningMessage(language, activeChildNickname) : buildOpeningMessage(language, effectiveUserName),
+      world: openingWorld,
+      language,
+      personaId: openingPersona.id,
+      personaName: language === "ar" ? openingPersona.nameAr : openingPersona.nameEn,
+      avatarPath: openingPersona.avatarPath,
+    };
+  }
+
+  function buildCurrentOpeningChatMessage(): ChatMessage {
+    const openingPersona = isChildWorkspace ? (activePersonaIsChild ? activePersona : fallbackPersona) : personas.find((persona) => persona.id === "omar") ?? fallbackPersona;
+    return buildOpeningChatMessageForPersona(openingPersona);
   }
 
   function submitStarterMoment(text: string, nextWorld: WorldId) {
@@ -1682,6 +2184,24 @@ export function ChatWindow() {
     inputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
+  function openStoryShelf() {
+    if (!avatarsEnabled) return;
+    setVisitorShowcaseOpen(false);
+    setToolsOpen(false);
+    setPersonaDrawerMode("stories");
+    setPersonaOpen(true);
+    setStoryShelfSignal((current) => current + 1);
+    void trackInteraction("starter_tap", { type: "child_stories_open", language });
+  }
+
+  function openAvatarDrawer() {
+    if (!avatarsEnabled) return;
+    setVisitorShowcaseOpen(false);
+    setToolsOpen(false);
+    setPersonaDrawerMode("avatars");
+    setPersonaOpen(true);
+  }
+
   function focusVisitorChallengeChat() {
     const target = pendingVisitorChallengeFocusRef.current;
     if (!target) return;
@@ -1709,10 +2229,9 @@ export function ChatWindow() {
     void submitMessage();
   }
 
-  function stageSecretCommand(command: string) {
+  async function stageSecretCommand(command: string) {
     setToolsOpen(false);
-    setInput(command);
-    window.setTimeout(focusInput, 80);
+    await runSecretCommand(command);
     trackInteraction("starter_tap", { type: "secret_command_hint", command, language });
   }
 
@@ -1765,9 +2284,9 @@ export function ChatWindow() {
   useEffect(() => {
     setMessages((current) => {
       if (current.length !== 1 || current[0].id !== "opening") return current;
-      return [{ ...current[0], text: buildOpeningMessage(language, effectiveUserName), language }];
+      return [buildCurrentOpeningChatMessage()];
     });
-  }, [effectiveUserName, language]);
+  }, [activeChildNickname, effectiveUserName, fallbackPersona.id, isChildWorkspace, language]);
 
   useEffect(() => {
     focusVisitorChallengeChat();
@@ -1795,26 +2314,93 @@ export function ChatWindow() {
   }, []);
 
   useEffect(() => {
-    if (!conversationHydrated) return;
+    if (!conversationHydrated || hydratedConversationScope !== conversationScopeKey) return;
+
+    localStorage.setItem(scopedPersonaStorageKey, activePersona.id);
 
     localStorage.setItem(
-      conversationStorageKey,
+      scopedConversationStorageKey,
       JSON.stringify({
         messages: sanitizeStoredMessages(messages).slice(-maxStoredMessages),
+        activePersonaId: activePersona.id,
         world,
         savedAt: new Date().toISOString(),
       })
     );
-  }, [conversationHydrated, messages, world]);
+  }, [activePersona.id, conversationHydrated, conversationScopeKey, hydratedConversationScope, messages, scopedConversationStorageKey, scopedPersonaStorageKey, world]);
 
   useEffect(() => {
-    if (!activeChatSessionId) {
-      const storedSessionId = localStorage.getItem(chatSessionIdStorageKey);
-      const nextSessionId = storedSessionId || `session:${crypto.randomUUID()}`;
-      localStorage.setItem(chatSessionIdStorageKey, nextSessionId);
-      setActiveChatSessionId(nextSessionId);
+    if (!isChildWorkspace || !activeChildProfileId || !conversationHydrated || hydratedConversationScope !== conversationScopeKey || messages.length < 2) return;
+
+    const syncedIds = new Set(JSON.parse(localStorage.getItem(childHistorySyncedStorageKey) || "[]") as string[]);
+    const turns = messages.flatMap((message, index) => {
+      if (message.role !== "user" || syncedIds.has(`${activeChildProfileId}:${message.id}`)) return [];
+      const assistantReply = messages.slice(index + 1).find((candidate) => candidate.role === "assistant" && candidate.text.trim());
+      if (!assistantReply) return [];
+      return [{ userMessage: message, assistantReply }];
+    }).slice(-4);
+
+    if (turns.length === 0) return;
+
+    turns.forEach(({ userMessage, assistantReply }) => {
+      const syncId = `${activeChildProfileId}:${userMessage.id}`;
+      fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventType: "child_conversation_turn",
+          metadata: {
+            childText: userMessage.text,
+            assistantText: assistantReply.text,
+            personaId: assistantReply.personaId || activePersona.id,
+            world: assistantReply.world || userMessage.world,
+            language: assistantReply.language || userMessage.language || language,
+          },
+        }),
+      }).then((response) => {
+        if (!response.ok) return;
+        const nextSyncedIds = new Set(JSON.parse(localStorage.getItem(childHistorySyncedStorageKey) || "[]") as string[]);
+        nextSyncedIds.add(syncId);
+        localStorage.setItem(childHistorySyncedStorageKey, JSON.stringify(Array.from(nextSyncedIds).slice(-160)));
+      }).catch(() => undefined);
+    });
+  }, [activeChildProfileId, activePersona.id, conversationHydrated, conversationScopeKey, hydratedConversationScope, isChildWorkspace, language, messages]);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!isChildWorkspace || !activeChildProfileId) {
+      setChildHomeworkAssignments([]);
+      setChildHomeworkStatus("idle");
+      return;
     }
-  }, [activeChatSessionId]);
+
+    setChildHomeworkStatus("loading");
+    fetch("/api/child/homework", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error(String(response.status))))
+      .then((data: { assignments?: ChildHomeworkAssignment[] }) => {
+        if (!active) return;
+        setChildHomeworkAssignments(Array.isArray(data.assignments) ? data.assignments : []);
+        setChildHomeworkStatus("idle");
+      })
+      .catch(() => {
+        if (!active) return;
+        setChildHomeworkAssignments([]);
+        setChildHomeworkStatus("error");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [activeChildProfileId, isChildWorkspace]);
+
+  useEffect(() => {
+    if (authStatus === "loading") return;
+    const storedSessionId = localStorage.getItem(scopedChatSessionIdStorageKey) || (conversationScopeKey === "parent" ? localStorage.getItem(chatSessionIdStorageKey) : null);
+    const nextSessionId = storedSessionId || `session:${crypto.randomUUID()}`;
+    localStorage.setItem(scopedChatSessionIdStorageKey, nextSessionId);
+    setActiveChatSessionId(nextSessionId);
+  }, [authStatus, conversationScopeKey, scopedChatSessionIdStorageKey]);
 
   useEffect(() => {
     if (sessionUser?.id) {
@@ -1849,9 +2435,14 @@ export function ChatWindow() {
   }, [sessionUser?.id]);
 
   useEffect(() => {
+    if (isChildWorkspace) {
+      setChatSessions([]);
+      setSessionStatus("idle");
+      return;
+    }
     if (accessState === "anonymous") return;
     void loadChatSessions();
-  }, [accessState, sessionUser?.id]);
+  }, [accessState, isChildWorkspace, sessionUser?.id]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1949,14 +2540,14 @@ export function ChatWindow() {
   }, []);
 
   useEffect(() => {
-    if (accessState === "anonymous" || !conversationHydrated || !activeChatSessionId || messages.length < 2) return;
+    if (isChildWorkspace || accessState === "anonymous" || !conversationHydrated || hydratedConversationScope !== conversationScopeKey || !activeChatSessionId || messages.length < 2) return;
 
     const timeout = window.setTimeout(() => {
       void saveCurrentChatSession("silent");
     }, 900);
 
     return () => window.clearTimeout(timeout);
-  }, [accessState, activeChatSessionId, conversationHydrated, messages, personaId, world, language]);
+  }, [accessState, activeChatSessionId, conversationHydrated, conversationScopeKey, hydratedConversationScope, isChildWorkspace, messages, personaId, world, language]);
 
   async function loadChatSessions() {
     setSessionStatus("loading");
@@ -1972,7 +2563,7 @@ export function ChatWindow() {
   }
 
   async function saveCurrentChatSession(mode: "silent" | "manual" = "manual") {
-    if (accessState === "anonymous" || !activeChatSessionId || messages.length < 2) return false;
+    if (isChildWorkspace || accessState === "anonymous" || !activeChatSessionId || messages.length < 2) return false;
     if (mode === "manual") setSessionStatus("saving");
 
     const snapshot = buildChatSessionSnapshot(activeChatSessionId, messages, activePersona.id, world, language);
@@ -1994,7 +2585,7 @@ export function ChatWindow() {
   }
 
   async function startNewChatSession() {
-    if (accessState !== "anonymous" && messages.length >= 2) {
+    if (!isChildWorkspace && accessState !== "anonymous" && messages.length >= 2) {
       setSessionStatus("saving");
       const saved = await saveCurrentChatSession("silent");
       if (!saved) {
@@ -2006,16 +2597,19 @@ export function ChatWindow() {
     }
 
     const nextSessionId = `session:${crypto.randomUUID()}`;
-    localStorage.setItem(chatSessionIdStorageKey, nextSessionId);
+    localStorage.setItem(scopedChatSessionIdStorageKey, nextSessionId);
     setActiveChatSessionId(nextSessionId);
     setAnimatedAssistantMessageIds([]);
-    setMessages([{ id: "opening", role: "assistant", text: buildOpeningMessage(language, effectiveUserName), world: "calm", language, personaId: "omar", personaName: language === "ar" ? "عمر" : "Omar", avatarPath: "/avatars/omar.png" }]);
-    setWorld("calm");
+    const openingMessage = buildCurrentOpeningChatMessage();
+    setMessages([openingMessage]);
+    setWorld(openingMessage.world);
+    if (openingMessage.personaId) setPersonaId(openingMessage.personaId);
     setToolsOpen(false);
     window.setTimeout(focusInput, 120);
   }
 
   async function openChatSession(sessionItem: ChatSessionSummary) {
+    if (isChildWorkspace) return;
     setSessionStatus("loading");
     let sessionToOpen = sessionItem;
 
@@ -2031,9 +2625,9 @@ export function ChatWindow() {
       }
     }
 
-    localStorage.setItem(chatSessionIdStorageKey, sessionItem.sessionId);
+    localStorage.setItem(scopedChatSessionIdStorageKey, sessionItem.sessionId);
     setActiveChatSessionId(sessionToOpen.sessionId);
-    const restoredMessages: ChatMessage[] = sessionToOpen.messages.length > 0 ? sessionToOpen.messages : [{ id: "opening", role: "assistant", text: buildOpeningMessage(language, effectiveUserName), world: "calm", language, personaId: "omar", personaName: language === "ar" ? "عمر" : "Omar", avatarPath: "/avatars/omar.png" }];
+    const restoredMessages: ChatMessage[] = sessionToOpen.messages.length > 0 ? sessionToOpen.messages : [buildCurrentOpeningChatMessage()];
     setMessages(restoredMessages);
     setAnimatedAssistantMessageIds(getAssistantMessageIds(restoredMessages));
     if (sessionToOpen.activeWorld in worlds) setWorld(sessionToOpen.activeWorld as WorldId);
@@ -2041,7 +2635,7 @@ export function ChatWindow() {
     if (nextPersona) setPersonaId(nextPersona.id);
     setSessionStatus("idle");
     setToolsOpen(false);
-    window.setTimeout(() => scrollToSection("chat"), 80);
+    window.setTimeout(() => focusConversationTail("smooth"), 80);
   }
 
   function scrollToSection(section: "home" | "chat") {
@@ -2074,9 +2668,13 @@ export function ChatWindow() {
 
     if (action === "avatars") {
       if (!avatarsEnabled) return;
-      setToolsOpen(false);
-      setPersonaOpen(true);
+      openAvatarDrawer();
       void trackInteraction("starter_tap", { type: "top_menu_avatars", language });
+      return;
+    }
+
+    if (action === "stories") {
+      openStoryShelf();
       return;
     }
 
@@ -2107,7 +2705,7 @@ export function ChatWindow() {
       window.history.replaceState(null, "", nextUrl);
     }
 
-    if (initialAction === "start" || initialAction === "avatars" || initialAction === "newChat") {
+    if (initialAction === "start" || initialAction === "avatars" || initialAction === "stories" || initialAction === "newChat") {
       window.setTimeout(() => runHomeHeaderAction(initialAction), 180);
       params.delete("fadfadaAction");
       const nextSearch = params.toString();
@@ -2125,7 +2723,7 @@ export function ChatWindow() {
 
     const handleAction = (event: Event) => {
       const action = (event as CustomEvent<{ action?: HomeHeaderAction }>).detail?.action;
-      if (action === "start" || action === "avatars" || action === "newChat") {
+      if (action === "start" || action === "avatars" || action === "stories" || action === "newChat") {
         runHomeHeaderAction(action);
       }
     };
@@ -2404,7 +3002,9 @@ export function ChatWindow() {
 
     const speechLanguage = message.language || language;
     const messagePersona = resolveMessagePersona(message, customPersona);
-    speakTextWithPersona(message.text, speechLanguage, messagePersona, message.id);
+    const homeworkActivities = message.childHomeworkActivities?.length ? message.childHomeworkActivities : parseLegacyChildHomeworkActivities(message);
+    const speechText = homeworkActivities.length ? getLegacyHomeworkIntroText(message.text, speechLanguage) : message.text;
+    speakTextWithPersona(speechText, speechLanguage, messagePersona, message.id);
   }
 
   function toggleVoicePlayback(message: ChatMessage) {
@@ -2446,6 +3046,20 @@ export function ChatWindow() {
     } catch {
       return false;
     }
+  }
+
+  async function rateActiveAvatar(rating: number) {
+    if (activeAvatarRatingStatus === "saving") return;
+
+    setActiveAvatarRatingStatus("saving");
+    const saved = await rateAvatar(activePersona, rating);
+    if (saved) {
+      setActiveAvatarRatings((current) => ({ ...current, [activePersona.id]: rating }));
+      setActiveAvatarRatingStatus("saved");
+      return;
+    }
+
+    setActiveAvatarRatingStatus("error");
   }
 
   async function submitVisitorComment(event: FormEvent<HTMLFormElement>) {
@@ -2625,8 +3239,9 @@ export function ChatWindow() {
 
     const nextLanguage = inferRequestedLanguage(text, language);
     const clientDetectedMediaKind = detectGeneratedMediaKind(text);
-    const requestWorld = overrideWorld ?? world;
-    const candidatePersona = overridePersona ?? activePersona;
+    const autoRoutedPersona = overridePersona ? null : getAutoRoutedPersona(text, messages, unlockedPersonaIds, globallyAvailablePersonas);
+    const requestWorld = overrideWorld ?? (autoRoutedPersona?.primaryWorldId === "celebration" ? "celebration" : world);
+    const candidatePersona = overridePersona ?? autoRoutedPersona ?? activePersona;
     const requestPersona = candidatePersona.id === "custom" || unlockedPersonaIds.includes(candidatePersona.id)
       ? candidatePersona
       : globallyAvailablePersonas.find((persona) => persona.id === unlockedPersonaIds[0]) ?? fallbackPersona;
@@ -2655,7 +3270,9 @@ export function ChatWindow() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
+          childProfileId: isChildWorkspace && typeof sessionUser?.childProfileId === "string" ? sessionUser.childProfileId : undefined,
           messageText: text,
+          personaId: requestPersona.id,
           currentWorld: requestWorld,
           currentLanguage: nextLanguage,
           userDisplayName: requestUserDisplayName,
@@ -2682,22 +3299,28 @@ export function ChatWindow() {
         useOneCredit();
       }
       setWorld(responseWorld);
+      const assistantMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: responseText,
+        world: responseWorld,
+        language: nextLanguage,
+        cadence,
+        resources: generatedMedia ? undefined : data.resources,
+        generatedMedia,
+        challenge: generatedMedia ? undefined : data.challenge,
+        suggestions: generatedMedia ? undefined : data.suggestions?.slice(0, 3),
+        personaId: requestPersona.id,
+        personaName: nextLanguage === "ar" ? requestPersona.nameAr : requestPersona.nameEn,
+        avatarPath: requestPersona.avatarPath,
+      };
       setMessages((current) => [
         ...current,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          text: responseText,
-          world: responseWorld,
-          language: nextLanguage,
-          cadence,
-          resources: generatedMedia ? undefined : data.resources,
-          generatedMedia,
-          personaId: requestPersona.id,
-          personaName: nextLanguage === "ar" ? requestPersona.nameAr : requestPersona.nameEn,
-          avatarPath: requestPersona.avatarPath,
-        },
+        assistantMessage,
       ]);
+      if (data.triggerAudioPlayback) {
+        window.setTimeout(() => playBrowserSpeech(assistantMessage), 160);
+      }
     } catch {
       setMessages((current) => [
         ...current,
@@ -2716,6 +3339,127 @@ export function ChatWindow() {
     } finally {
       setIsThinking(false);
     }
+  }
+
+  function submitChildSuggestion(suggestion: string) {
+    const cleanedSuggestion = suggestion.trim();
+    if (!cleanedSuggestion || isThinking || !activePersonaIsChild) return;
+
+    const reward = latestChildAssistantMessage?.challenge?.pointsReward;
+    if (reward && reward > 0) {
+      const toastId = crypto.randomUUID();
+      setChildRewardToast({ id: toastId, text: language === "ar" ? `+${reward} نقطة! ✨` : `+${reward} points! ✨` });
+      window.setTimeout(() => {
+        setChildRewardToast((currentToast) => currentToast?.id === toastId ? null : currentToast);
+      }, 1500);
+    }
+
+    void submitMessage(undefined, cleanedSuggestion, latestChildAssistantMessage?.world ?? world, activePersona);
+  }
+
+  function startChildTapGame() {
+    if (!isChildWorkspace || isThinking) return;
+
+    const gameWorld: WorldId = activePersona.primaryWorldId in worlds ? activePersona.primaryWorldId as WorldId : "learning";
+    const guideName = language === "ar" ? activePersona.nameAr : activePersona.nameEn;
+    const isZainKgPersona = activePersona.id === "zain_kg_explorer";
+    const suggestions = isZainKgPersona
+      ? language === "ar"
+        ? ["🦁 أصوات", "🏃 حركة", "🎨 ألوان"]
+        : ["🦁 Sounds", "🏃 Move", "🎨 Colors"]
+      : language === "ar"
+      ? ["لعبة حروف", "لغز أرقام", "قصة قصيرة"]
+      : ["Letter game", "Number puzzle", "Short story"];
+    const assistantText = isZainKgPersona
+      ? language === "ar"
+        ? "واو يا بطل! اختر لعبة بالصورة."
+        : "Yay, friend! Tap a picture game."
+      : language === "ar"
+      ? `جاهز يا ${activeChildNickname || "بطل"}. اختر لعبة من الأزرار وسأبدأ معك فوراً.`
+      : `Ready ${activeChildNickname || "friend"}. Pick a game button and I will start right away.`;
+    const challengeQuestion = isZainKgPersona
+      ? language === "ar" ? "ماذا نلعب؟" : "What game?"
+      : language === "ar" ? `${guideName} جاهز. ماذا نلعب الآن؟` : `${guideName} is ready. What shall we play?`;
+
+    setWorld(gameWorld);
+    setMessages((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: assistantText,
+        world: gameWorld,
+        language,
+        cadence: normalizeCadence("rapid_energetic", gameWorld),
+        challenge: {
+          type: "quiz",
+          question: challengeQuestion,
+          pointsReward: 2,
+        },
+        suggestions,
+        personaId: activePersona.id,
+        personaName: guideName,
+        avatarPath: activePersona.avatarPath,
+      },
+    ]);
+    scrollToSection("chat");
+    window.setTimeout(() => focusConversationTail("smooth"), 120);
+    void trackInteraction("starter_tap", { type: "child_start_play", language, personaId: activePersona.id });
+    void fetch("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventType: "child_conversation_turn",
+        metadata: {
+          childText: language === "ar" ? "ضغط زر ابدأ اللعب" : "Tapped Start playing",
+          assistantText: `${assistantText}\n${challengeQuestion}`,
+          personaId: activePersona.id,
+          world: gameWorld,
+          language,
+        },
+      }),
+    }).catch(() => undefined);
+  }
+
+  function startDailyChildMoment(moment: DailyChildMoment["learn"], kind: "learn" | "feel" | "connect") {
+    if (!isChildWorkspace || isThinking || !activePersonaIsChild) return;
+
+    void trackInteraction("starter_tap", { type: "child_daily_moment", kind, language, personaId: activePersona.id, dateKey: dailyChildMoment.dateKey });
+    void submitMessage(undefined, moment.text, moment.world, activePersona);
+  }
+
+  function startChildHomework(assignment: ChildHomeworkAssignment) {
+    if (!isChildWorkspace || isThinking || !activePersonaIsChild) return;
+
+    const firstActivities = assignment.activities.slice(0, 3);
+    const suggestions = firstActivities.map((activity) => activity.title || activity.prompt.slice(0, 28));
+    const assistantText = assignment.childIntro;
+
+    setWorld("learning");
+    setMessages((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: assistantText,
+        world: "learning",
+        language,
+        cadence: normalizeCadence("rapid_energetic", "learning"),
+        challenge: {
+          type: "quiz",
+          question: assignment.detectedTask,
+          pointsReward: 3,
+        },
+        childHomeworkActivities: firstActivities,
+        suggestions: suggestions.length ? suggestions : [assignment.detectedTask],
+        personaId: activePersona.id,
+        personaName: language === "ar" ? activePersona.nameAr : activePersona.nameEn,
+        avatarPath: activePersona.avatarPath,
+      },
+    ]);
+    scrollToSection("chat");
+    window.setTimeout(() => focusConversationTail("smooth"), 120);
+    void trackInteraction("starter_tap", { type: "child_homework_start", language, personaId: activePersona.id, assignmentId: assignment.id, subject: assignment.subject });
   }
 
   function toggleVoiceCapture() {
@@ -2795,8 +3539,10 @@ export function ChatWindow() {
     }
   }
 
-  // Cleanup on unmount
   useEffect(() => {
+    if (authStatus === "loading") return;
+    setConversationHydrated(false);
+
     const storedUserId = localStorage.getItem(visitorUserIdKey);
     if (storedUserId) {
       setUserId(storedUserId);
@@ -2806,21 +3552,50 @@ export function ChatWindow() {
       setUserId(nextUserId);
     }
 
-    setVisitorShowcaseOpen(localStorage.getItem("fadfada-visitor-showcase-seen") !== "true");
+    setVisitorShowcaseOpen(!isChildWorkspace && localStorage.getItem("fadfada-visitor-showcase-seen") !== "true");
 
     try {
-      const storedConversation = JSON.parse(localStorage.getItem(conversationStorageKey) || "null") as { messages?: ChatMessage[]; world?: WorldId } | null;
-      const restoredMessages = sanitizeStoredMessages(storedConversation?.messages);
-      if (restoredMessages.length > 0) {
-        setMessages(restoredMessages);
-        setAnimatedAssistantMessageIds(getAssistantMessageIds(restoredMessages));
+      const storedPersonaId = localStorage.getItem(scopedPersonaStorageKey) as PersonaId | null;
+      let nextPersona = visiblePersonas.find((persona) => persona.id === storedPersonaId && (isChildWorkspace || !childPersonaIdSet.has(persona.id))) ?? fallbackPersona;
+      let nextWorld: WorldId = nextPersona.primaryWorldId in worlds ? nextPersona.primaryWorldId as WorldId : "calm";
+      let nextMessages: ChatMessage[] = [];
+      const rawStoredConversation = localStorage.getItem(scopedConversationStorageKey) || (conversationScopeKey === "parent" ? localStorage.getItem(conversationStorageKey) : null);
+      const storedConversation = JSON.parse(rawStoredConversation || "null") as { messages?: ChatMessage[]; world?: WorldId; activePersonaId?: PersonaId } | null;
+      const restoredMessages = sanitizeStoredMessages(storedConversation?.messages).slice(-maxStoredMessages);
+      const hasParentAssistantMessage = isChildWorkspace && restoredMessages.some((message) => message.role === "assistant" && (!message.personaId || !childPersonaIdSet.has(message.personaId)));
+      const hasChildAssistantMessage = !isChildWorkspace && restoredMessages.some((message) => message.role === "assistant" && message.personaId && childPersonaIdSet.has(message.personaId));
+
+      if (!hasParentAssistantMessage && !hasChildAssistantMessage && restoredMessages.length > 0) {
+        nextMessages = restoredMessages;
+        if (storedConversation?.world && storedConversation.world in worlds) nextWorld = storedConversation.world;
+
+        const restoredPersonaId = storedConversation?.activePersonaId ?? [...restoredMessages].reverse().find((message) => message.personaId)?.personaId;
+        const restoredPersona = visiblePersonas.find((persona) => persona.id === restoredPersonaId && (isChildWorkspace || !childPersonaIdSet.has(persona.id)));
+        if (restoredPersona) nextPersona = restoredPersona;
       }
-      if (storedConversation?.world && storedConversation.world in worlds) {
-        setWorld(storedConversation.world);
+
+      if (isChildWorkspace && !childPersonaIdSet.has(nextPersona.id)) {
+        nextPersona = childAvailablePersonas[0] ?? fallbackPersona;
+        nextWorld = nextPersona.primaryWorldId in worlds ? nextPersona.primaryWorldId as WorldId : "calm";
+        nextMessages = [];
       }
+
+      if (!isChildWorkspace && childPersonaIdSet.has(nextPersona.id)) {
+        nextPersona = personas.find((persona) => persona.id === "omar") ?? fallbackPersona;
+        nextWorld = "calm";
+        nextMessages = [];
+      }
+
+      if (nextMessages.length === 0) nextMessages = [buildOpeningChatMessageForPersona(nextPersona)];
+
+      setPersonaId(nextPersona.id);
+      setWorld(nextWorld);
+      setMessages(nextMessages);
+      setAnimatedAssistantMessageIds(getAssistantMessageIds(nextMessages));
     } catch {
-      localStorage.removeItem(conversationStorageKey);
+      localStorage.removeItem(scopedConversationStorageKey);
     } finally {
+      setHydratedConversationScope(conversationScopeKey);
       setConversationHydrated(true);
     }
 
@@ -2861,7 +3636,7 @@ export function ChatWindow() {
       recorderRef.current?.stop();
       window.speechSynthesis?.cancel();
     };
-  }, []);
+  }, [authStatus, activeChildNickname, childAvailablePersonas, conversationScopeKey, effectiveUserName, fallbackPersona, isChildWorkspace, language, scopedConversationStorageKey, scopedPersonaStorageKey, visiblePersonas]);
 
   useEffect(() => {
     window.speechSynthesis?.cancel();
@@ -3032,6 +3807,43 @@ export function ChatWindow() {
     window.setTimeout(focusInput, 80);
   }
 
+  function startStoryGuide(story: ChildStory) {
+    const storyPersona = globallyAvailablePersonas.find((persona) => persona.id === story.personaId) ?? personas.find((persona) => persona.id === story.personaId);
+    if (!storyPersona) return;
+
+    const storyWorld = storyPersona.primaryWorldId in worlds ? storyPersona.primaryWorldId as WorldId : "story";
+    const guideName = language === "ar" ? storyPersona.nameAr : storyPersona.nameEn;
+    const storyTitle = language === "ar" ? story.titleAr : story.titleEn;
+    const starterText = language === "ar"
+      ? `جاهز! اخترت ${guideName} ليقود قصة "${storyTitle}". اكتب اختياراً قصيراً أو اضغط أحد أزرار القصة، وسنحولها إلى لعبة تفاعلية.`
+      : `Ready. ${guideName} will guide "${storyTitle}". Type a short choice or tap one of the story buttons, and we will turn it into an interactive game.`;
+
+    setPersonaId(storyPersona.id);
+    setWorld(storyWorld);
+    setPersonaOpen(false);
+    setMessages((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: starterText,
+        world: storyWorld,
+        language,
+        cadence: normalizeCadence("rapid_energetic", storyWorld),
+        suggestions: (language === "ar" ? story.tapChoicesAr : story.tapChoicesEn).slice(0, 3),
+        personaId: storyPersona.id,
+        personaName: guideName,
+        avatarPath: storyPersona.avatarPath,
+        childStoryId: story.id,
+      },
+    ]);
+    window.setTimeout(() => {
+      scrollToSection("chat");
+      focusConversationTail("smooth");
+    }, 120);
+    void trackInteraction("starter_tap", { type: "story_guide_start", storyId: story.id, personaId: story.personaId, language });
+  }
+
   function closeVisitorShowcase() {
     localStorage.setItem("fadfada-visitor-showcase-seen", "true");
     setVisitorShowcaseOpen(false);
@@ -3048,6 +3860,23 @@ export function ChatWindow() {
       language,
       storyPersona.id
     );
+  }
+
+  function openFeatureStudio() {
+    setVisitorShowcaseOpen(true);
+    void trackInteraction("starter_tap", { type: "floating_studio_open", language });
+  }
+
+  function openStoryboardGallery() {
+    setToolsOpen(false);
+    setStoryboardGalleryOpen(true);
+    void trackInteraction("starter_tap", { type: "floating_storyboard_gallery", language });
+  }
+
+  function openSecretShortcuts() {
+    setActiveHomePanel("prompts");
+    setToolsOpen(true);
+    void trackInteraction("starter_tap", { type: "floating_secret_shortcuts", language });
   }
 
   const visitorShowcaseDialog = visitorShowcaseOpen && typeof document !== "undefined" ? createPortal(
@@ -3075,7 +3904,7 @@ export function ChatWindow() {
             accessState={accessState}
             currentWorld={world}
             avatarsEnabled={avatarsEnabled}
-            availablePersonas={globallyAvailablePersonas}
+            availablePersonas={visiblePersonas}
             unlockedPersonaIds={unlockedPersonaIds}
             onRequirePlus={() => setPaywallOpen(true)}
             onContent={() => {
@@ -3169,9 +3998,36 @@ export function ChatWindow() {
     document.body
   ) : null;
 
+  const storyboardGalleryDialog = storyboardGalleryOpen && !isChildWorkspace && typeof document !== "undefined" ? createPortal(
+    <div className="fixed inset-0 z-[84] overflow-y-auto bg-[#050607]/82 px-3 py-4 backdrop-blur-xl sm:px-5 sm:py-8" role="dialog" aria-modal="true" aria-label={language === "ar" ? "معرض لوحة المشاهد" : "Storyboard gallery"} dir={language === "ar" ? "rtl" : "ltr"}>
+      <button type="button" className="absolute inset-0" onClick={() => setStoryboardGalleryOpen(false)} aria-label={language === "ar" ? "إغلاق معرض لوحة المشاهد" : "Close storyboard gallery"} />
+      <section className="relative mx-auto max-w-5xl rounded-[1.5rem] border border-blue-100/20 bg-[#0E0D10]/96 p-3 shadow-[0_32px_120px_rgba(0,0,0,0.58)] sm:p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 pb-3">
+          <div className="text-start">
+            <p className="ui-kicker text-blue-100/82">{language === "ar" ? "معرض الصور" : "Image gallery"}</p>
+            <h2 className="mt-1 font-arui text-xl font-semibold text-[#F7F3EC]/94">{language === "ar" ? "اصنع لوحة مشاهد بثلاث صور" : "Create a three-image storyboard"}</h2>
+            <p className="mt-1 max-w-2xl font-arsans text-sm leading-6 text-[#F7F3EC]/55">
+              {language === "ar" ? "هذه نفس ميزة لوحة المشاهد القديمة: صور، تبديل مشاهد، توليد صورة جديدة، نسخ البرومبتات، وتنزيل اللوحة." : "This restores the full storyboard flow: images, scene switching, new visual generation, prompt copy, and board download."}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={submitClientGeminiStoryDemo} className="ui-action rounded-full border border-blue-100/30 px-3 py-2 text-xs text-blue-100 transition-colors hover:bg-blue-100 hover:text-[#0E0D10]">
+              {language === "ar" ? "ابدأ من المحادثة" : "Start from chat"}
+            </button>
+            <button type="button" onClick={() => setStoryboardGalleryOpen(false)} className="ui-action h-10 w-10 rounded-full border border-white/12 bg-black/22 text-lg text-[#F7F3EC]/70 transition-colors hover:border-[#F7F3EC]/35 hover:text-[#F7F3EC]" aria-label={language === "ar" ? "إغلاق" : "Close"}>×</button>
+          </div>
+        </div>
+        <div className="max-h-[78vh] overflow-y-auto pb-2 [scrollbar-color:rgba(147,197,253,0.45)_transparent]">
+          <StoryMirrorBoard language={language} shots={storyboardGalleryShots} />
+        </div>
+      </section>
+    </div>,
+    document.body
+  ) : null;
+
   return (
     <main
-      className={`relative mx-auto flex min-h-screen max-w-5xl flex-col overflow-hidden px-4 pb-56 pt-20 transition-all duration-700 ease-in-out md:pb-40 ${personaEnvironment.ambientClassName} ${personaEnvironment.textClassName} ${personaEnvironment.typographyClassName}`}
+      className={`relative mx-auto flex min-h-screen max-w-5xl flex-col overflow-hidden px-4 pb-40 pt-20 transition-all duration-700 ease-in-out sm:pb-48 md:pb-40 ${personaEnvironment.ambientClassName} ${personaEnvironment.textClassName} ${personaEnvironment.typographyClassName}`}
       style={{
         backgroundImage: activeWorld.gradient,
         "--persona-aura": personaAura,
@@ -3186,36 +4042,52 @@ export function ChatWindow() {
         <button type="button" onClick={() => void startNewChatSession()} className="ui-action rounded-full border border-white/10 bg-black/15 px-3 py-2 text-xs text-[#F7F3EC]/70 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
           {language === "ar" ? "محادثة جديدة" : "New chat"}
         </button>
-        {avatarsEnabled ? (
-        <button
-          type="button"
-          onClick={() => setPersonaOpen(true)}
-          className="absolute left-1/2 top-12 flex w-36 -translate-x-1/2 flex-col items-center gap-1.5 rounded-[1.25rem] border border-white/10 bg-black/15 px-3 py-2 text-center outline-none backdrop-blur-sm transition-colors hover:border-[#C9A86A]/45 sm:top-0 sm:w-40"
-          aria-label={language === "ar" ? `افتح اختيار الرفيق ${activePersona.nameAr}` : `Open persona drawer for ${activePersona.nameEn}`}
-        >
-          <span
-            className={`h-16 w-16 sm:h-[4.75rem] sm:w-[4.75rem] ${headerAvatarFrameClass} rounded-[1.65rem] transition-all duration-500 ${isThinking ? "animate-pulse scale-105" : "animate-breathe scale-105 duration-[4000ms]"
-              }`}
-            style={{ boxShadow: `0 0 0 1px rgba(255,255,255,0.14), 0 0 44px ${activeHeaderPresentation.auraHex}C8, 0 26px 76px ${activeHeaderPresentation.auraHex}82` }}
+        {avatarsEnabled && sessionReady ? (
+        <div className="absolute left-1/2 top-12 flex w-36 -translate-x-1/2 flex-col items-center gap-1.5 sm:top-0 sm:w-40">
+          <button
+            type="button"
+            onClick={openAvatarDrawer}
+            className="flex w-full flex-col items-center gap-1.5 rounded-[1.25rem] border border-white/10 bg-black/15 px-3 py-2 text-center outline-none backdrop-blur-sm transition-colors hover:border-[#C9A86A]/45"
+            aria-label={language === "ar" ? `افتح اختيار الرفيق ${activePersona.nameAr}` : `Open persona drawer for ${activePersona.nameEn}`}
           >
-            {isGeneratedAvatarPath(activeHeaderPresentation.avatarPath) || isSvgAvatarPath(activeHeaderPresentation.avatarPath) ? (
-              <img src={activeHeaderPresentation.avatarPath} alt={`${activePersonaDisplayName} avatar`} className="h-full w-full object-cover" />
-            ) : (
-              <Image
-                src={activeHeaderPresentation.avatarPath}
-                alt={`${activePersonaDisplayName} avatar`}
-                fill
-                sizes="76px"
-                priority
-                className="object-cover"
-              />
-            )}
-          </span>
-          <span className="flex min-w-0 flex-col items-center gap-0.5 text-bone/90">
-            <span className={`max-w-28 truncate text-sm font-semibold ${language === "ar" ? "font-arsans" : "font-ensans"}`}>{activePersonaDisplayName}</span>
-            <span className={`max-w-32 truncate text-[10px] text-[#C9A86A]/75 ${language === "ar" ? "font-arsans" : "font-ensans"}`}>{language === "ar" ? activePersona.roleAr : activePersona.roleEn}</span>
-          </span>
-        </button>
+            <span
+              className={`h-16 w-16 sm:h-[4.75rem] sm:w-[4.75rem] ${headerAvatarFrameClass} rounded-[1.65rem] transition-all duration-500 ${isThinking ? "animate-pulse scale-105" : "animate-breathe scale-105 duration-[4000ms]"
+                }`}
+              style={{ boxShadow: `0 0 0 1px rgba(255,255,255,0.14), 0 0 44px ${activeHeaderPresentation.auraHex}C8, 0 26px 76px ${activeHeaderPresentation.auraHex}82` }}
+            >
+              {isGeneratedAvatarPath(activeHeaderPresentation.avatarPath) || isSvgAvatarPath(activeHeaderPresentation.avatarPath) ? (
+                <img src={activeHeaderPresentation.avatarPath} alt={`${activePersonaDisplayName} avatar`} className="h-full w-full object-cover" />
+              ) : (
+                <Image
+                  src={activeHeaderPresentation.avatarPath}
+                  alt={`${activePersonaDisplayName} avatar`}
+                  fill
+                  sizes="76px"
+                  priority
+                  className="object-cover"
+                />
+              )}
+            </span>
+            <span className="flex min-w-0 flex-col items-center gap-0.5 text-bone/90">
+              <span className={`max-w-28 truncate text-sm font-semibold ${language === "ar" ? "font-arsans" : "font-ensans"}`}>{activePersonaDisplayName}</span>
+              <span className={`max-w-32 truncate text-[10px] text-[#C9A86A]/75 ${language === "ar" ? "font-arsans" : "font-ensans"}`}>{language === "ar" ? activePersona.roleAr : activePersona.roleEn}</span>
+            </span>
+          </button>
+          <div className="flex items-center justify-center gap-0.5 rounded-full border border-white/10 bg-black/20 px-1.5 py-1 backdrop-blur-sm" dir="ltr" aria-label={language === "ar" ? "تقييم صورة الرفيق" : "Rate avatar"}>
+            {[1, 2, 3, 4, 5].map((rating) => (
+              <button
+                key={rating}
+                type="button"
+                onClick={() => void rateActiveAvatar(rating)}
+                disabled={activeAvatarRatingStatus === "saving"}
+                className={`grid h-5 w-5 place-items-center rounded-full text-[13px] leading-none transition disabled:cursor-wait disabled:opacity-60 ${(activeAvatarRatings[activePersona.id] || 0) >= rating ? "text-[#C9A86A]" : "text-[#C9A86A]/38 hover:text-[#C9A86A]"}`}
+                aria-label={language === "ar" ? `تقييم ${rating} من 5` : `Rate ${rating} out of 5`}
+              >
+                ★
+              </button>
+            ))}
+          </div>
+        </div>
         ) : null}
         <div className="flex items-center gap-2 sm:gap-4">
           <span className="font-arserif text-2xl text-[#F7F3EC]/95 sm:text-3xl">فضفضة</span>
@@ -3227,24 +4099,182 @@ export function ChatWindow() {
           <PresenceOrb world={world} color={activeWorld.orbHex} />
         </div>
         <h1 className="mt-3 text-center font-arui text-2xl font-semibold leading-tight text-[#F7F3EC]/95 min-[360px]:mt-4 min-[360px]:text-3xl">
-          {language === "ar" ? "فضفضة ليست شات عام" : "FadFada is not a generic chat"}
+          {isChildWorkspace
+            ? language === "ar" ? `أهلاً ${activeChildNickname || "يا بطل"}` : `Hi ${activeChildNickname || "friend"}`
+            : language === "ar" ? "فضفضة ليست شات عام" : "FadFada is not a generic chat"}
         </h1>
-        <p className="mt-2 max-w-md text-center font-arsans text-base leading-7 text-[#F7F3EC]/62">
-          {language === "ar"
-            ? "مساحة عربية/إنجليزية هادئة: اكتب ما بداخلك، واختر من القائمة عندما تحتاج رفيقًا أو خطوة أو حفظ لحظة."
-            : "A calm Arabic/English space: write what is inside, then open the menu when you need a companion, a step, or a saved moment."}
+        <p className="mt-2 max-w-md text-center font-arsans text-base font-medium leading-7 text-[#F7F3EC]/76">
+          {isChildWorkspace
+            ? language === "ar"
+              ? "هذه مساحة أطفال آمنة: قصص، ألغاز، تعلم، ورفاق أطفال فقط."
+              : "This is a safe child space: stories, puzzles, learning, and children companions only."
+            : language === "ar"
+              ? "مساحة عربية/إنجليزية هادئة: اكتب ما بداخلك، واختر من القائمة عندما تحتاج رفيقًا أو خطوة أو حفظ لحظة."
+              : "A calm Arabic/English space: write what is inside, then open the menu when you need a companion, a step, or a saved moment."}
         </p>
         <div className="mt-5 grid w-full max-w-xl gap-2 sm:grid-cols-3" dir={language === "ar" ? "rtl" : "ltr"}>
-          <button type="button" onClick={focusInput} className="ui-action rounded-xl bg-[#C9A86A] px-4 py-3 text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
-            {language === "ar" ? "ابدأ الفضفضة" : "Start venting"}
+          <button type="button" onClick={isChildWorkspace ? startChildTapGame : focusInput} className="ui-action rounded-xl bg-[#E6C36A] px-4 py-3 text-[#0E0D10] shadow-[0_14px_34px_rgba(230,195,106,0.22)] transition-colors hover:bg-[#F7F3EC]">
+            {isChildWorkspace ? language === "ar" ? "ابدأ اللعب" : "Start playing" : language === "ar" ? "ابدأ الفضفضة" : "Start venting"}
           </button>
-          <button type="button" onClick={() => setVisitorShowcaseOpen(true)} className="ui-action rounded-xl border border-[#C9A86A]/35 bg-black/20 px-4 py-3 text-[#C9A86A] transition-colors hover:bg-[#C9A86A] hover:text-[#0E0D10]">
-            {language === "ar" ? "استكشف الميزات" : "Explore features"}
-          </button>
-          <button type="button" onClick={() => avatarsEnabled ? setPersonaOpen(true) : setToolsOpen(true)} className="ui-action rounded-xl border border-white/12 bg-white/[0.035] px-4 py-3 text-[#F7F3EC]/72 transition-colors hover:border-[#F7F3EC]/35 hover:text-[#F7F3EC]">
-            {language === "ar" ? "اختر رفيق" : "Choose persona"}
+          {isChildWorkspace ? (
+            <button type="button" onClick={openStoryShelf} className="ui-action inline-flex items-center justify-center gap-2 rounded-xl border border-sky-200/35 bg-sky-200/10 px-4 py-3 text-sky-100 transition-colors hover:bg-sky-200 hover:text-[#0E0D10]">
+              <StoryIcon />
+              <span>{language === "ar" ? "القصص" : "Stories"}</span>
+            </button>
+          ) : null}
+          {!isChildWorkspace ? (
+            <button type="button" onClick={() => setVisitorShowcaseOpen(true)} className="ui-action rounded-xl border border-[#E6C36A]/45 bg-black/24 px-4 py-3 text-[#E6C36A] transition-colors hover:bg-[#E6C36A] hover:text-[#0E0D10]">
+              {language === "ar" ? "استكشف الميزات" : "Explore features"}
+            </button>
+          ) : null}
+          <button type="button" onClick={() => avatarsEnabled ? openAvatarDrawer() : setToolsOpen(true)} className="ui-action rounded-xl border border-white/18 bg-white/[0.055] px-4 py-3 text-[#F7F3EC]/84 transition-colors hover:border-[#F7F3EC]/45 hover:text-[#F7F3EC]">
+            {isChildWorkspace ? language === "ar" ? "اختر رفيقك" : "Choose your friend" : language === "ar" ? "اختر رفيق" : "Choose persona"}
           </button>
         </div>
+        {!isChildWorkspace ? (
+          <div className="mt-4 w-full max-w-2xl rounded-3xl border border-[#E6C36A]/18 bg-black/18 p-3 shadow-[0_22px_70px_rgba(0,0,0,0.2)]" dir={language === "ar" ? "rtl" : "ltr"}>
+            <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-start">
+              <p className="font-arsans text-xs font-semibold text-[#E6C36A]/82">{language === "ar" ? "الأدوات السريعة" : "Quick creation tools"}</p>
+              <button type="button" onClick={() => setToolsOpen(true)} className="font-arsans text-xs font-semibold text-[#F7F3EC]/62 transition-colors hover:text-[#E6C36A]">
+                {language === "ar" ? "كل الأدوات" : "All tools"}
+              </button>
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-5">
+              {[
+                {
+                  id: "storyboard",
+                  icon: "movie",
+                  ar: "لوحة مشاهد",
+                  en: "Storyboard",
+                  helperAr: "حوّل الشعور لمشاهد",
+                  helperEn: "turn a feeling into scenes",
+                  onClick: openStoryboardGallery,
+                },
+                {
+                  id: "checkin",
+                  icon: "monitor_heart",
+                  ar: "نبض اليوم",
+                  en: "Check-in",
+                  helperAr: "مزاج وطاقة وخطوة",
+                  helperEn: "mood, energy, next step",
+                  onClick: () => {
+                    setActiveHomePanel("checkin");
+                    setToolsOpen(true);
+                  },
+                },
+                {
+                  id: "progress",
+                  icon: "route",
+                  ar: "التقدم",
+                  en: "Progress",
+                  helperAr: "استمر أو ابدأ تحدي",
+                  helperEn: "continue or start a quest",
+                  onClick: () => {
+                    setActiveHomePanel("progress");
+                    setToolsOpen(true);
+                  },
+                },
+                {
+                  id: "sessions",
+                  icon: "history",
+                  ar: "الجلسات",
+                  en: "Sessions",
+                  helperAr: "حفظ وفتح المحادثات",
+                  helperEn: "save and reopen chats",
+                  onClick: () => {
+                    setActiveHomePanel("sessions");
+                    setToolsOpen(true);
+                  },
+                },
+                {
+                  id: "secrets",
+                  icon: "auto_awesome",
+                  ar: "الأسرار",
+                  en: "Secrets",
+                  helperAr: "اختصارات العرض بلمسة",
+                  helperEn: "tap-ready demo shortcuts",
+                  onClick: () => {
+                    setActiveHomePanel("prompts");
+                    setToolsOpen(true);
+                  },
+                },
+              ].map((tool) => (
+                <button key={tool.id} type="button" onClick={tool.onClick} className="group min-h-24 rounded-2xl border border-white/12 bg-white/[0.045] p-3 text-start transition duration-300 hover:-translate-y-0.5 hover:border-[#E6C36A]/42 hover:bg-[#E6C36A]/10">
+                  <SymbolIcon name={tool.icon} className="h-5 w-5 text-[#E6C36A]/82" />
+                  <span className="mt-2 block font-arsans text-sm font-bold text-[#F7F3EC]/90">{language === "ar" ? tool.ar : tool.en}</span>
+                  <span className="mt-1 block font-arsans text-[11px] leading-4 text-[#F7F3EC]/54 group-hover:text-[#F7F3EC]/72">{language === "ar" ? tool.helperAr : tool.helperEn}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {isChildWorkspace ? (
+          <div className="mt-5 w-full max-w-2xl rounded-3xl border border-sky-100/22 bg-sky-100/[0.065] p-3 shadow-[0_24px_70px_rgba(56,189,248,0.12)]" dir={language === "ar" ? "rtl" : "ltr"}>
+            <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+              <div className="text-start">
+                <p className="font-arsans text-[11px] font-semibold uppercase tracking-[0.08em] text-sky-100/70">{language === "ar" ? "لحظة اليوم الصغيرة" : "Today's small moment"}</p>
+                <p className="mt-1 font-arsans text-xs font-medium text-[#F7F3EC]/66">{language === "ar" ? "تعلم، شعور، واتصال لطيف في أقل من خمس دقائق." : "Learn, feel, and connect in under five minutes."}</p>
+              </div>
+              <span className="rounded-full border border-sky-100/18 bg-black/20 px-2.5 py-1 font-mono text-[10px] text-sky-100/62" dir="ltr">{dailyChildMoment.dateKey}</span>
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              {[
+                { id: "learn" as const, icon: "sparkles", titleAr: "تعلّم", titleEn: "Learn", item: dailyChildMoment.learn, className: "border-amber-100/28 bg-amber-100/[0.085] text-amber-50 shadow-[0_16px_36px_rgba(251,191,36,0.08)]" },
+                { id: "feel" as const, icon: "favorite", titleAr: "شعوري", titleEn: "Feel", item: dailyChildMoment.feel, className: "border-rose-100/28 bg-rose-100/[0.075] text-rose-50 shadow-[0_16px_36px_rgba(251,113,133,0.08)]" },
+                { id: "connect" as const, icon: "diversity_1", titleAr: "اتصال", titleEn: "Connect", item: dailyChildMoment.connect, className: "border-emerald-100/28 bg-emerald-100/[0.075] text-emerald-50 shadow-[0_16px_36px_rgba(52,211,153,0.08)]" },
+              ].map((card) => (
+                <button
+                  key={card.id}
+                  type="button"
+                  onClick={() => startDailyChildMoment(card.item, card.id)}
+                  disabled={isThinking || !activePersonaIsChild}
+                  className={`group min-h-28 rounded-2xl border p-3 text-start transition duration-300 hover:-translate-y-0.5 hover:border-[#F7F3EC]/35 disabled:cursor-wait disabled:opacity-60 ${card.className}`}
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="font-arsans text-xs font-semibold text-current/70">{language === "ar" ? card.titleAr : card.titleEn}</span>
+                    <SymbolIcon name={card.icon} className="h-5 w-5 text-current/55" />
+                  </span>
+                  <span className="mt-3 block font-arsans text-sm font-semibold leading-5 text-[#F7F3EC]/90">{card.item.label}</span>
+                  <span className="mt-2 block font-arsans text-[11px] font-medium leading-5 text-[#F7F3EC]/62">{language === "ar" ? "اضغط وابدأ مع رفيقك" : "Tap to start with your friend"}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {isChildWorkspace ? (
+          <div className="mt-4 w-full max-w-2xl rounded-3xl border border-emerald-100/22 bg-emerald-100/[0.065] p-3 shadow-[0_24px_70px_rgba(52,211,153,0.1)]" dir={language === "ar" ? "rtl" : "ltr"}>
+            <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-start">
+              <div>
+                <p className="font-arsans text-[11px] font-semibold uppercase tracking-[0.08em] text-emerald-100/70">{language === "ar" ? "واجباتي" : "My homework"}</p>
+                <p className="mt-1 font-arsans text-xs font-medium text-[#F7F3EC]/62">{language === "ar" ? "هنا تظهر الأسئلة التي أرسلها ولي الأمر لك." : "Questions your parent sends to you appear here."}</p>
+              </div>
+              <span className="rounded-full border border-emerald-100/18 bg-black/20 px-2.5 py-1 font-mono text-[10px] text-emerald-100/62" dir="ltr">{childHomeworkAssignments.length}</span>
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {childHomeworkAssignments.length > 0 ? childHomeworkAssignments.slice(0, 4).map((assignment) => (
+                <button
+                  key={assignment.id}
+                  type="button"
+                  onClick={() => startChildHomework(assignment)}
+                  disabled={isThinking || !activePersonaIsChild}
+                  className="group min-h-32 rounded-2xl border border-emerald-100/24 bg-black/18 p-3 text-start transition duration-300 hover:-translate-y-0.5 hover:border-emerald-100/42 hover:bg-emerald-100/12 disabled:cursor-wait disabled:opacity-60"
+                >
+                  <span className="flex items-start justify-between gap-3">
+                    <span className="font-arsans text-sm font-bold leading-5 text-[#F7F3EC]/92">{assignment.detectedTask}</span>
+                    <SymbolIcon name="school" className="h-5 w-5 shrink-0 text-emerald-100/58" />
+                  </span>
+                  <span className="mt-2 line-clamp-2 block font-arsans text-xs leading-5 text-[#F7F3EC]/60">{assignment.childIntro}</span>
+                  <span className="mt-3 inline-flex rounded-full border border-emerald-100/20 px-2.5 py-1 font-arsans text-[11px] font-semibold text-emerald-100/76">{language === "ar" ? "ابدأ الأسئلة" : "Start questions"}</span>
+                </button>
+              )) : (
+                <div className="rounded-2xl border border-dashed border-emerald-100/18 bg-black/12 p-4 text-start sm:col-span-2">
+                  <p className="font-arsans text-sm font-semibold text-[#F7F3EC]/78">{childHomeworkStatus === "loading" ? (language === "ar" ? "جار تحميل الواجبات..." : "Loading homework...") : language === "ar" ? "لا يوجد واجب مرسل بعد" : "No homework sent yet"}</p>
+                  <p className="mt-1 font-arsans text-xs leading-5 text-[#F7F3EC]/45">{language === "ar" ? "اطلب من ولي الأمر رفع صورة الواجب من صفحة الملف الشخصي." : "Ask your parent to upload homework from the profile page."}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
         {conversationContinuity && conversationContinuity.count > 0 ? (
           <button type="button" onClick={() => {
             scrollToSection("chat");
@@ -3253,7 +4283,7 @@ export function ChatWindow() {
             {language === "ar" ? `كمّل آخر خيط: ${conversationContinuity.topic}` : `Continue last thread: ${conversationContinuity.topic}`}
           </button>
         ) : null}
-        <p className="mt-3 font-arsans text-sm text-[#F7F3EC]/45">{language === "ar" ? activeWorld.nameAr : activeWorld.nameEn}</p>
+        <p className="mt-3 font-arsans text-sm font-medium text-[#F7F3EC]/62">{language === "ar" ? activeWorld.nameAr : activeWorld.nameEn}</p>
         {shareStatus !== "idle" ? (
           <p className="mt-3 rounded-full border border-cyan-100/20 bg-black/25 px-4 py-2 text-center font-arsans text-xs text-cyan-100" aria-live="polite">
             {shareStatus === "copied" ? (language === "ar" ? "تم نسخ نص المشاركة. إذا لم يظهر في لينكدإن، الصقه يدويًا." : "Share text copied. If LinkedIn leaves the post empty, paste it manually.") : language === "ar" ? "تعذر فتح المشاركة. انسخ الرابط يدويًا." : "Could not share. Copy the link manually."}
@@ -3278,6 +4308,9 @@ export function ChatWindow() {
           const messageAvatarPath = message.role === "assistant" ? message.avatarPath || messagePersonaPresentation.avatarPath : message.avatarPath || accountImage || undefined;
           const messageDisplayName = message.role === "assistant" ? message.personaName || getHeaderDisplayName(messagePersona, messageLanguage) : message.personaName || accountName;
           const userInitial = messageDisplayName.trim().slice(0, 1).toUpperCase() || (messageLanguage === "ar" ? "أ" : "U");
+          const messageChildStory = message.childStoryId ? childStories.find((story) => story.id === message.childStoryId) : undefined;
+          const messageHomeworkActivities = message.childHomeworkActivities?.length ? message.childHomeworkActivities : parseLegacyChildHomeworkActivities(message);
+          const messageText = messageHomeworkActivities.length && !message.childHomeworkActivities?.length ? getLegacyHomeworkIntroText(message.text, messageLanguage) : message.text;
 
           return (
           <article key={message.id} className={`animate-rise-in ${messageAlignment}`} dir={messageDirection}>
@@ -3308,8 +4341,10 @@ export function ChatWindow() {
                 <div className="min-w-0 flex-1">
                   <p className="mb-2 font-arsans text-[11px] text-[#C9A86A]/70">{messageDisplayName}</p>
                   {message.generatedMedia ? <GeneratedMediaCard language={messageLanguage} asset={message.generatedMedia} /> : null}
+                  {messageChildStory ? <ChildStorySceneCard story={messageChildStory} language={messageLanguage} /> : null}
+                  {messageHomeworkActivities.length ? <ChildHomeworkActivityCards activities={messageHomeworkActivities} language={messageLanguage} /> : null}
                   <TypewriterSync
-                    text={messagePersonaEnvironment.formatAssistantText?.(message.text) ?? message.text}
+                    text={messagePersonaEnvironment.formatAssistantText?.(messageText) ?? messageText}
                     language={messageLanguage}
                     cadence={resolvePersonaCadence(message.cadence, message.world, messagePersonaEnvironment)}
                     accentHex={messagePersona.glowColorHex}
@@ -3317,6 +4352,7 @@ export function ChatWindow() {
                     instant={animatedAssistantMessageIds.includes(message.id)}
                     onComplete={() => setAnimatedAssistantMessageIds((current) => current.includes(message.id) ? current : [...current, message.id])}
                   />
+                  {message.resources?.length ? <LearningResourcePreview language={messageLanguage} resources={message.resources} /> : null}
                 <MomentActions
                   language={language}
                   saved={savedMomentIds.includes(message.id)}
@@ -3329,7 +4365,7 @@ export function ChatWindow() {
                   onShare={() => void runMomentAction(message.id, "share", () => shareMoment(message))}
                   onProof={() => void runMomentAction(message.id, "proof", () => shareProofCard(message))}
                   onDownload={() => void runMomentAction(message.id, "download", () => downloadCapsule(message))}
-                  onPersona={avatarsEnabled ? () => setPersonaOpen(true) : undefined}
+                  onPersona={avatarsEnabled ? openAvatarDrawer : undefined}
                   onHelpful={() => void runMomentAction(message.id, "helpful", () => sendFeedback(message, "helpful_feedback"))}
                   onSofter={() => void runMomentAction(message.id, "softer", () => sendFeedback(message, "softer_feedback"))}
                 />
@@ -3342,13 +4378,15 @@ export function ChatWindow() {
         {isThinking ? (
           <ThinkingShimmer language={language} personaName={language === "ar" ? activePersona.nameAr : activePersona.nameEn} />
         ) : null}
-        <ChatLegalLinks language={language} version={appVersion} />
-        <div ref={chatEndRef} className="h-32" aria-hidden="true" />
+        {!isChildWorkspace ? <ChatLegalLinks language={language} version={appVersion} /> : null}
+        <div ref={chatEndRef} className="h-14 sm:h-20" aria-hidden="true" />
       </section>
 
       {paywallOpen ? <PaywallCard language={language} accessState={accessState} remainingReflections={remainingReflections} configuration={experienceConfiguration} loading={checkoutLoading} onCheckout={startCheckout} onSignIn={openSignInGift} onClose={() => setPaywallOpen(false)} /> : null}
 
       {receiptDialog}
+
+      {storyboardGalleryDialog}
 
       {toolsOpen ? (
         <HomeToolsDialog
@@ -3439,7 +4477,21 @@ export function ChatWindow() {
         </HomeToolsDialog>
       ) : null}
 
-      <form onSubmit={submitMessage} className="fixed inset-x-3 bottom-24 z-30 mx-auto flex max-h-[46dvh] max-w-[42rem] flex-col gap-2 overflow-y-auto rounded-[1.1rem] border border-white/10 bg-[#111014]/92 p-2.5 shadow-[0_22px_70px_rgba(0,0,0,0.45)] backdrop-blur-2xl [scrollbar-width:thin] sm:max-h-none sm:rounded-[1.35rem] sm:p-3 md:bottom-6">
+      <form onSubmit={submitMessage} className="fixed inset-x-3 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-30 mx-auto flex max-h-[46dvh] max-w-[42rem] flex-col gap-2 overflow-y-auto rounded-[1.1rem] border border-white/10 bg-[#111014]/92 p-2.5 shadow-[0_22px_70px_rgba(0,0,0,0.45)] backdrop-blur-2xl [scrollbar-width:thin] sm:max-h-none sm:rounded-[1.35rem] sm:p-3 md:bottom-6">
+        <BottomNav
+          language={language}
+          accountHref={isChildWorkspace ? "/" : session?.user ? "/profile" : "/auth/signin?callbackUrl=/"}
+          accountName={accountName}
+          accountImage={accountImage}
+          onHome={() => scrollToSection("home")}
+          onChat={() => {
+            scrollToConversationEnd();
+            window.setTimeout(scrollToConversationEnd, 120);
+          }}
+          onPersona={avatarsEnabled ? openAvatarDrawer : undefined}
+          onStories={isChildWorkspace && avatarsEnabled ? openStoryShelf : undefined}
+          onMenu={() => setToolsOpen(true)}
+        />
         {!effectiveUserName ? (
           <div className="rounded-2xl border border-[#C9A86A]/25 bg-[#0E0D10]/90 p-2.5 shadow-xl sm:p-3" dir={language === "ar" ? "rtl" : "ltr"}>
             <p className="hidden font-arsans text-xs leading-5 text-[#F7F3EC]/68 min-[360px]:block">
@@ -3521,19 +4573,96 @@ export function ChatWindow() {
               : language === "ar" ? "مسودة بدون اتصال جاهزة للإرسال." : "Offline draft is ready to send."}
           </p>
         ) : null}
+        {isChildWorkspace && activePersonaIsChild ? (
+          <div className="relative overflow-hidden rounded-2xl border border-[#C9A86A]/20 bg-[#C9A86A]/[0.06] p-2" dir={language === "ar" ? "rtl" : "ltr"}>
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-arsans text-[11px] font-semibold text-[#F7F3EC]/78">
+                {language === "ar" ? "اختر بسرعة" : "Tap to play"}
+              </p>
+              {childRewardToast ? (
+                <span className="rounded-full border border-amber-200/35 bg-amber-200/15 px-2.5 py-1 font-mono text-[10px] text-amber-100 shadow-[0_0_22px_rgba(251,191,36,0.22)]">
+                  {childRewardToast.text}
+                </span>
+              ) : null}
+            </div>
+            {latestChildAssistantMessage?.challenge ? (
+              <p className="mt-1.5 max-h-12 overflow-y-auto rounded-xl border border-white/10 bg-black/18 px-2.5 py-1.5 font-arsans text-xs leading-5 text-[#F7F3EC]/70">
+                {latestChildAssistantMessage.challenge.question}
+              </p>
+            ) : null}
+            <div className="mt-1.5 grid grid-cols-3 gap-1.5 sm:gap-2">
+              {childSuggestionChips.length > 0 ? childSuggestionChips.map((suggestion) => {
+                const visual = getChildChoiceVisual(suggestion);
+                return (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => submitChildSuggestion(suggestion)}
+                    disabled={isThinking}
+                    className="ui-action group rounded-xl border border-[#C9A86A]/24 bg-black/24 p-1 text-center font-arsans transition duration-200 hover:-translate-y-0.5 hover:border-[#C9A86A]/65 hover:bg-[#C9A86A]/14 disabled:cursor-wait disabled:opacity-55 sm:rounded-[1.15rem] sm:p-1.5"
+                    aria-label={visual.label}
+                  >
+                    <ChildChoicePicture visual={visual} />
+                    <span className="mt-1 block min-h-5 px-0.5 text-[11px] font-bold leading-5 text-[#F7F3EC]/92 group-hover:text-white sm:mt-1.5 sm:min-h-7 sm:px-1 sm:text-sm sm:leading-7">
+                      {visual.label}
+                    </span>
+                  </button>
+                );
+              }) : (
+                <p className="rounded-xl border border-white/10 bg-black/18 px-3 py-2 font-arsans text-xs text-[#F7F3EC]/48 sm:col-span-3">
+                  {isThinking ? (language === "ar" ? "الرفيق يجهز اختياراً مرحاً..." : "Your guide is preparing playful choices...") : language === "ar" ? "اكتب كلمة قصيرة لبدء اللعبة، ثم استخدم الأزرار." : "Type one short word to start, then use the buttons."}
+                </p>
+              )}
+            </div>
+          </div>
+        ) : null}
         <div className="flex w-full items-end gap-2 sm:gap-3">
-        <button
-          type="button"
-          onClick={toggleVoiceCapture}
-          className={`relative flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-2 py-2 font-arsans text-[11px] transition-colors min-[360px]:px-2.5 sm:min-h-11 sm:gap-2 sm:px-3 sm:text-xs ${isRecording ? "border-red-200/35 bg-red-200/10 text-red-100 shadow-[0_0_0_6px_rgba(248,113,113,0.12)]" : "border-[#F7F3EC]/10 bg-[#F7F3EC]/[0.03] text-[#C9A86A] hover:border-[#C9A86A]/45"
-            }`}
-          aria-pressed={isRecording}
-          aria-label={isRecording ? (language === "ar" ? "إيقاف التسجيل الصوتي" : "Stop voice recording") : language === "ar" ? "تشغيل التسجيل الصوتي" : "Start voice recording"}
-        >
-          <span className={isRecording ? "absolute inset-0 rounded-full border border-[#C9A86A]/60 animate-ping" : "hidden"} />
-          <span className="h-2.5 w-2.5 rounded-full bg-[#C9A86A]" aria-hidden="true" />
-          <span className="hidden min-[360px]:inline">{isRecording ? (language === "ar" ? "إيقاف" : "Stop") : language === "ar" ? "صوت" : "Voice"}</span>
-        </button>
+        {!isChildWorkspace ? (
+          <div className="flex shrink-0 items-center gap-1.5" dir="ltr" aria-label={language === "ar" ? "أدوات الإدخال السريعة" : "Quick input tools"}>
+            <button
+              type="button"
+              onClick={openFeatureStudio}
+              className="grid h-10 w-10 place-items-center rounded-full border border-[#E6C36A]/14 bg-black/36 text-[#E6C36A]/82 shadow-[0_12px_30px_rgba(0,0,0,0.24)] transition-colors hover:border-[#E6C36A]/45 hover:bg-[#E6C36A]/12 hover:text-[#E6C36A] sm:h-11 sm:w-11"
+              aria-label={language === "ar" ? "افتح استوديو الميزات" : "Open feature studio"}
+              title={language === "ar" ? "استوديو" : "Studio"}
+            >
+              <SymbolIcon name="photo_camera" className="h-[1.15rem] w-[1.15rem]" />
+            </button>
+            <button
+              type="button"
+              onClick={openStoryboardGallery}
+              className="grid h-10 w-10 place-items-center rounded-full border border-[#E6C36A]/14 bg-black/36 text-[#E6C36A]/82 shadow-[0_12px_30px_rgba(0,0,0,0.24)] transition-colors hover:border-[#E6C36A]/45 hover:bg-[#E6C36A]/12 hover:text-[#E6C36A] sm:h-11 sm:w-11"
+              aria-label={language === "ar" ? "افتح معرض لوحة المشاهد" : "Open storyboard image gallery"}
+              title={language === "ar" ? "معرض الصور" : "Storyboard gallery"}
+            >
+              <SymbolIcon name="photo_library" className="h-[1.15rem] w-[1.15rem]" />
+            </button>
+            <button
+              type="button"
+              onClick={toggleVoiceCapture}
+              className={`relative grid h-10 w-10 place-items-center rounded-full border bg-black/36 shadow-[0_12px_30px_rgba(0,0,0,0.24)] transition-colors sm:h-11 sm:w-11 ${isRecording ? "border-red-200/40 text-red-100 shadow-[0_0_0_6px_rgba(248,113,113,0.12)]" : "border-[#E6C36A]/14 text-[#E6C36A]/82 hover:border-[#E6C36A]/45 hover:bg-[#E6C36A]/12 hover:text-[#E6C36A]"}`}
+              aria-pressed={isRecording}
+              aria-label={isRecording ? (language === "ar" ? "إيقاف التسجيل الصوتي" : "Stop voice recording") : language === "ar" ? "تشغيل التسجيل الصوتي" : "Start voice recording"}
+              title={isRecording ? (language === "ar" ? "إيقاف" : "Stop") : language === "ar" ? "صوت" : "Voice"}
+            >
+              <span className={isRecording ? "absolute inset-0 rounded-full border border-red-100/60 animate-ping" : "hidden"} />
+              <SymbolIcon name="mic" className="h-[1.15rem] w-[1.15rem]" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={toggleVoiceCapture}
+            className={`relative flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-2 py-2 font-arsans text-[11px] transition-colors min-[360px]:px-2.5 sm:min-h-11 sm:gap-2 sm:px-3 sm:text-xs ${isRecording ? "border-red-200/35 bg-red-200/10 text-red-100 shadow-[0_0_0_6px_rgba(248,113,113,0.12)]" : "border-[#F7F3EC]/10 bg-[#F7F3EC]/[0.03] text-[#C9A86A] hover:border-[#C9A86A]/45"
+              }`}
+            aria-pressed={isRecording}
+            aria-label={isRecording ? (language === "ar" ? "إيقاف التسجيل الصوتي" : "Stop voice recording") : language === "ar" ? "تشغيل التسجيل الصوتي" : "Start voice recording"}
+          >
+            <span className={isRecording ? "absolute inset-0 rounded-full border border-[#C9A86A]/60 animate-ping" : "hidden"} />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#C9A86A]" aria-hidden="true" />
+            <span className="hidden min-[360px]:inline">{isRecording ? (language === "ar" ? "إيقاف" : "Stop") : language === "ar" ? "صوت" : "Voice"}</span>
+          </button>
+        )}
         <textarea
           ref={inputRef}
           value={input}
@@ -3541,8 +4670,8 @@ export function ChatWindow() {
           onKeyDown={handleComposerKeyDown}
           rows={1}
           dir={language === "ar" ? "rtl" : "ltr"}
-          placeholder={language === "ar" ? "فضفض هنا..." : "Write freely..."}
-          className={`min-h-10 flex-1 border-0 bg-transparent font-arsans text-base leading-[1.75] text-[#F7F3EC]/95 outline-none placeholder:text-[#F7F3EC]/25 sm:min-h-12 sm:text-lg sm:leading-[1.9] ${language === "ar" ? "text-right" : "text-left"}`}
+          placeholder={isChildWorkspace && activePersonaIsChild ? (language === "ar" ? "أو اكتب كلمة قصيرة..." : "Or type one short word...") : language === "ar" ? "فضفض هنا..." : "Write freely..."}
+          className={`${isChildWorkspace && activePersonaIsChild ? "min-h-8 text-sm leading-6 opacity-78 sm:min-h-9 sm:text-sm" : "min-h-10 text-base leading-[1.75] sm:min-h-12 sm:text-lg sm:leading-[1.9]"} flex-1 border-0 bg-transparent font-arsans text-[#F7F3EC]/95 outline-none placeholder:text-[#F7F3EC]/25 ${language === "ar" ? "text-right" : "text-left"}`}
         />
         <button type="submit" disabled={isThinking} className={`ui-action pb-2 text-sm text-[#C9A86A] transition-colors hover:text-[#F7F3EC] disabled:opacity-60 sm:pb-3 ${isThinking ? "animate-pulse" : ""}`}>
           {isThinking ? (language === "ar" ? "ينتظر" : "Waiting") : language === "ar" ? "إرسال" : "Send"}
@@ -3550,35 +4679,40 @@ export function ChatWindow() {
         </div>
       </form>
 
-      <BottomNav
-        language={language}
-        accountHref={session?.user ? "/profile" : "/auth/signin?callbackUrl=/"}
-        accountName={accountName}
-        accountImage={accountImage}
-        onHome={() => scrollToSection("home")}
-        onChat={() => {
-          scrollToConversationEnd();
-          window.setTimeout(scrollToConversationEnd, 120);
-        }}
-        onPersona={avatarsEnabled ? () => setPersonaOpen(true) : undefined}
-        onMenu={() => setToolsOpen(true)}
-      />
-
       <PersonaDrawer
         open={personaOpen}
         activePersona={personaId}
         language={language}
         unlockedPersonaIds={unlockedPersonaIds}
         blockedPersonaIds={blockedPersonaIds}
+        childrenOnly={isChildWorkspace}
+        mode={personaDrawerMode}
+        storyShelfSignal={storyShelfSignal}
         customPersona={customPersona}
         onClose={() => setPersonaOpen(false)}
         onSelect={selectPersona}
+        onStoryGuideStart={startStoryGuide}
         onLockedPersonaSelect={handleLockedPersonaSelect}
         onCustomPersonaSave={saveCustomPersona}
         onAvatarRate={rateAvatar}
       />
     </main>
   );
+}
+
+const footballRoutingPattern = /football|soccer|world cup|fifa|match|score|fixture|fixtures|كورة|كرة|قدم|كأس العالم|كاس العالم|فيفا|مباراة|مباريات|منتخب|الدوري|الأهلي|الاهلي|الزمالك|ليفربول|ريال|برشلونة/i;
+const liveNewsFollowUpRoutingPattern = /latest|news|updates|score|scores|fixture|fixtures|search|look up|find|browse|google|أخبار|اخبار|الأخبار|الاخبار|آخر|اخر|أخر|نتيجة|نتائج|جدول|ترتيب|ابحث|تبحث|البحث|دور|دوّر|جوجل|هاتلي|زودني|تزويدي|زوّدني/i;
+const helperRoutingPattern = /who can help|which avatar|which companion|who should i ask|من يمكن|مين يساعد|مين ممكن يساعد|أي رفيق|اي رفيق|اختار مين|اكلم مين/i;
+
+function getAutoRoutedPersona(text: string, messages: ChatMessage[], unlockedPersonaIds: PersonaId[], availablePersonas: Persona[]) {
+  const isFootballRequest = footballRoutingPattern.test(text);
+  const asksHelperAfterFootball = helperRoutingPattern.test(text) && messages.some((message) => message.role === "user" && footballRoutingPattern.test(message.text));
+  const asksLiveNewsAfterFootball = liveNewsFollowUpRoutingPattern.test(text) && messages.some((message) => message.role === "user" && footballRoutingPattern.test(message.text));
+  if (!isFootballRequest && !asksHelperAfterFootball && !asksLiveNewsAfterFootball) return null;
+
+  const kareem = availablePersonas.find((persona) => persona.id === "kareem");
+  if (!kareem || !unlockedPersonaIds.includes(kareem.id)) return null;
+  return kareem;
 }
 
 function ChatLegalLinks({ language, version }: { language: Language; version: string | null }) {
@@ -4464,6 +5598,7 @@ function SessionHistoryPanel({
   onSignIn: () => void;
 }) {
   const isArabic = language === "ar";
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
 
   if (accessState === "anonymous") {
     return (
@@ -4508,14 +5643,45 @@ function SessionHistoryPanel({
       </div>
 
       <div className="mt-4 grid gap-2">
-        {sessions.length > 0 ? sessions.map((sessionItem) => (
-          <button key={sessionItem.sessionId} type="button" onClick={() => onOpenSession(sessionItem)} className="rounded-xl border border-white/10 bg-black/15 p-3 text-start transition hover:border-[#C9A86A]/45 hover:bg-[#C9A86A]/10">
-            <span className="block truncate font-arsans text-sm text-[#F7F3EC]/84" dir="auto">{sessionItem.title}</span>
-            <span className="mt-1 block font-mono text-[10px] uppercase tracking-[0.08em] text-[#F7F3EC]/35" dir="ltr">
-              {sessionItem.messageCount ?? sessionItem.messages.length} messages · {sessionItem.activePersonaId} · {sessionItem.updatedAt ? new Date(sessionItem.updatedAt).toLocaleDateString(isArabic ? "ar-EG" : "en-US") : "local"}
-            </span>
-          </button>
-        )) : (
+        {sessions.length > 0 ? sessions.map((sessionItem) => {
+          const expanded = expandedSessionId === sessionItem.sessionId;
+          const previewMessages = sessionItem.messages.filter((message) => message.id !== "opening").slice(-3);
+
+          return (
+          <article key={sessionItem.sessionId} className={`overflow-hidden rounded-xl border bg-black/15 transition-colors ${expanded ? "border-[#C9A86A]/45 bg-[#C9A86A]/10" : "border-white/10 hover:border-[#C9A86A]/35"}`}>
+            <button type="button" onClick={() => setExpandedSessionId(expanded ? null : sessionItem.sessionId)} aria-expanded={expanded} className="grid w-full grid-cols-[1fr_auto] items-center gap-3 p-3 text-start">
+              <span className="min-w-0">
+                <span className="block truncate font-arsans text-sm text-[#F7F3EC]/84" dir="auto">{sessionItem.title}</span>
+                <span className="mt-1 block font-mono text-[10px] uppercase tracking-[0.08em] text-[#F7F3EC]/35" dir="ltr">
+                  {sessionItem.messageCount ?? sessionItem.messages.length} messages · {sessionItem.activePersonaId} · {sessionItem.updatedAt ? new Date(sessionItem.updatedAt).toLocaleDateString(isArabic ? "ar-EG" : "en-US") : "local"}
+                </span>
+              </span>
+              <span className="rounded-full border border-white/10 px-2.5 py-1 font-arsans text-xs text-[#C9A86A]">
+                {expanded ? (isArabic ? "إغلاق" : "Close") : isArabic ? "عرض" : "View"}
+              </span>
+            </button>
+
+            {expanded ? (
+              <div className="border-t border-white/10 px-3 pb-3 pt-2">
+                <div className="grid gap-2">
+                  {previewMessages.length > 0 ? previewMessages.map((message) => (
+                    <p key={message.id} className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 font-arsans text-xs leading-5 text-[#F7F3EC]/58" dir="auto">
+                      <span className="text-[#C9A86A]/75">{message.role === "assistant" ? (isArabic ? "الرفيق" : "Companion") : isArabic ? "أنت" : "You"}: </span>{message.text.slice(0, 180)}
+                    </p>
+                  )) : (
+                    <p className="rounded-lg border border-dashed border-white/10 px-3 py-2 font-arsans text-xs text-[#F7F3EC]/42">
+                      {isArabic ? "افتح الجلسة لعرض الرسائل الكاملة." : "Open the session to view the full messages."}
+                    </p>
+                  )}
+                </div>
+                <button type="button" onClick={() => onOpenSession(sessionItem)} className="ui-action mt-3 w-full rounded-xl bg-[#C9A86A] px-4 py-3 text-[#0E0D10] transition hover:bg-[#F7F3EC]">
+                  {isArabic ? "فتح هذه الجلسة" : "Open this session"}
+                </button>
+              </div>
+            ) : null}
+          </article>
+          );
+        }) : (
           <p className="rounded-xl border border-dashed border-white/10 px-4 py-5 font-arsans text-sm text-[#F7F3EC]/42">
             {isArabic ? "لا توجد جلسات محفوظة بعد. احفظ الجلسة الحالية أو ابدأ جلسة جديدة." : "No saved sessions yet. Save the current session or start a new one."}
           </p>
@@ -4796,11 +5962,11 @@ function SmartFeatureShowcase({
     },
     {
       key: "visitor-challenge",
-      eyebrow: isArabic ? "تحدي الزائر" : "Visitor challenge",
+      eyebrow: isArabic ? "اختبار الرفيق السريع" : "Companion quiz",
       title: visitorMoment.title,
       description: visitorMoment.description,
-      chips: isArabic ? ["30 ثانية", "رفيق مناسب", "خطوة واضحة"] : ["30 sec", "Companion match", "Clear step"],
-      proof: isArabic ? "زر واحد يثبت قيمة فضفضة من أول دقيقة." : "One tap proves the value in the first minute.",
+      chips: isArabic ? ["٣ أسئلة", "رفيق مناسب", "خطوة واحدة"] : ["3 questions", "Matched companion", "One clear step"],
+      proof: isArabic ? "اختبار سريع يربطك بالرفيق الأنسب لحالتك الآن." : "A quick quiz that finds the companion that fits your current state.",
       personaId: visitorMoment.personaId,
       accent: "#C9A86A",
       actionLabel: isArabic ? "ابدأ التحدي" : "Start challenge",
@@ -5632,6 +6798,88 @@ function PlusWelcomeCard({ language, onExplore, onClose }: { language: Language;
   );
 }
 
+function LearningResourcePreview({ language, resources }: { language: Language; resources: LearningResource[] }) {
+  const isArabic = language === "ar";
+  const visibleResources = resources.slice(0, 3);
+
+  return (
+    <section className="mt-4 grid gap-2" dir={isArabic ? "rtl" : "ltr"}>
+      <p className="font-arsans text-[11px] font-semibold text-[#C9A86A]/72">{isArabic ? "مصادر ومشاهدة" : "Sources and preview"}</p>
+      {visibleResources.map((resource) => {
+        const playable = getPlayableVideoSource(resource.url);
+        const canPreview = resource.type === "video" && playable;
+
+        return (
+          <article key={`${resource.url}-${resource.title}`} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035] text-start">
+            {canPreview && playable.kind === "youtube" ? (
+              <iframe
+                src={playable.src}
+                title={resource.title}
+                className="aspect-video w-full border-0 bg-black"
+                loading="lazy"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            ) : null}
+            {canPreview && playable.kind === "file" ? (
+              <video src={playable.src} controls preload="metadata" className="aspect-video w-full bg-black" />
+            ) : null}
+            <div className="p-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-arsans text-sm font-semibold text-[#F7F3EC]/88">{resource.title}</p>
+                  <p className="mt-1 line-clamp-2 font-arsans text-xs leading-5 text-[#F7F3EC]/48">{resource.summary}</p>
+                </div>
+                <span className="rounded-full border border-[#C9A86A]/25 bg-[#C9A86A]/10 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.08em] text-[#C9A86A]" dir="ltr">
+                  {resource.type}
+                </span>
+              </div>
+              {!canPreview && resource.type === "video" ? (
+                <p className="mt-2 rounded-xl border border-amber-200/20 bg-amber-200/10 px-3 py-2 font-arsans text-xs leading-5 text-amber-100/78">
+                  {isArabic ? "هذا الرابط صفحة بحث أو تحويل، لذلك لا يمكن تشغيله داخل التطبيق مباشرة." : "This is a search or redirect page, so it cannot play inline."}
+                </p>
+              ) : null}
+              <a href={resource.url} target="_blank" rel="noreferrer" className="ui-action mt-3 inline-flex rounded-xl border border-white/12 px-3 py-2 font-arsans text-xs text-[#F7F3EC]/72 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
+                {resource.type === "video" ? (isArabic ? "فتح الفيديو أو البحث" : "Open video or search") : isArabic ? "فتح المصدر" : "Open source"}
+              </a>
+            </div>
+          </article>
+        );
+      })}
+    </section>
+  );
+}
+
+function getPlayableVideoSource(url: string): { kind: "youtube" | "file"; src: string } | null {
+  try {
+    const parsedUrl = new URL(url);
+    const host = parsedUrl.hostname.replace(/^www\./, "");
+    let youtubeId = "";
+
+    if (host === "youtu.be") {
+      youtubeId = parsedUrl.pathname.split("/").filter(Boolean)[0] || "";
+    }
+
+    if (host === "youtube.com" || host === "m.youtube.com" || host === "youtube-nocookie.com") {
+      youtubeId = parsedUrl.searchParams.get("v") || "";
+      if (!youtubeId && parsedUrl.pathname.startsWith("/shorts/")) youtubeId = parsedUrl.pathname.split("/")[2] || "";
+      if (!youtubeId && parsedUrl.pathname.startsWith("/embed/")) youtubeId = parsedUrl.pathname.split("/")[2] || "";
+    }
+
+    if (/^[\w-]{11}$/.test(youtubeId)) {
+      return { kind: "youtube", src: `https://www.youtube-nocookie.com/embed/${youtubeId}` };
+    }
+
+    if (/\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(parsedUrl.href)) {
+      return { kind: "file", src: parsedUrl.href };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 function JudgeDemoCallout({ language, onRun }: { language: Language; onRun: () => void }) {
   const isArabic = language === "ar";
 
@@ -5894,6 +7142,8 @@ function SecretCommandGuide({ language, onSelect }: { language: Language; onSele
         { command: "/منشور", label: "منشور إطلاق", text: "ينسخ منشور للمتابعين" },
         { command: "/شارة", label: "شارة مؤمن مبكر", text: "يدعو المتابعين بتقدمك الشخصي" },
         { command: "/حكاية", label: "مرآة الحكاية", text: "راوية تحول الشعور إلى مشهد رمزي صغير" },
+        { command: "/كبسولة", label: "كبسولة ذكرى", text: "ينزّل آخر لحظة كملف محفوظ" },
+        { command: "/تحدي", label: "تحدي ٣ أيام", text: "يبدأ رحلة نمو صغيرة من آخر خيط" },
       ]
     : [
         { command: "/judge", label: "Judge demo", text: "Runs the strongest live shot" },
@@ -5902,6 +7152,8 @@ function SecretCommandGuide({ language, onSelect }: { language: Language; onSele
         { command: "/launch", label: "Launch post", text: "Copies a follower-ready post" },
         { command: "/badge", label: "Believer badge", text: "Shares your early supporter badge" },
         { command: "/story", label: "Story mirror", text: "Rawiya turns the feeling into a symbolic scene" },
+        { command: "/capsule", label: "Moment capsule", text: "Downloads the latest moment as a saved file" },
+        { command: "/quest", label: "3-day quest", text: "Starts a small growth journey from the latest thread" },
       ];
 
   return (
@@ -5970,6 +7222,7 @@ function BottomNav({
   onHome,
   onChat,
   onPersona,
+  onStories,
   onMenu,
 }: {
   language: Language;
@@ -5979,17 +7232,17 @@ function BottomNav({
   onHome: () => void;
   onChat: () => void;
   onPersona?: () => void;
+  onStories?: () => void;
   onMenu: () => void;
 }) {
   const isArabic = language === "ar";
   const accountInitial = accountName.trim().slice(0, 1).toUpperCase() || (isArabic ? "ح" : "A");
-  const navPositionClass = isArabic ? "md:left-3" : "md:right-3";
-  const itemClass = "flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-bone/62 transition-colors hover:bg-white/[0.05] hover:text-[#C9A86A] md:h-14 md:w-14 md:flex-none";
+  const itemClass = "flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-bone/62 transition-colors hover:bg-white/[0.05] hover:text-[#C9A86A]";
   const labelClass = `${isArabic ? "font-arsans" : "font-ensans"} text-[10px] leading-none`;
 
   return (
-    <nav className={`fixed inset-x-0 bottom-0 z-40 mx-auto max-w-2xl border-t border-white/10 bg-[#0E0D10]/92 px-3 pb-[max(0.7rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-18px_40px_rgba(0,0,0,0.35)] backdrop-blur-2xl md:inset-x-auto md:bottom-auto md:top-1/2 md:max-w-none md:-translate-y-1/2 md:border-t-0 md:bg-transparent md:px-0 md:pb-0 md:pt-0 md:shadow-none md:backdrop-blur-none ${navPositionClass}`} dir={isArabic ? "rtl" : "ltr"} aria-label={isArabic ? "تنقل التطبيق" : "App navigation"}>
-      <div className={`grid ${onPersona ? "grid-cols-5" : "grid-cols-4"} gap-1 rounded-2xl border border-white/10 bg-white/[0.025] p-1 md:flex md:flex-col md:bg-[#0E0D10]/82 md:shadow-[0_18px_54px_rgba(0,0,0,0.38)] md:backdrop-blur-2xl`}>
+    <nav className="relative z-20 mx-auto mt-4 w-full max-w-[42rem] px-2 pb-2" dir={isArabic ? "rtl" : "ltr"} aria-label={isArabic ? "تنقل التطبيق" : "App navigation"}>
+      <div className={`grid ${onPersona && onStories ? "grid-cols-6" : onPersona ? "grid-cols-5" : "grid-cols-4"} gap-1 rounded-2xl border border-white/10 bg-[#0E0D10]/94 p-1 shadow-[0_18px_54px_rgba(0,0,0,0.34)] backdrop-blur-2xl`}>
         <button type="button" onClick={onHome} className={itemClass}>
           <HomeIcon />
           <span className={labelClass}>{isArabic ? "الرئيسية" : "Home"}</span>
@@ -6002,6 +7255,12 @@ function BottomNav({
         <button type="button" onClick={onPersona} className={itemClass}>
           <PersonaIcon />
           <span className={labelClass}>{isArabic ? "الرفيق" : "Persona"}</span>
+        </button>
+        ) : null}
+        {onStories ? (
+        <button type="button" onClick={onStories} className={itemClass}>
+          <StoryIcon />
+          <span className={labelClass}>{isArabic ? "قصص" : "Stories"}</span>
         </button>
         ) : null}
         <button type="button" onClick={onMenu} className={itemClass}>
@@ -6019,6 +7278,76 @@ function BottomNav({
   );
 }
 
+function FloatingFeatureLauncher({ language, hasLatestReply, onSpeak, onStudio, onReceipt }: { language: Language; hasLatestReply: boolean; onSpeak: () => void; onStudio: () => void; onReceipt: () => void }) {
+  const isArabic = language === "ar";
+  const positionClass = isArabic ? "left-3 md:left-4" : "right-3 md:right-4";
+  const items = [
+    { id: "speak", icon: "graphic_eq", labelAr: "اسمع الرد", labelEn: "Hear reply", onClick: onSpeak, disabled: !hasLatestReply },
+    { id: "studio", icon: "add", labelAr: "المزيد", labelEn: "More", onClick: onStudio, disabled: false },
+    { id: "receipt", icon: "receipt_long", labelAr: "الخلاصة", labelEn: "Receipt", onClick: onReceipt, disabled: !hasLatestReply, badge: hasLatestReply },
+  ];
+
+  return (
+    <div className={`fixed bottom-24 z-50 hidden flex-col items-center gap-1.5 md:flex ${positionClass}`} dir={isArabic ? "rtl" : "ltr"} aria-label={isArabic ? "اختصارات الميزات" : "Feature shortcuts"}>
+      <div className="grid gap-1.5 rounded-full border border-[#E6C36A]/28 bg-[#0E0D10]/88 p-1.5 shadow-[0_24px_64px_rgba(0,0,0,0.38)] backdrop-blur-2xl">
+        {items.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={item.onClick}
+            disabled={item.disabled}
+            className="group relative grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-[#F7F3EC]/72 transition-all hover:-translate-y-0.5 hover:border-[#E6C36A]/55 hover:bg-[#E6C36A]/14 hover:text-[#E6C36A] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
+            aria-label={isArabic ? item.labelAr : item.labelEn}
+            title={isArabic ? item.labelAr : item.labelEn}
+          >
+            <SymbolIcon name={item.icon} className="h-5 w-5" />
+            {item.badge ? <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border border-[#0E0D10] bg-[#E6C36A]" aria-hidden="true" /> : null}
+            <span className={`pointer-events-none absolute top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-full border border-[#E6C36A]/25 bg-[#0E0D10]/94 px-2.5 py-1 font-arsans text-[11px] text-[#E6C36A] shadow-xl group-hover:block ${isArabic ? "left-12" : "right-12"}`}>
+              {isArabic ? item.labelAr : item.labelEn}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SymbolIcon({ name, className = "h-5 w-5" }: { name: string; className?: string }) {
+  const common = { stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+
+  switch (name) {
+    case "photo_camera":
+      return <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path {...common} d="M4.75 8.75A2.75 2.75 0 0 1 7.5 6h1.15l1.1-1.5h4.5L15.35 6h1.15a2.75 2.75 0 0 1 2.75 2.75v7.5A2.75 2.75 0 0 1 16.5 19h-9a2.75 2.75 0 0 1-2.75-2.75v-7.5Z" /><path {...common} d="M9 12.5a3 3 0 1 0 6 0 3 3 0 0 0-6 0Z" /><path {...common} d="M17.25 9.25h.01" /></svg>;
+    case "photo_library":
+      return <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path {...common} d="M7 7.25V5.5A2.25 2.25 0 0 1 9.25 3.25h9A2.25 2.25 0 0 1 20.5 5.5v9a2.25 2.25 0 0 1-2.25 2.25H16.5" /><path {...common} d="M3.5 9.5A2.25 2.25 0 0 1 5.75 7.25h8.5A2.25 2.25 0 0 1 16.5 9.5v7.75a2.25 2.25 0 0 1-2.25 2.25h-8.5a2.25 2.25 0 0 1-2.25-2.25V9.5Z" /><path {...common} d="m5.75 16.5 2.2-2.4 1.55 1.55 2.35-2.9 2.4 3.75" /><path {...common} d="M8 11.25h.01" /></svg>;
+    case "mic":
+      return <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path {...common} d="M9 6.75a3 3 0 0 1 6 0v5a3 3 0 0 1-6 0v-5Z" /><path {...common} d="M5.75 11.25a6.25 6.25 0 0 0 12.5 0" /><path {...common} d="M12 17.5v3" /><path {...common} d="M9 20.5h6" /></svg>;
+    case "graphic_eq":
+      return <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path {...common} d="M4.5 12v1.5M8.25 8.5v7M12 5.75v12.5M15.75 8.5v7M19.5 12v1.5" /></svg>;
+    case "add":
+      return <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path {...common} d="M12 5.5v13M5.5 12h13" /></svg>;
+    case "receipt_long":
+      return <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path {...common} d="M6.5 4.5h11v15l-2-1.25-2 1.25-2-1.25-2 1.25-2-1.25-2 1.25v-15Z" /><path {...common} d="M9 8h6M9 11.25h6M9 14.5h3.5" /></svg>;
+    case "movie":
+      return <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path {...common} d="M4.5 6.5A2.5 2.5 0 0 1 7 4h10a2.5 2.5 0 0 1 2.5 2.5v11A2.5 2.5 0 0 1 17 20H7a2.5 2.5 0 0 1-2.5-2.5v-11Z" /><path {...common} d="M8 4v16M16 4v16M4.5 9h15M4.5 15h15" /></svg>;
+    case "monitor_heart":
+      return <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path {...common} d="M4 6.75A2.75 2.75 0 0 1 6.75 4h10.5A2.75 2.75 0 0 1 20 6.75v7.5A2.75 2.75 0 0 1 17.25 17H6.75A2.75 2.75 0 0 1 4 14.25v-7.5Z" /><path {...common} d="M9 20h6M12 17v3" /><path {...common} d="M8 10.5h2l1-2.25 2 4.5 1.2-2.25H16" /></svg>;
+    case "route":
+      return <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path {...common} d="M6.25 6.25h.01M17.75 17.75h.01" /><path {...common} d="M8 6.25h4.5a3 3 0 0 1 0 6h-1a3 3 0 0 0 0 6H16" /><path {...common} d="M4.75 6.25a1.5 1.5 0 1 0 3 0 1.5 1.5 0 0 0-3 0ZM16.25 17.75a1.5 1.5 0 1 0 3 0 1.5 1.5 0 0 0-3 0Z" /></svg>;
+    case "history":
+      return <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path {...common} d="M5.5 8.5A7.5 7.5 0 1 1 4.75 15" /><path {...common} d="M5.5 5.5v3h3" /><path {...common} d="M12 8.5V12l2.5 1.5" /></svg>;
+    case "auto_awesome":
+    case "sparkles":
+      return <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path {...common} d="M12 3.75 13.55 8.5 18.25 10 13.55 11.5 12 16.25 10.45 11.5 5.75 10l4.7-1.5L12 3.75Z" /><path {...common} d="M18.5 14.5 19.15 16.35 21 17l-1.85.65-.65 1.85-.65-1.85L16 17l1.85-.65.65-1.85Z" /></svg>;
+    case "favorite":
+      return <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path {...common} d="M12 19.25s-6.75-4.2-8.15-8.1C2.85 8.35 4.55 6 7.25 6c1.55 0 2.75.85 3.45 1.95C11.4 6.85 12.6 6 14.15 6c2.7 0 4.4 2.35 3.4 5.15-1.4 3.9-5.55 8.1-5.55 8.1Z" /></svg>;
+    case "diversity_1":
+      return <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path {...common} d="M8.5 10a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM15.5 10a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" /><path {...common} d="M4.5 19v-1.25A4.75 4.75 0 0 1 9.25 13h5.5a4.75 4.75 0 0 1 4.75 4.75V19" /></svg>;
+    default:
+      return <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path {...common} d="M12 5v14M5 12h14" /></svg>;
+  }
+}
+
 function HomeIcon() {
   return (
     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -6033,6 +7362,16 @@ function ChatIcon() {
     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M6.5 17.5h-.75A2.75 2.75 0 0 1 3 14.75v-6A2.75 2.75 0 0 1 5.75 6h12.5A2.75 2.75 0 0 1 21 8.75v6a2.75 2.75 0 0 1-2.75 2.75H11l-4.5 3v-3Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
       <path d="M7.5 10h9M7.5 13h5.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function StoryIcon() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5.25 5.5A2.25 2.25 0 0 1 7.5 3.25H19v14.5H7.5a2.25 2.25 0 0 0-2.25 2.25V5.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="M5.25 20A2.25 2.25 0 0 1 7.5 17.75H19" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M9 7.5h6M9 10.5h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
     </svg>
   );
 }
@@ -6342,8 +7681,18 @@ function GeneratedMediaCard({ language, asset }: { language: Language; asset: Ge
     };
   }, [asset.kind, frames, status]);
 
+  useEffect(() => {
+    if (asset.kind !== "video" || status !== "ready" || frames.length <= 1 || videoState.status === "ready") return;
+
+    const timer = window.setInterval(() => {
+      setActiveFrame((current) => (current + 1) % frames.length);
+    }, 1400);
+
+    return () => window.clearInterval(timer);
+  }, [asset.kind, frames.length, status, videoState.status]);
+
   const activeImage = frames[activeFrame]?.imageDataUrl || frames[0]?.imageDataUrl;
-  const sourceLabel = videoState.status === "ready" ? `gemini_${videoState.extension || "video"}_video` : frames[0]?.source || (asset.kind === "video" ? "gemini_video_encoding" : "gemini_image");
+  const sourceLabel = videoState.status === "ready" ? `gemini_${videoState.extension || "video"}_video` : videoState.status === "error" ? "gemini_animated_storyboard_fallback" : frames[0]?.source || (asset.kind === "video" ? "gemini_video_encoding" : "gemini_image");
 
   return (
     <section className="mt-4 overflow-hidden rounded-2xl border border-emerald-100/20 bg-emerald-100/[0.045] text-start" dir={isArabic ? "rtl" : "ltr"}>
@@ -6371,7 +7720,7 @@ function GeneratedMediaCard({ language, asset }: { language: Language; asset: Ge
             <div className="absolute inset-0 grid place-items-center bg-black/42 p-5 text-center">
               <p className="rounded-2xl border border-emerald-100/20 bg-black/58 px-4 py-3 font-arsans text-sm leading-6 text-emerald-100/82">
                 {videoState.status === "error"
-                  ? isArabic ? "المتصفح الحالي لم يستطع ترميز ملف فيديو هنا. جرّب Chrome أو Edge، أو حدّث التطبيق ثم أعد الطلب." : "This browser could not encode a video file here. Try Chrome or Edge, or update the app and request it again."
+                  ? isArabic ? "جهزنا اللقطات كلوحة متحركة لأن هذا المتصفح لا يدعم إخراج ملف فيديو هنا. يمكنك عرضها ونسخ البرومبت الآن." : "Your visual reel is ready as an animated storyboard because this browser cannot export a video file here. You can view it and copy the prompt now."
                   : isArabic ? "جاري تحويل لقطات Gemini إلى ملف فيديو قابل للتشغيل والتحميل..." : "Encoding Gemini frames into a playable, downloadable video file..."}
               </p>
             </div>
@@ -6389,7 +7738,7 @@ function GeneratedMediaCard({ language, asset }: { language: Language; asset: Ge
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/82 to-transparent p-3">
             {videoState.status === "encoding" || videoState.status === "error" ? (
               <p className="mb-2 rounded-full border border-emerald-100/20 bg-black/45 px-3 py-1.5 font-arsans text-[11px] text-emerald-100/75">
-                {videoState.status === "error" ? (isArabic ? "تعذر إنشاء ملف الفيديو في هذا المتصفح" : "Video encoding failed in this browser") : isArabic ? "جاري إنشاء ملف فيديو حقيقي..." : "Creating a real video file..."}
+                {videoState.status === "error" ? (isArabic ? "عرض بديل جاهز: لقطات Gemini متحركة" : "Fallback ready: animated Gemini frames") : isArabic ? "جاري إنشاء ملف فيديو حقيقي..." : "Creating a real video file..."}
               </p>
             ) : null}
             <div className="flex gap-1.5" dir="ltr">
@@ -6407,6 +7756,11 @@ function GeneratedMediaCard({ language, asset }: { language: Language; asset: Ge
           {asset.kind === "video" && videoState.status === "ready" && videoState.url ? (
             <a href={videoState.url} download={`fadfada-video-${asset.createdAt.slice(0, 10)}.${videoState.extension || "webm"}`} className="ui-action rounded-lg border border-emerald-100/30 px-3 py-2 text-xs text-emerald-100 transition-colors hover:bg-emerald-100 hover:text-[#0E0D10]">
               {isArabic ? "تحميل الفيديو" : "Download video"}
+            </a>
+          ) : null}
+          {asset.kind === "video" && videoState.status === "error" && activeImage ? (
+            <a href={activeImage} download={`fadfada-video-frame-${asset.createdAt.slice(0, 10)}.png`} className="ui-action rounded-lg border border-emerald-100/30 px-3 py-2 text-xs text-emerald-100 transition-colors hover:bg-emerald-100 hover:text-[#0E0D10]">
+              {isArabic ? "تحميل لقطة" : "Download frame"}
             </a>
           ) : null}
           <button type="button" onClick={() => void copyTextToClipboard(asset.prompt)} className="ui-action rounded-lg border border-emerald-100/30 px-3 py-2 text-xs text-emerald-100 transition-colors hover:bg-emerald-100 hover:text-[#0E0D10]">
@@ -6433,6 +7787,7 @@ async function encodeFramesAsVideo(frameUrls: string[]) {
   drawVideoFrame(context, images[0], canvas.width, canvas.height, 0, 0);
   const videoFormat = getSupportedRecordingFormat();
   if (!videoFormat) throw new Error("No supported video recording format");
+  if (typeof canvas.captureStream !== "function") throw new Error("Canvas video capture is unavailable");
   const stream = canvas.captureStream(30);
   const recorder = videoFormat.mimeType
     ? new MediaRecorder(stream, { mimeType: videoFormat.mimeType })

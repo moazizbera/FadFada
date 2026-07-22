@@ -13,6 +13,8 @@ export type AdminDashboardData = {
     signedGiftReflectionLimit: number;
     anonymousPersonaLimit: number;
     signedPersonaLimit: number;
+    freeChildProfileLimit: number;
+    plusChildProfileLimit: number;
     avatarsEnabled: boolean;
     blockedPersonaIds: string[];
     anonymousPersonaIds: string[];
@@ -71,6 +73,30 @@ export type AdminDashboardData = {
     language: string;
     messageCount: number;
     createdAt: string;
+  }>;
+  parentChildSummaries: Array<{
+    parentId: string;
+    parentName: string | null;
+    parentEmail: string | null;
+    parentTier: string;
+    parentRegisteredAt: string;
+    parentLastSignInAt: string | null;
+    parentLastChatAt: string | null;
+    lastChildActivityAt: string | null;
+    latestActivityAt: string;
+    active: boolean;
+    childCount: number;
+    parentSessionCount: number;
+    childSessionCount: number;
+    children: Array<{
+      id: string;
+      nickname: string;
+      birthYear: number;
+      avatarPreference: string;
+      createdAt: string;
+      childSessionCount: number;
+      lastChildActivityAt: string | null;
+    }>;
   }>;
   distribution: Array<{
     tier: string;
@@ -138,7 +164,7 @@ type AdminDashboardClientProps = {
   auditHref: string;
 };
 
-type AdminTab = "dashboard" | "configuration" | "users" | "personas" | "offers" | "sessions";
+type AdminTab = "dashboard" | "configuration" | "users" | "personas" | "families" | "offers" | "sessions";
 
 const copy = {
   ar: {
@@ -320,7 +346,7 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
 
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab === "configuration" || tab === "users" || tab === "personas" || tab === "offers" || tab === "sessions") {
+    if (tab === "configuration" || tab === "users" || tab === "personas" || tab === "families" || tab === "offers" || tab === "sessions") {
       setActiveTab(tab);
       return;
     }
@@ -529,10 +555,88 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
         {activeTab === "configuration" ? <ConfigurationPanel language={language} configuration={data.configuration} /> : null}
         {activeTab === "users" ? <UsersGiftPanel language={language} locale={locale} users={data.recentUsers} /> : null}
         {activeTab === "personas" ? <PersonaAccessPanel language={language} locale={locale} users={data.recentUsers} /> : null}
+        {activeTab === "families" ? <FamilyChildrenPanel language={language} locale={locale} summaries={data.parentChildSummaries} /> : null}
         {activeTab === "offers" ? <DiscountPanel language={language} locale={locale} offers={data.discountOffers} /> : null}
         {activeTab === "sessions" ? <SessionsPanel language={language} locale={locale} sessions={data.chatSessions} /> : null}
       </section>
     </main>
+  );
+}
+
+function FamilyChildrenPanel({ language, locale, summaries }: { language: Locale; locale: string; summaries: AdminDashboardData["parentChildSummaries"] }) {
+  const isArabic = language === "ar";
+  const activeCount = summaries.filter((summary) => summary.active).length;
+  const totalChildren = summaries.reduce((sum, summary) => sum + summary.childCount, 0);
+  const totalParentSessions = summaries.reduce((sum, summary) => sum + summary.parentSessionCount, 0);
+  const totalChildSessions = summaries.reduce((sum, summary) => sum + summary.childSessionCount, 0);
+
+  return (
+    <section className="grid gap-8 py-10">
+      <SectionIntro
+        kicker={isArabic ? "الأطفال والأهل" : "Parents and children"}
+        title={isArabic ? "الأطفال المسجلون تحت كل ولي أمر" : "Registered children under each parent"}
+        description={isArabic ? "يعرض عدد جلسات الوالد، نشاط الأطفال، آخر تاريخ، ومن يعتبر نشطاً خلال آخر ٧ أيام." : "Shows parent session counts, child activity, last dates, and who is active in the last 7 days."}
+      />
+      <div className="grid gap-3 sm:grid-cols-4">
+        <MetricCard label={isArabic ? "أولياء لديهم أطفال" : "Parents with children"} value={formatNumber(summaries.length, locale)} />
+        <MetricCard label={isArabic ? "الأطفال" : "Children"} value={formatNumber(totalChildren, locale)} />
+        <MetricCard label={isArabic ? "نشطون" : "Active"} value={formatNumber(activeCount, locale)} />
+        <MetricCard label={isArabic ? "جلسات الوالد/الطفل" : "Parent/child sessions"} value={`${formatNumber(totalParentSessions, locale)} / ${formatNumber(totalChildSessions, locale)}`} />
+      </div>
+
+      <div className="space-y-4">
+        {summaries.length > 0 ? summaries.map((summary) => (
+          <article key={summary.parentId} className="border border-white/10 bg-white/[0.025] p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-arsans text-base text-bone/90" dir="auto">{summary.parentName || summary.parentEmail || (isArabic ? "ولي أمر بدون اسم" : "Unnamed parent")}</p>
+                  <span className={`rounded-full border px-2 py-1 font-arsans text-[10px] ${summary.active ? "border-emerald-200/35 bg-emerald-200/10 text-emerald-100" : "border-white/10 bg-black/18 text-bone/45"}`}>
+                    {summary.active ? (isArabic ? "نشط" : "Active") : isArabic ? "هادئ" : "Quiet"}
+                  </span>
+                  <span className="rounded-full border border-gold/25 bg-gold/[0.08] px-2 py-1 font-arsans text-[10px] text-gold">{formatTier(summary.parentTier, language)}</span>
+                </div>
+                <p className="mt-1 font-ensans text-xs text-bone/42" dir="ltr">{summary.parentEmail || summary.parentId}</p>
+              </div>
+              <div className="grid gap-2 text-start sm:grid-cols-3 lg:min-w-[26rem]">
+                <AdminSmallStat label={isArabic ? "جلسات الوالد" : "Parent sessions"} value={formatNumber(summary.parentSessionCount, locale)} />
+                <AdminSmallStat label={isArabic ? "جلسات الطفل" : "Child sessions"} value={formatNumber(summary.childSessionCount, locale)} />
+                <AdminSmallStat label={isArabic ? "آخر نشاط" : "Last active"} value={formatDate(summary.latestActivityAt, locale)} />
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-2 md:grid-cols-2">
+              {summary.children.map((child) => (
+                <div key={child.id} className="border border-cyan-200/14 bg-cyan-200/[0.035] p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-arsans text-sm text-cyan-100/90" dir="auto">{child.nickname}</p>
+                      <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="ltr">{child.id}</p>
+                    </div>
+                    <span className="shrink-0 font-arsans text-xs text-bone/48">{new Date().getUTCFullYear() - child.birthYear} {isArabic ? "سنة" : "yrs"}</span>
+                  </div>
+                  <p className="mt-3 font-arsans text-xs leading-5 text-bone/58">
+                    {isArabic ? "جلسات الطفل" : "Child sessions"}: {formatNumber(child.childSessionCount, locale)} · {isArabic ? "آخر نشاط" : "Last"}: {child.lastChildActivityAt ? formatDate(child.lastChildActivityAt, locale) : (isArabic ? "لا يوجد" : "None")}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="ltr">
+              registered {formatDate(summary.parentRegisteredAt, locale)} · last sign-in {summary.parentLastSignInAt ? formatDate(summary.parentLastSignInAt, locale) : "none"} · last parent chat {summary.parentLastChatAt ? formatDate(summary.parentLastChatAt, locale) : "none"} · last child activity {summary.lastChildActivityAt ? formatDate(summary.lastChildActivityAt, locale) : "none"}
+            </p>
+          </article>
+        )) : <EmptyMetric label={isArabic ? "لا توجد ملفات أطفال مسجلة بعد" : "No registered child profiles yet"} />}
+      </div>
+    </section>
+  );
+}
+
+function AdminSmallStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border border-white/10 bg-black/18 px-3 py-2">
+      <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35">{label}</p>
+      <p className="mt-1 font-arsans text-sm text-bone/82">{value}</p>
+    </div>
   );
 }
 
@@ -657,6 +761,8 @@ function ConfigurationPanel({ language, configuration }: { language: Locale; con
     { key: "signedGiftReflectionLimit", ar: "هدية التسجيل", en: "Sign-in gift", hintAr: "عدد الردود المجانية بعد إنشاء حساب.", hintEn: "Free replies granted after sign-in." },
     { key: "anonymousPersonaLimit", ar: "رفقاء الزائر", en: "Visitor companions", hintAr: "عدد الرفقاء المتاحين بدون حساب.", hintEn: "Companions available without an account." },
     { key: "signedPersonaLimit", ar: "رفقاء الحساب", en: "Account companions", hintAr: "عدد الرفقاء المتاحين للحساب المجاني.", hintEn: "Companions available to signed free users." },
+    { key: "freeChildProfileLimit", ar: "أطفال المجاني", en: "Free child profiles", hintAr: "عدد ملفات الأطفال قبل طلب الترقية إلى بلس.", hintEn: "Child profiles allowed before prompting Plus upgrade." },
+    { key: "plusChildProfileLimit", ar: "أطفال بلس", en: "Plus child profiles", hintAr: "عدد ملفات الأطفال المسموح لحسابات بلس.", hintEn: "Child profiles allowed for Plus accounts." },
   ];
 
   async function submit(event: FormEvent<HTMLFormElement>) {

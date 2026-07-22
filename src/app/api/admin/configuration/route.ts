@@ -10,6 +10,7 @@ export const runtime = "nodejs";
 type AdminSessionUser = {
   id?: string;
   role?: "USER" | "ADMIN";
+  workspaceMode?: "parent" | "child";
 };
 
 type AdminConfigurationRequest = {
@@ -28,12 +29,14 @@ type AdminConfigurationRequest = {
   expiresAt?: string | null;
 };
 
-const configNumberKeys = ["anonymousReflectionLimit", "signedGiftReflectionLimit", "anonymousPersonaLimit", "signedPersonaLimit"] as const;
+const configNumberKeys = ["anonymousReflectionLimit", "signedGiftReflectionLimit", "anonymousPersonaLimit", "signedPersonaLimit", "freeChildProfileLimit", "plusChildProfileLimit"] as const;
 const defaultConfig = {
   anonymousReflectionLimit: 5,
   signedGiftReflectionLimit: 15,
   anonymousPersonaLimit: 4,
   signedPersonaLimit: 10,
+  freeChildProfileLimit: 1,
+  plusChildProfileLimit: 5,
   avatarsEnabled: true,
   blockedPersonaIds: [] as string[],
   anonymousPersonaIds: personas.slice(0, 4).map((persona) => persona.id),
@@ -45,7 +48,7 @@ export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
   const sessionUser = session?.user as AdminSessionUser | undefined;
 
-  if (sessionUser?.role !== "ADMIN") {
+  if (sessionUser?.role !== "ADMIN" || sessionUser.workspaceMode === "child") {
     return NextResponse.json({ ok: false, error: "FORBIDDEN" }, { status: 403 });
   }
 

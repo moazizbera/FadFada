@@ -7,7 +7,7 @@
 :root {
   --ink: #0E0D10;
   --bone: #F7F3EC;
-  --gold: #C9A86A;
+  --gold: #E6C36A;
   --dusk: #8B7BB8;
   --terracotta: #D4724A;
   --sage: #5C7C6B;
@@ -26,9 +26,9 @@
   --font-inter: var(--font-ensans);
   --font-plex-mono: var(--font-mono);
 
-  --orb-glow: rgba(201, 168, 106, 0.32);
-  --surface-whisper: rgba(247, 243, 236, 0.03);
-  --surface-breath: rgba(247, 243, 236, 0.06);
+  --orb-glow: rgba(230, 195, 106, 0.42);
+  --surface-whisper: rgba(247, 243, 236, 0.045);
+  --surface-breath: rgba(247, 243, 236, 0.075);
 }
 
 @keyframes breathe {
@@ -101,7 +101,7 @@ body {
     radial-gradient(circle at 50% -10%, rgba(139, 123, 184, 0.12), transparent 34rem),
     var(--ink);
   background-size: 42px 42px, 42px 42px, auto, auto;
-  color: rgb(247 243 236 / 0.9);
+  color: rgb(247 243 236 / 0.94);
   font-family: var(--font-arsans), var(--font-ensans), sans-serif;
   font-size: 16px;
   line-height: 1.7;
@@ -115,6 +115,25 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+select {
+  background-color: #0E0D10;
+  color: rgb(247 243 236 / 0.92);
+}
+
+select option,
+select optgroup {
+  background-color: #0E0D10;
+  color: #F7F3EC;
+}
+
+[role="menu"] {
+  background-color: rgb(14 13 16 / 0.99);
+}
+
+[role="menuitem"] {
+  background-color: rgb(247 243 236 / 0.055);
 }
 
 button {
@@ -166,15 +185,15 @@ a {
 .ui-kicker {
   font-family: var(--font-arui), var(--font-arsans), var(--font-ensans), sans-serif;
   font-size: 0.78rem;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0;
-  color: rgb(201 168 106 / 0.86);
+  color: rgb(230 195 106 / 0.92);
 }
 
 .ui-action {
   font-family: var(--font-arui), var(--font-arsans), var(--font-ensans), sans-serif;
   font-size: 0.86rem;
-  font-weight: 500;
+  font-weight: 700;
   letter-spacing: 0;
 }
 
