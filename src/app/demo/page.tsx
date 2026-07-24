@@ -8,7 +8,7 @@ const evidenceCards = [
   { label: "Core", value: "Arabic-first reflection PWA", detail: "Chat, companions, Daily Pulse, saved moments, quests, and proof cards." },
   { label: "Gemini", value: "Multimodal AI stack", detail: "Text reasoning, image generation, video/audio understanding, custom personas, voice playback, and fallbacks." },
   { label: "Admin", value: "Live operations room", detail: "Auto-refreshing visits, signups, comments, installs, sessions, gifts, and persona grants." },
-  { label: "Trust", value: "Non-clinical wellbeing", detail: "No medical, legal, financial, emergency, or regulated claims." },
+  { label: "Trust", value: "Visible trust boundaries", detail: "Trust Mode, server-verified parent return, safe session storage, and fail-soft shell behavior." },
 ];
 
 const geminiCapabilities = [
@@ -58,6 +58,7 @@ const geminiCapabilities = [
 
 const flows = [
   { command: "/judge", title: "Judge run", detail: "Switches into the strongest end-to-end product demo.", proof: "Use first to frame the hackathon story." },
+  { command: "Dual mirror", title: "Dual Mirror", detail: "Shows the same moment in two lanes: empathy + action, or fun + learning.", proof: "One tap creates an immediate visible wow moment for judges." },
   { command: "/story", title: "Story Mirror", detail: "Turns a feeling into a compact symbolic scene.", proof: "Save it, then show the Profile gallery." },
   { command: "/proof", title: "Proof Card", detail: "Creates a share-ready before/after artifact.", proof: "Shows emotional value without exposing private chat." },
   { command: "/quest", title: "Growth Quest", detail: "Starts a tiny 3-day challenge from the conversation.", proof: "Then show the quest checklist in Profile." },
@@ -73,17 +74,19 @@ const proofPaths = [
 
 const guidedSequence = [
   { step: "01", title: "Open with the judge run", href: "/?demoCommand=%2Fjudge", detail: "Frame the product, trust boundaries, AI stack, and user value." },
-  { step: "02", title: "Stage Story Mirror", href: "/?demoCommand=%2Fstory", detail: "Show emotional imagination without making the chat visually busy." },
-  { step: "03", title: "Reveal personal depth", href: "/profile", detail: "Open Journey Map, mood constellation, companion memory, voice studio, and saved galleries." },
-  { step: "04", title: "Prove operations", href: "/admin/dashboard", detail: "Show live room, narrative timeline, sessions, gifts, grants, and admin controls." },
+  { step: "02", title: "Tap Dual Mirror", href: "/", detail: "Show one moment split into empathy + action, or fun + learning for children." },
+  { step: "03", title: "Reveal family depth", href: "/profile#child-profiles", detail: "Open Parent Copilot Timeline, child activity, homework, and playbook tools." },
+  { step: "04", title: "Stage Story Mirror", href: "/?demoCommand=%2Fstory", detail: "Show emotional imagination without making the chat visually busy." },
+  { step: "05", title: "Prove operations", href: "/admin/dashboard", detail: "Show live room, narrative timeline, sessions, gifts, grants, and admin controls." },
 ];
 
 const snapshotFacts = [
   "Arabic-first bilingual emotional reflection PWA",
-  "26 focused companions with Plus unlocks and grants",
+  "Adult expert companions plus child-safe companion roster",
   "Gemini / Vertex text, image, video/audio, avatar, persona, and fallback-ready AI stack",
-  "Profile journey map, mood constellation, story gallery, quests, and voice studio",
+  "Profile journey map, mood constellation, Parent Copilot Timeline, story gallery, quests, and voice studio",
   "Admin live room, narrative timeline, sessions, gifts, persona grants, offers, and notifications",
+  "Trust Mode proof: workspace isolation, parent return verification, safe session persistence, and fail-soft notifications",
   "Non-clinical wellbeing boundaries with no emergency, medical, legal, or financial claims",
 ];
 
@@ -91,7 +94,7 @@ const pitchBeats = [
   { label: "Problem", text: "Arabic speakers often get generic AI answers that miss emotional tone, privacy, and cultural warmth." },
   { label: "Solution", text: "FadFada turns a private vent into reflection, a small step, and optional artifacts without becoming clinical." },
   { label: "Product", text: "Clean chat first; Profile holds growth memory; Admin holds proof, operations, gifts, and grants." },
-  { label: "Moat", text: "Persona continuity, Arabic voice polish, Story Mirror artifacts, and low-clutter emotional UX." },
+  { label: "Moat", text: "Persona continuity, child-safe family workspace design, Arabic voice polish, Story Mirror artifacts, and low-clutter emotional UX." },
   { label: "Ask", text: "Judge the product by emotional clarity, demo readiness, safety boundaries, and Arabic-first execution." },
 ];
 
@@ -150,8 +153,29 @@ export default function DemoEvidencePage() {
         <section className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.8fr_1.2fr]">
           <div>
             <p className="ui-kicker text-gold">Companion system</p>
-            <h2 className="mt-2 font-arserif text-4xl text-bone/92">26 focused roles, not one chatbot costume.</h2>
-            <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">The roster is split between listening companions and builders. Every assistant message preserves the companion/avatar/world used when it was created.</p>
+            <h2 className="mt-2 font-arserif text-4xl text-bone/92">Companions are roles, and family mode is a separate product layer.</h2>
+            <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">The roster is split between listening companions and builders, while the child workspace filters into child-safe companions only. Every assistant message preserves the companion/avatar/world used when it was created.</p>
+                  <section className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.8fr_1.2fr]">
+                    <div>
+                      <p className="ui-kicker text-emerald-100">Trust + family proof</p>
+                      <h2 className="mt-2 font-arserif text-4xl text-bone/92">Judges can verify safety boundaries without reading code.</h2>
+                      <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">The latest build adds a visible Trust Mode card plus parent/child workspace proof: server-verified parent return, safe session storage, and child-safe tools with a parent timeline.</p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {[
+                        { title: 'Trust Mode', detail: 'Evidence Room now exposes live trust signals from the running build.' },
+                        { title: 'Parent Copilot Timeline', detail: 'Profile now summarizes the last 7 days per child and suggests one next move.' },
+                        { title: 'Homework + Playbook', detail: 'Parents can send structured homework and generate short response playbooks.' },
+                        { title: 'Dual Mirror', detail: 'One moment can split into two useful interpretations with one tap.' },
+                      ].map((item) => (
+                        <article key={item.title} className="border border-emerald-100/15 bg-emerald-100/[0.035] p-4">
+                          <p className="font-arserif text-2xl text-bone/92">{item.title}</p>
+                          <p className="mt-3 font-arsans text-sm leading-6 text-bone/58">{item.detail}</p>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <EvidenceStat label="Total personas" value={String(personas.length)} />
@@ -217,7 +241,7 @@ export default function DemoEvidencePage() {
           <div>
             <p className="ui-kicker text-gold">Shareable demo link</p>
             <h2 className="mt-2 font-arserif text-4xl text-bone/92">Build the exact route you want to show.</h2>
-            <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">Choose a command, language, and persona. The app opens with the command staged so the presenter presses Enter.</p>
+            <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">Choose a command, language, and persona. The app opens with the command staged so the presenter presses Enter. For Dual Mirror, open the app and tap the judge-callout button inside chat.</p>
           </div>
           <div className="border border-gold/20 bg-gold/[0.025] p-5">
             <div className="grid gap-3 sm:grid-cols-3">
@@ -247,7 +271,7 @@ export default function DemoEvidencePage() {
                     <p className="font-mono text-sm text-gold">{flow.command}</p>
                     <h3 className="mt-2 font-arserif text-2xl text-bone/90">{flow.title}</h3>
                   </div>
-                  <Link href={`/?demoCommand=${encodeURIComponent(flow.command)}`} className="ui-action border border-gold/30 px-3 py-2 text-gold hover:bg-gold hover:text-ink">Stage</Link>
+                  {flow.command.startsWith('/') ? <Link href={`/?demoCommand=${encodeURIComponent(flow.command)}`} className="ui-action border border-gold/30 px-3 py-2 text-gold hover:bg-gold hover:text-ink">Stage</Link> : <span className="ui-action border border-white/10 px-3 py-2 text-bone/50">In chat</span>}
                 </div>
                 <p className="mt-3 font-arsans text-sm leading-6 text-bone/65">{flow.detail}</p>
                 <p className="mt-3 border-t border-white/10 pt-3 font-arsans text-xs leading-5 text-bone/42">{flow.proof}</p>

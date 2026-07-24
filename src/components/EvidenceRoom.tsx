@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import { useAppLocale } from "./AppShell";
 
 type TransactionRow = {
@@ -29,18 +30,31 @@ type VersionSnapshot = {
     location?: string | null;
     keylessAuth?: boolean;
   };
+  trust?: {
+    workspaceIsolation?: boolean;
+    parentReturnServerVerification?: boolean;
+    safeSessionSnapshotStorage?: boolean;
+    notificationsFailSoft?: boolean;
+  };
 };
 
+type EvidencePanel = "why" | "readiness" | "ai" | "trust" | "payment" | "export";
+
 export function EvidenceRoom({ language, safetyKeywordCount = 0, sessionCount = 1, transactions = [] }: EvidenceRoomProps) {
+  const { data: session } = useSession();
   const locale = useAppLocale();
   const activeLanguage = language ?? locale.language;
   const [open, setOpen] = useState(false);
+  const [activePanel, setActivePanel] = useState<EvidencePanel>("why");
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
   const [versionSnapshot, setVersionSnapshot] = useState<VersionSnapshot | null>(null);
   const isArabic = activeLanguage === "ar";
   const direction = activeLanguage === "ar" ? "rtl" : "ltr";
   const successfulTransactions = transactions.filter((transaction) => transaction.status === "SUCCESSFUL");
   const grossRevenue = successfulTransactions.reduce((sum, transaction) => sum + transaction.amountPaid, 0);
+  const isChildWorkspace = Boolean(session?.user && "workspaceMode" in session.user && session.user.workspaceMode === "child");
+
+  if (isChildWorkspace) return null;
 
   useEffect(() => {
     setGeneratedAt(new Date().toISOString());
@@ -131,6 +145,32 @@ export function EvidenceRoom({ language, safetyKeywordCount = 0, sessionCount = 
             </button>
           </div>
 
+          <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3" role="tablist" aria-label={isArabic ? "أقسام غرفة الإثبات" : "Evidence sections"}>
+            {([
+              { id: "why", ar: "لماذا", en: "Why" },
+              { id: "readiness", ar: "جاهزية", en: "Readiness" },
+              { id: "ai", ar: "الذكاء", en: "AI" },
+              { id: "trust", ar: "الثقة", en: "Trust" },
+              { id: "payment", ar: "الدفع", en: "Payment" },
+              { id: "export", ar: "التصدير", en: "Export" },
+            ] as const).map((panel) => {
+              const active = activePanel === panel.id;
+              return (
+                <button
+                  key={panel.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setActivePanel(panel.id)}
+                  className={`ui-action border px-3 py-2 text-xs transition-colors ${active ? "border-[#C9A86A]/55 bg-[#C9A86A] text-[#0E0D10]" : "border-white/10 text-[#F7F3EC]/62 hover:border-[#C9A86A]/40 hover:text-[#C9A86A]"}`}
+                >
+                  {isArabic ? panel.ar : panel.en}
+                </button>
+              );
+            })}
+          </div>
+
+          {activePanel === "why" ? (
           <section className="mt-10 space-y-3">
             <p className="font-arsans text-base leading-8 text-[#F7F3EC]/72">
               {isArabic
@@ -143,14 +183,18 @@ export function EvidenceRoom({ language, safetyKeywordCount = 0, sessionCount = 
                 : "We chose an installable web app because one link is enough to try, install, and share with judges without app-store review delays."}
             </p>
           </section>
+          ) : null}
 
+          {activePanel === "readiness" ? (
           <section className="mt-10 space-y-4">
             <p className="ui-kicker">{isArabic ? "جاهزية التطبيق" : "App readiness"}</p>
             <EvidenceLine label={isArabic ? "ملف التثبيت موجود" : "Install manifest is available"} />
             <EvidenceLine label={isArabic ? "عامل التحديثات مفعّل" : "Update worker is active"} />
             <EvidenceLine label={isArabic ? "يعمل كتطبيق مستقل بعد التثبيت" : "Runs as a standalone app after install"} />
           </section>
+          ) : null}
 
+          {activePanel === "ai" ? (
           <section className="mt-10 space-y-4">
             <p className="ui-kicker">{isArabic ? "جاهزية الذكاء الاصطناعي" : "AI readiness"}</p>
             <EvidenceLine label={isArabic ? "المسار الحي يستخدم Google Vertex AI" : "Live route uses Google Vertex AI"} />
@@ -163,7 +207,36 @@ export function EvidenceRoom({ language, safetyKeywordCount = 0, sessionCount = 
                   : "Additional technical details available on request"}
             </p>
           </section>
+          ) : null}
 
+          {activePanel === "trust" ? (
+          <section className="mt-10 space-y-4 border border-emerald-300/25 bg-emerald-950/20 p-4">
+            <p className="ui-kicker text-emerald-200">{isArabic ? "بطاقة الثقة" : "Trust mode card"}</p>
+            <p className="font-arsans text-sm leading-7 text-[#F7F3EC]/68">
+              {isArabic
+                ? "هذه الإشارات تعرض حدود الأمان والخصوصية مباشرة للحكام من نفس النسخة الحية."
+                : "These signals expose live safety and privacy boundaries directly for judges from the same running build."}
+            </p>
+            <EvidenceLine
+              label={isArabic ? "فصل مساحة الطفل عن مساحة ولي الأمر" : "Child and parent workspaces are isolated"}
+              active={versionSnapshot?.trust?.workspaceIsolation !== false}
+            />
+            <EvidenceLine
+              label={isArabic ? "الرجوع لمساحة ولي الأمر يتحقق من الخادم" : "Parent return flow uses server-side verification"}
+              active={versionSnapshot?.trust?.parentReturnServerVerification !== false}
+            />
+            <EvidenceLine
+              label={isArabic ? "حفظ الجلسات آمن بدون قص JSON غير صالح" : "Session storage avoids unsafe JSON truncation"}
+              active={versionSnapshot?.trust?.safeSessionSnapshotStorage !== false}
+            />
+            <EvidenceLine
+              label={isArabic ? "الإشعارات تفشل بهدوء بدون كسر الواجهة" : "Notifications fail soft without breaking shell UI"}
+              active={versionSnapshot?.trust?.notificationsFailSoft !== false}
+            />
+          </section>
+          ) : null}
+
+          {activePanel === "payment" ? (
           <section className="mt-10 space-y-4">
             <p className="ui-kicker">{isArabic ? "حالة الدفع" : "Payment status"}</p>
             {successfulTransactions.length === 0 ? (
@@ -186,7 +259,9 @@ export function EvidenceRoom({ language, safetyKeywordCount = 0, sessionCount = 
               </div>
             )}
           </section>
+          ) : null}
 
+          {activePanel === "export" ? (
           <section className="mt-10 space-y-3">
             <p className="ui-kicker">{isArabic ? "تصدير لقطة الإثبات" : "Export evidence snapshot"}</p>
             <button type="button" onClick={downloadSnapshot} className="ui-action text-[#C9A86A] transition-colors hover:text-[#F7F3EC]">
@@ -198,16 +273,17 @@ export function EvidenceRoom({ language, safetyKeywordCount = 0, sessionCount = 
               <pre className="mt-5 whitespace-pre-wrap font-mono text-[10px] leading-5 text-[#F7F3EC]/35">{JSON.stringify(snapshot, null, 2)}</pre>
             )}
           </section>
+          ) : null}
         </aside>
       </div>
     </>
   );
 }
 
-function EvidenceLine({ label }: { label: string }) {
+function EvidenceLine({ label, active = true }: { label: string; active?: boolean }) {
   return (
-    <p className="font-arsans text-sm text-[#F7F3EC]/70">
-      <span className="text-emerald-300">✓</span> {label}
+    <p className={`font-arsans text-sm ${active ? "text-[#F7F3EC]/70" : "text-[#F7F3EC]/42"}`}>
+      <span className={active ? "text-emerald-300" : "text-amber-300"}>{active ? "✓" : "~"}</span> {label}
     </p>
   );
 }

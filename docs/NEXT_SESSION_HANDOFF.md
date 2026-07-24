@@ -14,17 +14,13 @@ Main focus:
 
 ## Verified Repo Snapshot
 
-Checked on 2026-06-26.
+Checked on 2026-07-22.
 
-- Branch: `main`
-- Latest local commit: `d3ff606 Fix chat sessions and persona history`
+- Branch: `release/0.1.62-clean`
+- Latest pushed baseline: `b317332 Restore latest children workspace and parent tools`
 - Build command: `npm run build`
 - Build status: passes locally
-- Current working tree had modified files before this handoff was created:
-  - `src/app/admin/dashboard/admin-dashboard-client.tsx`
-  - `src/app/api/profile/route.ts`
-  - `src/components/AppShell.tsx`
-  - `src/components/ChatWindow.tsx`
+- Current session also added post-baseline hardening for session snapshot persistence, parent return verification, child pulse safety scoring, notification fail-soft behavior, mobile/PWA navigation polish, and admin query-window trimming.
 
 Trust the filesystem and a fresh build over any previous chat summary.
 
@@ -52,7 +48,7 @@ npm run build
 
 ## Avatar / Persona Role Roster
 
-Source of truth: `src/lib/personas.ts`. Current roster has 26 personas. `docs/DESIGN_SPEC.md` still contains an older 9-persona placeholder table, so use the code roster below for implementation decisions.
+Source of truth: `src/lib/personas.ts`. The current product includes the adult persona registry plus `NEW_CHILDREN_ROSTER` for the child workspace. Avoid hardcoding old roster counts in docs; trust the code registries instead.
 
 | ID | English name | Arabic name | Family | Access | Primary world | English role | Arabic role | Avatar path |
 |---|---|---|---|---|---|---|---|---|

@@ -10,7 +10,7 @@ Talk freely. Feel understood. Move forward.
 
 ## Short Description
 
-FadFada is a bilingual AI wellbeing companion that gives people a private space to talk through text, voice, or video in English or Arabic. As the user shares, the interface shifts into calm, learning, story, faith, build, celebration, or stillness worlds before the reply appears, helping the person feel understood and turning emotional noise into a clear next step. It is designed as a PWA so users can access it instantly across phones, laptops, tablets, and shared lab machines.
+FadFada is a bilingual AI wellbeing companion that gives people a private space to talk through text, voice, or video in English or Arabic. As the user shares, the interface shifts into calm, learning, story, faith, build, celebration, or stillness worlds before the reply appears, helping the person feel understood and turning emotional noise into a clear next step. The current product also includes a parent + child workspace layer with child-safe companions, homework transformation, parenting playbooks, and a 7-day Parent Copilot Timeline. It is designed as a PWA so users can access it instantly across phones, laptops, tablets, and shared lab machines.
 
 ## Inspiration
 
@@ -34,16 +34,22 @@ FadFada lets users choose a conversation style, write or record what is on their
 - custom companion creation, avatar ratings, public notices, and saved profile moments
 - Learning Room with curated video, article, course, and document-style resources inside the chat
 - crisis keyword prototype with safety-first interruption and Find a Helpline routing
+- child profiles and separate child workspace mode
+- child-safe companion roster with parent-controlled switching
+- parent homework transformer from image or text hint
+- parent playbook generator for hard child moments
+- Parent Copilot Timeline summarizing the last 7 days per child
+- Dual Mirror Response showing one moment in two useful lanes
 - PWA manifest, service worker, app icon, and install prompt UI
 - admin analytics, visitor telemetry, notification composer, and avatar rating summaries
-- Evidence Room showing PWA readiness, Vertex AI readiness, deployment version, business positioning, and proof signals
+- Evidence Room showing PWA readiness, Vertex AI readiness, deployment version, business positioning, proof signals, and Trust Mode boundaries
 - downloadable Evidence Room JSON export for judges and Devpost evidence
 
 ## How We Built It
 
 The app is built with Next.js App Router, React, TypeScript, Tailwind CSS, Prisma, NextAuth, Neon Postgres, a web app manifest, and a service worker. The Gemini integration lives behind a server-side `/api/reflect` route and now runs through Google Cloud Vertex AI using Vercel OIDC and Google Workload Identity Federation, so production can use Google Cloud credits without storing service-account JSON keys. If Gemini is not configured or fails during a demo, the app falls back to a local reflection engine so the core experience remains demonstrable.
 
-The product shell was designed around hackathon evidence from day one. Instead of only building a beautiful chat surface, FadFada includes a judge-ready demo path, admin analytics, public notices, avatar ratings, PWA readiness checks, and an internal Evidence Room that can export proof as JSON.
+The product shell was designed around hackathon evidence from day one. Instead of only building a beautiful chat surface, FadFada includes a judge-ready demo path, parent and child workspace flows, admin analytics, public notices, avatar ratings, PWA readiness checks, and an internal Evidence Room that can export proof as JSON.
 
 ## Gemini Usage
 
@@ -60,6 +66,19 @@ Authentication to Google Cloud is keyless: Vercel sends an OIDC token to the ser
 
 The UI also records Gemini readiness as part of the Evidence Room so judges can see where the AI route fits into the product.
 
+## AI-Native Operations
+
+FadFada is not using AI as a decorative add-on. AI is actively part of the product's operating workflow:
+
+- the live reflection route uses Gemini in production for user-facing responses
+- the system routes moments into different worlds and companion behaviors
+- parents can transform homework into child-friendly activities through an AI-assisted workflow
+- parents can generate short playbooks for difficult family moments
+- Dual Mirror can render the same moment in two different useful interpretations
+- Story Mirror and related proof artifacts turn conversations into structured outputs judges can inspect
+
+This is the clearest way we satisfy the requirement that AI must be live inside the business workflow, not only mentioned in a prototype story.
+
 ## Business Model
 
 FadFada is designed as a real business, not only a demo. The initial validation path is:
@@ -69,20 +88,25 @@ FadFada is designed as a real business, not only a demo. The initial validation 
 - later subscription for text, voice, video, memory, and plans
 - team wellbeing pilots for universities, communities, and remote teams
 
-The Evidence Room is built to support the business story by collecting local signals such as sessions, feedback, safety events, beta interest, and exportable proof.
+The Evidence Room is built to support the business story by collecting signals such as sessions, feedback, safety events, beta interest, and exportable proof.
+
+For Devpost submission, revenue and expense evidence should be stated exactly as it is during the hackathon period, even if the value is currently zero. If revenue is still zero at submission time, that should be presented honestly together with user evidence, live deploy proof, and the business model path.
 
 ## Safety
 
 FadFada is not therapy, not diagnosis, and not emergency care. The product uses safety-first language and includes a crisis keyword prototype. When high-risk language appears, the app interrupts the normal reflection flow and points users toward emergency services, a trusted person, or Find a Helpline.
 
-Production safety work would include a stronger classifier, localized crisis resources, human review workflows, and abuse/immediate-danger routing beyond keyword matching.
+Production safety work would include stronger classifiers, localized crisis resources, human review workflows, and abuse/immediate-danger routing beyond keyword matching. The current build already includes visible Trust Mode proof, server-verified parent return for child workspace exit, safe session snapshot persistence, and fail-soft shell behavior when non-critical backend services are unavailable.
 
 ## What Makes It Different
 
 - Arabic and English from day one
 - text, voice, and video expression in one PWA
+- parent + child workspace architecture in the same product
 - human-feeling personas instead of a generic chatbot
 - Learning Room embedded inside emotional support conversations
+- Dual Mirror for two useful readings of the same moment
+- Parent Copilot Timeline for real family follow-through
 - safety and non-therapy positioning built into the product
 - Evidence Room and export designed for real business validation
 - judge-ready demo scenarios that show support, learning, safety, and celebration flows quickly
@@ -103,6 +127,9 @@ The technical challenge was balancing a strong demo with a real product directio
 - configured keyless Google Cloud auth through Vercel OIDC and Workload Identity Federation
 - added admin analytics, public notifications, profile moments, and avatar ratings
 - added crisis interruption prototype
+- added child workspace, child profiles, homework inbox, and parent-controlled switching
+- added Parent Playbook, Parent Copilot Timeline, and Trust Mode proof
+- added Dual Mirror judge-facing experience
 - built an in-chat Learning Room and maximized viewer
 - added judge demo scenarios
 - built Evidence Room with proof signals and JSON export
@@ -121,13 +148,26 @@ A wellbeing product wins trust through restraint. The best response is not alway
 - add production-grade safety classifier and localized crisis resources
 - record a 3-minute demo video using the live site, admin dashboard, and Evidence Room export
 
+## Submission Notes
+
+For the final Devpost entry, make sure the submission explicitly includes:
+
+- category selection aligned to the strongest business case
+- repository URL and testing access instructions
+- public demo video under 3 minutes if possible, or as close as possible while keeping the strongest proof first
+- revenue by month, total revenue, total expenses, and marketing spend, even if the answer is zero
+- user evidence, user breakdown, and any testimonials or feedback you are allowed to share
+- production proof such as live URL, evidence export, screenshots, agent/API usage signals, and admin/event screenshots
+- a clear statement that Gemini is used for at least one live LLM call in the deployed application
+
 ## Suggested Demo Flow
 
 1. Open FadFada and show the calm bilingual landing page.
 2. Switch from English to Arabic to show RTL support.
-3. Pick a persona and run the pressure support demo scenario.
-4. Run the Learning Room scenario and maximize a resource viewer.
-5. Run the safety scenario and show crisis interruption behavior.
-6. Show voice and video reflection controls.
-7. Open Evidence Room and export the JSON evidence file.
-8. Close with the founding beta plan and next deployment step.
+3. Run the judge scenario, then trigger Dual Mirror.
+4. Open the parent profile child section and show Parent Copilot Timeline.
+5. Show the homework transformer or Parent Playbook.
+6. Run the Learning Room scenario and maximize a resource viewer.
+7. Run the safety scenario and show crisis interruption behavior.
+8. Open Evidence Room, show Trust Mode, and export the JSON evidence file.
+9. Close with the live business model and next deployment step.

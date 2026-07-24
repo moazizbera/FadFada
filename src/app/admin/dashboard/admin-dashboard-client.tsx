@@ -6,6 +6,14 @@ import { useAppLocale } from "../../../components/AppShell";
 import { personas } from "../../../lib/personas";
 
 const adminRefreshIntervalMs = 30000;
+const analyticsRenderLimits = {
+  visitorsByRegion: 12,
+  registrationsByRegion: 12,
+  recentUsers: 80,
+  nameOnlyVisitors: 80,
+  visitorComments: 40,
+  avatarRatings: 40,
+} as const;
 
 export type AdminDashboardData = {
   configuration: {
@@ -165,6 +173,7 @@ type AdminDashboardClientProps = {
 };
 
 type AdminTab = "dashboard" | "configuration" | "users" | "personas" | "families" | "offers" | "sessions";
+type DashboardPanel = "overview" | "acquisition" | "engagement" | "business";
 
 const copy = {
   ar: {
@@ -311,14 +320,28 @@ const copy = {
   },
 } as const;
 
-export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientProps) {
+export function AdminDashboardClient({ data: rawData, auditHref }: AdminDashboardClientProps) {
   const { language, direction } = useAppLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const data = sanitizeDashboardData(rawData);
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
-  const [lastRefreshedAt, setLastRefreshedAt] = useState(() => new Date());
+  const [activeDashboardPanel, setActiveDashboardPanel] = useState<DashboardPanel>("overview");
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const labels = copy[language];
   const locale = language === "ar" ? "ar-EG" : "en-US";
+  const cappedVisitorsByRegion = data.visitorsByRegion.slice(0, analyticsRenderLimits.visitorsByRegion);
+  const cappedRegistrationsByRegion = data.registrationsByRegion.slice(0, analyticsRenderLimits.registrationsByRegion);
+  const cappedRecentUsers = data.recentUsers.slice(0, analyticsRenderLimits.recentUsers);
+  const cappedNameOnlyVisitors = data.nameOnlyVisitors.slice(0, analyticsRenderLimits.nameOnlyVisitors);
+  const cappedVisitorComments = data.visitorComments.slice(0, analyticsRenderLimits.visitorComments);
+  const cappedAvatarRatings = data.avatarRatings.slice(0, analyticsRenderLimits.avatarRatings);
+  const delayedFeedLikely = data.totalVisitors === 0
+    && data.registeredUsers === 0
+    && data.interactionTotals.starterTaps === 0
+    && data.interactionTotals.savedMoments === 0
+    && data.interactionTotals.visitorComments === 0
+    && data.interactionTotals.pwaInstalls === 0;
   const conversionRate = data.totalVisitors > 0 ? `${Math.round((data.registeredUsers / data.totalVisitors) * 100)}%` : "0%";
   const healthScore = buildAdminHealthScore(data, language);
   const metricRows = [
@@ -342,7 +365,17 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
       { label: labels.metrics.pwaInstalls, value: formatNumber(data.interactionTotals.pwaInstalls, locale) },
     ],
   ];
-  const narrativeTimeline = buildNarrativeTimeline(data, language, locale, labels.unnamedProfile, labels.unknownLocation);
+  const narrativeTimeline = buildNarrativeTimeline(
+    {
+      ...data,
+      recentUsers: cappedRecentUsers,
+      visitorComments: cappedVisitorComments,
+    },
+    language,
+    locale,
+    labels.unnamedProfile,
+    labels.unknownLocation
+  );
 
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -360,6 +393,8 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
       router.refresh();
       setLastRefreshedAt(new Date());
     }
+
+    setLastRefreshedAt(new Date());
 
     const intervalId = window.setInterval(refreshAdminData, adminRefreshIntervalMs);
     window.addEventListener("focus", refreshAdminData);
@@ -380,13 +415,44 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
           <h1 className="mt-3 font-arserif text-5xl text-bone/95">{labels.title}</h1>
           <p className="mt-4 max-w-2xl font-arsans text-sm leading-7 text-bone/60">{labels.intro}</p>
           <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="ltr">
-            {labels.autoRefreshLabel} · {labels.lastUpdatedLabel}: {formatTime(lastRefreshedAt, locale)}
+            {labels.autoRefreshLabel} · {labels.lastUpdatedLabel}: {lastRefreshedAt ? formatTime(lastRefreshedAt, locale) : "--:--:--"}
           </p>
+          {delayedFeedLikely ? (
+            <p className="mt-3 border border-amber-200/20 bg-amber-200/[0.05] px-3 py-2 font-arsans text-xs leading-6 text-amber-100/85">
+              {language === "ar"
+                ? "التحليلات ما تزال هادئة جداً. قد يكون هذا بسبب تأخر مزامنة الأحداث أو عدم وجود نشاط حديث."
+                : "Analytics look very quiet right now. This can happen when event sync is delayed or there is no recent activity."}
+            </p>
+          ) : null}
         </div>
 
         {activeTab === "dashboard" ? (
           <>
+        <div className="mt-6 flex flex-wrap gap-2" role="tablist" aria-label={language === "ar" ? "أقسام لوحة القياس" : "Dashboard sections"}>
+          {([
+            { id: "overview", ar: "ملخص", en: "Overview" },
+            { id: "acquisition", ar: "الزوار", en: "Acquisition" },
+            { id: "engagement", ar: "التفاعل", en: "Engagement" },
+            { id: "business", ar: "الأعمال", en: "Business" },
+          ] as const).map((panel) => {
+            const active = activeDashboardPanel === panel.id;
+            return (
+              <button
+                key={panel.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setActiveDashboardPanel(panel.id)}
+                className={`ui-action border px-3 py-2 text-xs transition-colors ${active ? "border-gold/55 bg-gold text-ink" : "border-white/10 text-bone/72 hover:border-gold/35 hover:text-gold"}`}
+              >
+                {language === "ar" ? panel.ar : panel.en}
+              </button>
+            );
+          })}
+        </div>
 
+        {activeDashboardPanel === "overview" ? (
+          <>
         <section className="grid gap-4 border-b border-gold/20 py-8 md:grid-cols-[0.7fr_1.3fr]">
           <div className="border border-gold/25 bg-gold/[0.035] p-5">
             <p className="ui-kicker text-gold">{language === "ar" ? "صحة المنتج" : "Product health"}</p>
@@ -412,8 +478,8 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
             <LiveRoomTile label={labels.metrics.pwaInstalls} value={formatNumber(data.interactionTotals.pwaInstalls, locale)} accent="bg-cyan-200" />
           </div>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
-            <LiveSignal label={language === "ar" ? "آخر عضو" : "Latest member"} value={data.recentUsers[0]?.name || data.recentUsers[0]?.email || labels.unnamedProfile} detail={data.recentUsers[0] ? `${formatTier(data.recentUsers[0].activeTier, language)} · ${formatDate(data.recentUsers[0].createdAt, locale)}` : labels.emptySignups} />
-            <LiveSignal label={language === "ar" ? "آخر تعليق" : "Latest comment"} value={data.visitorComments[0]?.comment || labels.emptyComments} detail={data.visitorComments[0] ? formatDate(data.visitorComments[0].createdAt, locale) : ""} />
+            <LiveSignal label={language === "ar" ? "آخر عضو" : "Latest member"} value={cappedRecentUsers[0]?.name || cappedRecentUsers[0]?.email || labels.unnamedProfile} detail={cappedRecentUsers[0] ? `${formatTier(cappedRecentUsers[0].activeTier, language)} · ${formatDate(cappedRecentUsers[0].createdAt, locale)}` : labels.emptySignups} />
+            <LiveSignal label={language === "ar" ? "آخر تعليق" : "Latest comment"} value={cappedVisitorComments[0]?.comment || labels.emptyComments} detail={cappedVisitorComments[0] ? formatDate(cappedVisitorComments[0].createdAt, locale) : ""} />
             <LiveSignal label={language === "ar" ? "آخر جلسة" : "Latest session"} value={data.chatSessions[0]?.title || (language === "ar" ? "لا توجد جلسات" : "No sessions yet")} detail={data.chatSessions[0] ? `${data.chatSessions[0].userLabel} · ${formatNumber(data.chatSessions[0].messageCount, locale)} ${language === "ar" ? "رسائل" : "messages"}` : ""} />
           </div>
           <div className="mt-5 border-t border-white/10 pt-5">
@@ -431,22 +497,28 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
             {row.map((metric) => <MetricCard key={metric.label} label={metric.label} value={metric.value} />)}
           </section>
         ))}
+          </>
+        ) : null}
 
+        {activeDashboardPanel === "acquisition" ? (
+          <>
         <DashboardListSection kicker={labels.sections.visitorsKicker} title={labels.sections.visitorsTitle} description={labels.sections.visitorsDescription}>
-          {data.visitorsByRegion.length > 0 ? data.visitorsByRegion.map((entry) => (
+          {cappedVisitorsByRegion.length > 0 ? cappedVisitorsByRegion.map((entry) => (
             <ProgressRow key={entry.location} label={entry.location} value={entry.count} width={Math.min(100, entry.count * 12)} color="bg-gold/80" locale={locale} />
           )) : <EmptyMetric label={labels.emptyVisits} />}
+          <RenderLimitHint language={language} shown={cappedVisitorsByRegion.length} total={data.visitorsByRegion.length} />
         </DashboardListSection>
 
         <DashboardListSection kicker={labels.sections.registrationKicker} title={labels.sections.registrationTitle} description={labels.sections.registrationDescription}>
-          {data.registrationsByRegion.length > 0 ? data.registrationsByRegion.map((entry) => (
+          {cappedRegistrationsByRegion.length > 0 ? cappedRegistrationsByRegion.map((entry) => (
             <ProgressRow key={entry.location} label={entry.location || labels.unknownLocation} value={entry.count} width={Math.min(100, entry.count * 18)} color="bg-emerald-300/80" locale={locale} />
           )) : <EmptyMetric label={labels.emptySignups} />}
+          <RenderLimitHint language={language} shown={cappedRegistrationsByRegion.length} total={data.registrationsByRegion.length} />
         </DashboardListSection>
 
         <DashboardListSection kicker={labels.sections.nameOnlyKicker} title={labels.sections.nameOnlyTitle} description={labels.sections.nameOnlyDescription}>
           <div className="max-h-[24rem] space-y-4 overflow-y-auto pr-2 [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
-            {data.nameOnlyVisitors.length > 0 ? data.nameOnlyVisitors.map((visitor) => (
+            {cappedNameOnlyVisitors.length > 0 ? cappedNameOnlyVisitors.map((visitor) => (
               <article key={visitor.id} className="grid grid-cols-[1fr_auto] items-center gap-4 border-b border-white/10 pb-4">
                 <span className="min-w-0">
                   <span className="block truncate font-ensans text-sm text-bone/90" dir="auto">{visitor.name}</span>
@@ -456,12 +528,13 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
                 <span className="rounded-full border border-amber-200/25 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-amber-100/80">{language === "ar" ? "اسم فقط" : "Name only"}</span>
               </article>
             )) : <EmptyMetric label={labels.emptyNameOnlyVisitors} />}
+            <RenderLimitHint language={language} shown={cappedNameOnlyVisitors.length} total={data.nameOnlyVisitors.length} />
           </div>
         </DashboardListSection>
 
         <DashboardListSection kicker={labels.sections.funnelKicker} title={labels.sections.funnelTitle} description={labels.sections.funnelDescription}>
           <div className="max-h-[28rem] space-y-4 overflow-y-auto pr-2 [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
-            {data.recentUsers.map((user) => (
+            {cappedRecentUsers.length > 0 ? cappedRecentUsers.map((user) => (
               <div key={user.id} className="grid grid-cols-[2.25rem_1fr_auto] items-center gap-4 border-b border-white/10 pb-4">
                 <span className="grid h-9 w-9 place-items-center rounded-2xl border border-white/10 bg-slate-950 font-mono text-xs uppercase text-gold shadow-xl">{user.provider.slice(0, 1)}</span>
                 <span className="min-w-0">
@@ -471,10 +544,15 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
                 </span>
                 <span className="font-arsans text-xs text-gold">{formatTier(user.activeTier, language)}</span>
               </div>
-            ))}
+            )) : <EmptyMetric label={labels.emptySignups} />}
+            <RenderLimitHint language={language} shown={cappedRecentUsers.length} total={data.recentUsers.length} />
           </div>
         </DashboardListSection>
+          </>
+        ) : null}
 
+        {activeDashboardPanel === "business" ? (
+          <>
         <DashboardListSection kicker={labels.sections.plansKicker} title={labels.sections.plansTitle} description={labels.sections.plansDescription}>
           <div className="space-y-6">
             {data.distribution.map((entry) => (
@@ -489,7 +567,7 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
 
         <DashboardListSection kicker={labels.sections.commentsKicker} title={labels.sections.commentsTitle} description={labels.sections.commentsDescription}>
           <div className="max-h-[28rem] space-y-4 overflow-y-auto pr-2 [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
-            {data.visitorComments.length > 0 ? data.visitorComments.map((comment) => (
+            {cappedVisitorComments.length > 0 ? cappedVisitorComments.map((comment) => (
               <article key={comment.id} className="border border-white/10 bg-white/[0.025] p-4">
                 <p className="font-arsans text-sm leading-7 text-bone/78" dir="auto">{comment.comment}</p>
                 <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="ltr">
@@ -497,6 +575,7 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
                 </p>
               </article>
             )) : <EmptyMetric label={labels.emptyComments} />}
+            <RenderLimitHint language={language} shown={cappedVisitorComments.length} total={data.visitorComments.length} />
           </div>
         </DashboardListSection>
 
@@ -516,10 +595,14 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
             ) : null}
           </div>
         </DashboardListSection>
+          </>
+        ) : null}
 
+        {activeDashboardPanel === "engagement" ? (
+          <>
         <DashboardListSection kicker={labels.sections.avatarsKicker} title={labels.sections.avatarsTitle} description={labels.sections.avatarsDescription}>
           <div className="space-y-4">
-            {data.avatarRatings.length > 0 ? data.avatarRatings.map((rating) => (
+            {cappedAvatarRatings.length > 0 ? cappedAvatarRatings.map((rating) => (
               <div key={rating.personaId} className="border border-white/10 bg-white/[0.025] p-4">
                 <div className="flex items-baseline justify-between gap-4">
                   <p className="font-arsans text-sm text-bone/88">{language === "ar" ? rating.personaNameAr : rating.personaNameEn}</p>
@@ -533,13 +616,17 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
                 </p>
               </div>
             )) : <EmptyMetric label={labels.emptyAvatarRatings} />}
+            <RenderLimitHint language={language} shown={cappedAvatarRatings.length} total={data.avatarRatings.length} />
           </div>
         </DashboardListSection>
 
         <DashboardListSection kicker={labels.sections.notificationsKicker} title={labels.sections.notificationsTitle} description={labels.sections.notificationsDescription}>
           <NotificationComposer language={language} locale={locale} notifications={data.recentNotifications} emptyLabel={labels.emptyNotifications} />
         </DashboardListSection>
+          </>
+        ) : null}
 
+        {activeDashboardPanel === "business" ? (
         <section className="grid gap-10 py-10 md:grid-cols-[0.85fr_1.15fr]">
           <SectionIntro kicker={labels.sections.auditKicker} title={labels.sections.auditTitle} description={labels.sections.auditDescription} />
           <div className="flex items-center justify-between gap-5 border-y border-white/10 py-5 max-sm:flex-col max-sm:items-stretch">
@@ -549,6 +636,7 @@ export function AdminDashboardClient({ data, auditHref }: AdminDashboardClientPr
             </a>
           </div>
         </section>
+        ) : null}
           </>
         ) : null}
 
@@ -1345,6 +1433,77 @@ function buildAdminHealthScore(data: AdminDashboardData, language: Locale) {
   };
 }
 
+function sanitizeDashboardData(input: AdminDashboardData): AdminDashboardData {
+  const toCount = (value: unknown) => {
+    const next = Number(value);
+    if (!Number.isFinite(next)) return 0;
+    return Math.max(0, Math.round(next));
+  };
+
+  return {
+    ...input,
+    totalVisitors: toCount(input.totalVisitors),
+    registeredUsers: toCount(input.registeredUsers),
+    interactionTotals: {
+      starterTaps: toCount(input.interactionTotals?.starterTaps),
+      savedMoments: toCount(input.interactionTotals?.savedMoments),
+      capsules: toCount(input.interactionTotals?.capsules),
+      helpful: toCount(input.interactionTotals?.helpful),
+      softer: toCount(input.interactionTotals?.softer),
+      shares: toCount(input.interactionTotals?.shares),
+      visitorComments: toCount(input.interactionTotals?.visitorComments),
+      nameOnlyVisitors: toCount(input.interactionTotals?.nameOnlyVisitors),
+      pwaInstalls: toCount(input.interactionTotals?.pwaInstalls),
+    },
+    visitorsByRegion: (input.visitorsByRegion || []).map((entry) => ({
+      location: entry.location || "unknown",
+      count: toCount(entry.count),
+    })),
+    registrationsByRegion: (input.registrationsByRegion || []).map((entry) => ({
+      location: entry.location || "unknown",
+      count: toCount(entry.count),
+    })),
+    recentUsers: input.recentUsers || [],
+    discountOffers: input.discountOffers || [],
+    chatSessions: (input.chatSessions || []).map((session) => ({
+      ...session,
+      messageCount: toCount(session.messageCount),
+    })),
+    parentChildSummaries: input.parentChildSummaries || [],
+    distribution: (input.distribution || []).map((entry) => ({
+      ...entry,
+      userCount: toCount(entry.userCount),
+      monthlyRevenueMinor: toCount(entry.monthlyRevenueMinor),
+    })),
+    nameOnlyVisitors: input.nameOnlyVisitors || [],
+    visitorComments: input.visitorComments || [],
+    pwaInstalls: input.pwaInstalls || [],
+    pwaDeviceBreakdown: (input.pwaDeviceBreakdown || []).map((entry) => ({
+      ...entry,
+      count: toCount(entry.count),
+    })),
+    avatarRatings: (input.avatarRatings || []).map((entry) => ({
+      ...entry,
+      ratingCount: toCount(entry.ratingCount),
+      averageRating: Number.isFinite(entry.averageRating) ? Math.max(0, Math.min(5, entry.averageRating)) : 0,
+      latestRating: toCount(entry.latestRating),
+    })),
+    recentNotifications: input.recentNotifications || [],
+  };
+}
+
+function RenderLimitHint({ language, shown, total }: { language: Locale; shown: number; total: number }) {
+  if (total <= shown) return null;
+
+  return (
+    <p className="font-arsans text-xs text-bone/42">
+      {language === "ar"
+        ? `عرض ${formatNumber(shown, "ar-EG")} من ${formatNumber(total, "ar-EG")} عنصر لحماية الأداء.`
+        : `Showing ${formatNumber(shown, "en-US")} of ${formatNumber(total, "en-US")} items for dashboard performance.`}
+    </p>
+  );
+}
+
 function EmptyMetric({ label }: { label: string }) {
   return <p className="border border-dashed border-white/10 px-4 py-5 font-arsans text-sm text-bone/40">{label}</p>;
 }
@@ -1366,7 +1525,7 @@ function formatNumber(value: number, locale: string) {
 }
 
 function formatDate(value: string, locale: string) {
-  return new Intl.DateTimeFormat(locale, { month: "short", day: "2-digit", year: "numeric" }).format(new Date(value));
+  return new Intl.DateTimeFormat(locale, { month: "short", day: "2-digit", year: "numeric", timeZone: "UTC" }).format(new Date(value));
 }
 
 function formatAdminUserDates(user: AdminDashboardData["recentUsers"][number], language: Locale, locale: string) {

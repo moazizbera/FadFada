@@ -112,6 +112,15 @@ const visiblePwaInstallWhere = {
   ],
 };
 const nameOnlyVisitorWhere = { eventType: "visitor_name_register" };
+const adminRecentWindows = {
+  avatarRatings: 400,
+  adminGifts: 400,
+  personaGrantEvents: 600,
+  personaGrantSetEvents: 400,
+  chatSessions: 300,
+  childProfiles: 250,
+  childConversationEvents: 800,
+} as const;
 
 function getAuditEncryptionKey() {
   return crypto.createHash("sha256").update(process.env.AUDIT_EXPORT_KEY || process.env.NEXTAUTH_SECRET || "fadfada-local-audit-key").digest();
@@ -230,7 +239,7 @@ async function buildDashboardData() {
     prisma.interactionEvent.findMany({
       where: { eventType: "avatar_rating" },
       orderBy: { createdAt: "desc" },
-      take: 1000,
+      take: adminRecentWindows.avatarRatings,
     }),
     prisma.interactionEvent.findMany({
       where: { eventType: "admin_notification" },
@@ -245,17 +254,17 @@ async function buildDashboardData() {
     prisma.interactionEvent.findMany({
       where: { eventType: "admin_user_gift" },
       orderBy: { createdAt: "desc" },
-      take: 1000,
+      take: adminRecentWindows.adminGifts,
     }),
     prisma.interactionEvent.findMany({
       where: { eventType: "admin_persona_grant" },
       orderBy: { createdAt: "desc" },
-      take: 2000,
+      take: adminRecentWindows.personaGrantEvents,
     }),
     prisma.interactionEvent.findMany({
       where: { eventType: "admin_persona_grants_set" },
       orderBy: { createdAt: "desc" },
-      take: 2000,
+      take: adminRecentWindows.personaGrantSetEvents,
     }),
     prisma.interactionEvent.findMany({
       where: { eventType: "admin_discount_offer" },
@@ -265,7 +274,7 @@ async function buildDashboardData() {
     prisma.interactionEvent.findMany({
       where: { eventType: "chat_session_snapshot" },
       orderBy: { createdAt: "desc" },
-      take: 1000,
+      take: adminRecentWindows.chatSessions,
       include: {
         user: {
           select: {
@@ -278,7 +287,7 @@ async function buildDashboardData() {
     }),
     prisma.childProfile.findMany({
       orderBy: { createdAt: "desc" },
-      take: 500,
+      take: adminRecentWindows.childProfiles,
       include: {
         parent: {
           select: {
@@ -299,7 +308,7 @@ async function buildDashboardData() {
     prisma.interactionEvent.findMany({
       where: { eventType: "child_conversation_turn" },
       orderBy: { createdAt: "desc" },
-      take: 2000,
+      take: adminRecentWindows.childConversationEvents,
       select: {
         userId: true,
         metadataJson: true,

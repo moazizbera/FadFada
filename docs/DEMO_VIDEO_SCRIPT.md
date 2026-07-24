@@ -1,6 +1,6 @@
 # Demo Video Script
 
-Target length: 3 minutes
+Target length: 3 to 3.25 minutes
 
 ## 0:00-0:15 Opening
 
@@ -31,13 +31,13 @@ Shot checklist:
 - persona strip
 - selected persona portrait/name
 
-## 0:35-1:05 Support Conversation
+## 0:35-1:05 Support Conversation + Dual Mirror
 
 Use the in-app Demo Runbook and tap the pressure/support scenario.
 
 Voiceover:
 
-"The core experience is a professional full-screen chat. The user can write naturally, and FadFada responds in the same language with a warm reflection and a small next-step plan. The goal is not to diagnose. The goal is to help the user feel heard first, then move toward one practical action."
+"The core experience is a professional full-screen chat. The user can write naturally, and FadFada responds in the same language with a warm reflection and a small next-step plan. Then, with one tap, Dual Mirror shows the same moment in two useful lanes: empathy and action. The goal is not to diagnose. The goal is to help the user feel heard first, then move toward one practical action."
 
 Shot checklist:
 
@@ -45,6 +45,7 @@ Shot checklist:
 - sender and companion bubbles
 - adaptive presence orb
 - next-step plan panel
+- Dual Mirror button and side-by-side output
 
 ## 1:05-1:35 Learning Room
 
@@ -90,23 +91,40 @@ Shot checklist:
 - crisis plan
 - Find a Helpline CTA
 
-## 2:25-2:50 Evidence Room
+## 2:25-2:50 Evidence Room + Trust Mode
 
 Scroll to Evidence Room and click export evidence.
 
 Voiceover:
 
-"For the Build with Gemini XPRIZE, we also built an Evidence Room. It shows PWA readiness, live Vertex AI readiness, deployment version, business positioning, and proof signals. The team can export a JSON evidence file for judges and Devpost review."
+"For the Build with Gemini XPRIZE, we also built an Evidence Room. It shows PWA readiness, live Vertex AI readiness, deployment version, business positioning, and a Trust Mode card with live proof of workspace isolation, server-verified parent return, safe session persistence, and fail-soft shell behavior. The team can export a JSON evidence file for judges and Devpost review."
 
 Shot checklist:
 
 - Evidence Room metrics
 - proof signals
+- Trust Mode card
 - Vertex AI readiness line
 - Export evidence button
 - downloaded JSON file name
 
-## 2:50-3:00 Close
+## 2:50-3:05 Parent + Child Proof
+
+Open the parent profile child section.
+
+Voiceover:
+
+"FadFada now includes a family-safe layer. Parents can create separate child profiles, switch into a child-safe workspace, send structured homework, generate short parenting playbooks, and review a Parent Copilot Timeline that summarizes the last seven days and suggests one next move."
+
+Shot checklist:
+
+- child profiles section
+- Parent Copilot Timeline
+- parent pulse snapshot
+- homework transformer card
+- Parent Playbook card
+
+## 3:05-3:15 Close
 
 Show final product screen or README/Devpost title.
 

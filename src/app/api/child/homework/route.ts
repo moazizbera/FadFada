@@ -32,6 +32,15 @@ type HomeworkAssignment = HomeworkPayload & {
   assignedAt: string;
   childProfileId: string;
   source: "image" | "hint";
+  missionCompleted: boolean;
+  missionCompletedAt: string | null;
+  missionPoints: number;
+};
+
+type MissionSummary = {
+  completedCount7d: number;
+  streakDays: number;
+  pointsTotal7d: number;
 };
 
 export async function GET() {
@@ -50,26 +59,58 @@ export async function GET() {
   const events = await prisma.interactionEvent.findMany({
     where: {
       userId,
-      eventType: "child_homework_assignment",
+      eventType: { in: ["child_homework_assignment", "child_mission_completion"] },
     },
     orderBy: { createdAt: "desc" },
-    take: 30,
+    take: 160,
     select: {
+      eventType: true,
       id: true,
       metadataJson: true,
       createdAt: true,
     },
   });
 
+  const completionByAssignment = new Map<string, { completedAt: string; missionPoints: number }>();
+  const completionDates = new Set<string>();
+  let pointsTotal7d = 0;
+
+  for (const event of events) {
+    if (event.eventType !== "child_mission_completion") continue;
+    const completion = parseMissionCompletion(event, childContext.childProfileId);
+    if (!completion) continue;
+
+    if (!completionByAssignment.has(completion.assignmentId)) {
+      completionByAssignment.set(completion.assignmentId, {
+        completedAt: completion.completedAt,
+        missionPoints: completion.missionPoints,
+      });
+    }
+
+    pointsTotal7d += completion.missionPoints;
+    completionDates.add(completion.completedAt.slice(0, 10));
+  }
+
   const assignments = events
-    .map((event) => parseHomeworkAssignment(event, childContext.childProfileId))
+    .filter((event) => event.eventType === "child_homework_assignment")
+    .map((event) => parseHomeworkAssignment(event, childContext.childProfileId, completionByAssignment.get(event.id)))
     .filter((assignment): assignment is HomeworkAssignment => Boolean(assignment))
     .slice(0, 6);
 
-  return NextResponse.json({ assignments });
+  const missionSummary: MissionSummary = {
+    completedCount7d: completionByAssignment.size,
+    streakDays: computeCompletionStreakDays(completionDates),
+    pointsTotal7d,
+  };
+
+  return NextResponse.json({ assignments, missionSummary });
 }
 
-function parseHomeworkAssignment(event: { id: string; metadataJson: string | null; createdAt: Date }, childProfileId: string): HomeworkAssignment | null {
+function parseHomeworkAssignment(
+  event: { id: string; metadataJson: string | null; createdAt: Date },
+  childProfileId: string,
+  missionCompletion?: { completedAt: string; missionPoints: number }
+): HomeworkAssignment | null {
   if (!event.metadataJson) return null;
 
   try {
@@ -102,10 +143,59 @@ function parseHomeworkAssignment(event: { id: string; metadataJson: string | nul
       detectedTask: cleanText(homework.detectedTask, "Homework practice"),
       childIntro: cleanText(homework.childIntro, "Ready? Let’s practice together."),
       activities,
+      missionCompleted: Boolean(missionCompletion),
+      missionCompletedAt: missionCompletion?.completedAt || null,
+      missionPoints: missionCompletion?.missionPoints || 0,
     };
   } catch {
     return null;
   }
+}
+
+function parseMissionCompletion(event: { metadataJson: string | null; createdAt: Date }, childProfileId: string) {
+  if (!event.metadataJson) return null;
+
+  try {
+    const parsed = JSON.parse(event.metadataJson) as Record<string, unknown>;
+    if (parsed.childProfileId !== childProfileId) return null;
+
+    const assignmentId = typeof parsed.assignmentId === "string" ? parsed.assignmentId : "";
+    if (!assignmentId) return null;
+
+    const missionPoints = clampMissionPoints(parsed.missionPoints);
+    const completedAt = typeof parsed.completedAt === "string" ? parsed.completedAt : event.createdAt.toISOString();
+
+    return {
+      assignmentId,
+      missionPoints,
+      completedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function clampMissionPoints(value: unknown) {
+  const points = Number(value);
+  if (!Number.isFinite(points)) return 5;
+  return Math.max(1, Math.min(20, Math.round(points)));
+}
+
+function computeCompletionStreakDays(dateKeys: Set<string>) {
+  if (dateKeys.size === 0) return 0;
+
+  let streak = 0;
+  let cursor = new Date();
+  cursor.setUTCHours(0, 0, 0, 0);
+
+  while (true) {
+    const key = cursor.toISOString().slice(0, 10);
+    if (!dateKeys.has(key)) break;
+    streak += 1;
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+  }
+
+  return streak;
 }
 
 function normalizeSubject(value: unknown): HomeworkPayload["subject"] {

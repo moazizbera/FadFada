@@ -5,8 +5,8 @@ FadFada is an Arabic-first bilingual emotional reflection and personal growth PW
 Live app: https://fad-fada.vercel.app
 
 Production snapshot:
-- Latest verified release: `0.1.68-676b5d1`.
-- Current companion model: 32-avatar professional expert system.
+- Latest verified release: `0.1.110-7ed48bd`.
+- Current companion system: adult expert roster plus child-safe companion roster with parent workspace tools.
 - Production AI provider: Vertex AI / Gemini 2.5 Flash when configured, with local fallback behavior.
 
 ## Current Status
@@ -56,6 +56,8 @@ This README is written for three audiences:
 - Early Believer Badge for follower growth and launch sharing.
 - Follower-ready launch posts and judge-ready pitch text.
 - Profile page with saved moments, snapshots, quests, tiny plans, public identity, profile logo/image, and social links.
+- Child workspace with child profiles, child-safe companions, child homework inbox, and parent-controlled switching.
+- Parent tools for homework transformation, parent playbooks, and child pulse summaries.
 - Admin dashboard with visitor/event/comment telemetry, avatar ratings, geographic visit sources, and product signals.
 - Legal, pricing, privacy, refund, and terms pages for payment-provider review.
 
@@ -67,16 +69,16 @@ FadFada is organized around two main modules: the user-facing Chat module and th
 
 | Screen / module | Primary users | Purpose | Main implementation |
 |---|---|---|---|
-| Public app shell | Visitors, signed users, Plus users | Language direction, global navigation, account entry, PWA update handling, notifications | `src/components/AppShell.tsx` |
-| Chat experience | Visitors, signed users, Plus users | Main emotional reflection, companion selection, messages, voice, worlds, saved artifacts, and name gate | `src/components/ChatWindow.tsx` |
+| Public app shell | Visitors, signed users, Plus users, parents, children | Language direction, global navigation, account entry, workspace switching, PWA update handling, notifications | `src/components/AppShell.tsx` |
+| Chat experience | Visitors, signed users, Plus users, children | Main emotional reflection, companion selection, messages, voice, worlds, saved artifacts, child-safe flows, and name gate | `src/components/ChatWindow.tsx` |
 | Companion drawer | Visitors, signed users, Plus users | Browse avatars, see available companions, select persona, rate avatars, manage custom persona | `src/components/PersonaDrawer.tsx` |
 | Tools dialog | Visitors, signed users, Plus users | Daily Pulse, worlds, prompts, demo keys, plan comparison, about/product info, visitor comments | `src/components/ChatWindow.tsx` internal panels |
-| Profile | Signed users | Saved moments, snapshots, quests, tiny plans, identity, profile image/logo, social links | `src/app/profile/profile-client.tsx` |
+| Profile | Signed users / parents | Saved moments, snapshots, quests, tiny plans, identity, profile image/logo, social links, child profile management, parent tools | `src/app/profile/profile-client.tsx` |
 | Pricing | Visitors and buyers | Explain paid plan and checkout entry | `src/app/pricing/page.tsx`, `src/components/PaddleCheckoutLauncher.tsx` |
 | Admin dashboard | Admins, analysts, operators | Metrics, visitors, users, avatar ratings, gifts, grants, discounts, global runtime configuration, audit export | `src/app/admin/dashboard/page.tsx`, `src/app/admin/dashboard/admin-dashboard-client.tsx` |
 | Admin login | Admins | Protected sign-in entry for admin users | `src/app/admin/login/page.tsx` |
 | Legal pages | Users, payment reviewers | Privacy, terms, refund policy, payment-provider review support | `src/app/privacy`, `src/app/terms`, `src/app/refund` |
-| API layer | App, Admin, webhooks | Reflection, profile, chat sessions, runtime config, telemetry, payments, notifications, visitor logging | `src/app/api/**` |
+| API layer | App, Admin, parents, children, webhooks | Reflection, profile, chat sessions, parent tools, child homework, runtime config, telemetry, payments, notifications, visitor logging | `src/app/api/**` |
 
 ### Product Owner Reference
 

@@ -47,6 +47,7 @@ type ChildWorkspaceSessionUpdate = {
   childProfileId?: unknown;
   activeChildProfileId?: unknown;
   clearChildProfile?: unknown;
+  parentReturnCode?: unknown;
 };
 
 function getConfiguredProviders(): NextAuthOptions["providers"] {
@@ -181,6 +182,41 @@ export function inferChildAgeBand(birthYear: number, referenceDate = new Date())
   if (age <= 10) return "8_to_10";
   if (age <= 12) return "11_to_12";
   return "13_plus";
+}
+
+function getUtcDateKey(referenceDate: Date) {
+  const year = referenceDate.getUTCFullYear();
+  const month = String(referenceDate.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(referenceDate.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function deriveParentReturnCodeFromDateKey(userId: string, dateKey: string) {
+  const seed = `${userId}:${dateKey}:${process.env.NEXTAUTH_SECRET || "fadfada-parent-return"}`;
+  const digest = crypto.createHash("sha256").update(seed).digest("hex");
+  const numericWindow = parseInt(digest.slice(0, 8), 16);
+  return String((numericWindow % 9000) + 1000);
+}
+
+export function buildParentReturnCode(userId: string, referenceDate = new Date()) {
+  const dateKey = getUtcDateKey(referenceDate);
+  const code = deriveParentReturnCodeFromDateKey(userId, dateKey);
+  const expiresAt = new Date(Date.UTC(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth(), referenceDate.getUTCDate() + 1, 0, 0, 0, 0));
+  return { code, expiresAt: expiresAt.toISOString() };
+}
+
+export function verifyParentReturnCode(userId: string, inputCode: string, referenceDate = new Date()) {
+  const normalizedInput = (inputCode || "").replace(/\D/g, "").slice(0, 4);
+  if (normalizedInput.length !== 4) return false;
+
+  const currentDateKey = getUtcDateKey(referenceDate);
+  const previousDate = new Date(referenceDate);
+  previousDate.setUTCDate(previousDate.getUTCDate() - 1);
+  const previousDateKey = getUtcDateKey(previousDate);
+
+  const currentCode = deriveParentReturnCodeFromDateKey(userId, currentDateKey);
+  const previousCode = deriveParentReturnCodeFromDateKey(userId, previousDateKey);
+  return timingSafeEqual(normalizedInput, currentCode) || timingSafeEqual(normalizedInput, previousCode);
 }
 
 function timingSafeEqual(left: string, right: string) {
@@ -373,13 +409,19 @@ export const authOptions: NextAuthOptions = {
           : typeof childUpdate?.activeChildProfileId === "string"
             ? childUpdate.activeChildProfileId.trim()
             : "";
+        const submittedParentReturnCode = typeof childUpdate?.parentReturnCode === "string" ? childUpdate.parentReturnCode.trim() : "";
 
         if (childUpdate?.clearChildProfile === true || childUpdate?.childProfileId === null || childUpdate?.activeChildProfileId === null) {
-          token.childProfileId = null;
-          token.childNickname = null;
-          token.childBirthYear = null;
-          token.childAgeBand = null;
-          token.workspaceMode = "parent";
+          const activeChildProfileId = typeof token.childProfileId === "string" ? token.childProfileId.trim() : "";
+          const canExitChildWorkspace = !activeChildProfileId || (token.sub && verifyParentReturnCode(String(token.sub), submittedParentReturnCode));
+
+          if (canExitChildWorkspace) {
+            token.childProfileId = null;
+            token.childNickname = null;
+            token.childBirthYear = null;
+            token.childAgeBand = null;
+            token.workspaceMode = "parent";
+          }
         } else if (requestedChildProfileId && token.sub) {
           const childProfile = await prisma.childProfile.findFirst({
             where: { id: requestedChildProfileId, parentId: String(token.sub) },

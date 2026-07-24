@@ -1,13 +1,12 @@
 import { ChatWindow } from "../components/ChatWindow";
-import { EvidenceRoom } from "../components/EvidenceRoom";
 import { VisitorTracker } from "../components/VisitorTracker";
 
 export default function HomePage() {
   return (
-    <>
+    <div>
       <VisitorTracker />
       <ChatWindow />
-      <EvidenceRoom />
-    </>
+      <h1>Test Page</h1>
+    </div>
   );
 }

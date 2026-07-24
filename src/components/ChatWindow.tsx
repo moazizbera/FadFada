@@ -417,12 +417,14 @@ const dailyChildMomentOptions: Record<Language, Array<Omit<DailyChildMoment, "da
   ],
 };
 
-function buildDailyChildMoment(language: Language, childProfileId: string, childName: string | null): DailyChildMoment {
-  const dateKey = new Date().toISOString().slice(0, 10);
-  const seedText = `${dateKey}:${childProfileId || childName || "child"}`;
+function buildDailyChildMoment(language: Language, childProfileId: string, childName: string | null, dateKey?: string): DailyChildMoment {
+  // Use a fixed placeholder date during SSR to ensure server/client match
+  // Real date will be set after hydration via useEffect
+  const key = dateKey ?? "2024-01-01";
+  const seedText = `${key}:${childProfileId || childName || "child"}`;
   const seed = Array.from(seedText).reduce((total, char) => total + char.charCodeAt(0), 0);
   const options = dailyChildMomentOptions[language];
-  return { dateKey, ...options[seed % options.length] };
+  return { dateKey: key, ...options[seed % options.length] };
 }
 
 const visitorChallengeMoments: Record<Language, Array<{ badge: string; title: string; description: string; text: string; world: WorldId; personaId: PersonaId }>> = {
@@ -1901,6 +1903,7 @@ export function ChatWindow() {
   const [toolsOpen, setToolsOpen] = useState(false);
   const [activeHomePanel, setActiveHomePanel] = useState<HomeToolPanel>("checkin");
   const [conversationHydrated, setConversationHydrated] = useState(false);
+  const [dailyMomentDateKey, setDailyMomentDateKey] = useState<string | undefined>(undefined);
   const [journeySnapshotStatus, setJourneySnapshotStatus] = useState<"idle" | "saved">("idle");
   const [growthQuestStatus, setGrowthQuestStatus] = useState<"idle" | "saved">("idle");
   const [growthQuests, setGrowthQuests] = useState<GrowthQuest[]>([]);
@@ -1947,7 +1950,7 @@ export function ChatWindow() {
   const isChildWorkspace = sessionUser?.workspaceMode === "child";
   const activeChildProfileId = isChildWorkspace && typeof sessionUser?.childProfileId === "string" ? sessionUser.childProfileId : "";
   const activeChildNickname = isChildWorkspace && typeof sessionUser?.childNickname === "string" ? normalizeGreetingName(sessionUser.childNickname) : null;
-  const dailyChildMoment = useMemo(() => buildDailyChildMoment(language, activeChildProfileId, activeChildNickname), [activeChildProfileId, activeChildNickname, language]);
+  const dailyChildMoment = useMemo(() => buildDailyChildMoment(language, activeChildProfileId, activeChildNickname, dailyMomentDateKey), [activeChildProfileId, activeChildNickname, language, dailyMomentDateKey]);
   const conversationScopeKey = activeChildProfileId ? `child:${activeChildProfileId}` : "parent";
   const scopedConversationStorageKey = `${conversationStorageKey}:${conversationScopeKey}`;
   const scopedChatSessionIdStorageKey = `${chatSessionIdStorageKey}:${conversationScopeKey}`;
@@ -2021,6 +2024,11 @@ export function ChatWindow() {
   useEffect(() => {
     if (!avatarsEnabled) setPersonaOpen(false);
   }, [avatarsEnabled]);
+
+  useEffect(() => {
+    // Set daily moment date after hydration to avoid server/client mismatch
+    setDailyMomentDateKey(new Date().toISOString().slice(0, 10));
+  }, []);
 
   useEffect(() => {
     if (personaId !== "custom" && !visiblePersonas.some((persona) => persona.id === personaId)) {
@@ -2159,7 +2167,7 @@ export function ChatWindow() {
   }
 
   function submitDailyPulse() {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = dailyMomentDateKey || new Date().toISOString().slice(0, 10);
     const nextStats = buildNextDailyPulseStats(dailyPulseStats, today);
     localStorage.setItem(dailyPulseStorageKey, JSON.stringify(nextStats));
     setDailyPulseStats(nextStats);

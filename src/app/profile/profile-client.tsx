@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { useAppLocale } from "../../components/AppShell";
 
 type SavedMoment = {
@@ -77,8 +77,44 @@ type CompanionRecommendation = {
   command: string;
 };
 
+type JourneyWorldTransition = {
+  id: string;
+  from: string;
+  to: string;
+  count: number;
+  lastSeenAt: string;
+};
+
+type EmotionTimelineItem = {
+  id: string;
+  world: string;
+  moodLabelAr: string;
+  moodLabelEn: string;
+  createdAt: string;
+  source: CapsuleLibraryItemType;
+};
+
+type CapsuleLibraryItemType = "moment" | "plan" | "snapshot" | "quest";
+
+type CapsuleLibraryItem = {
+  id: string;
+  type: CapsuleLibraryItemType;
+  title: string;
+  summary: string;
+  world: string;
+  createdAt: string;
+};
+
+type MemoryPreferences = {
+  savedMoments: boolean;
+  tinyPlans: boolean;
+  journeySnapshots: boolean;
+  growthQuests: boolean;
+};
+
 type VoiceDialect = "ar-EG" | "ar-SA" | "ar-AE" | "ar-LB";
 type ProfileTabId = "account-details" | "child-profiles" | "journey-map" | "saved-library";
+type ChildProfilesPanelId = "overview" | "insights" | "tools" | "profiles";
 type ParentToolDialog = "homework" | "playbook" | null;
 
 type ChildProfile = {
@@ -112,6 +148,50 @@ type ChildPulseSummary = {
   dominantWorld: string;
   trend: "up" | "steady" | "down" | "quiet";
   riskLevel: "low" | "medium" | "high";
+};
+
+type ParentTimelineEntry = {
+  childProfileId: string;
+  nickname: string;
+  badge: string;
+  title: string;
+  summary: string;
+  nextStep: string;
+  signal: string;
+  updatedAt: string | null;
+};
+
+type WeeklyReportChild = {
+  childProfileId: string;
+  nickname: string;
+  dominantWorld: string;
+  turnCount7d: number;
+  trend: ChildPulseSummary["trend"];
+  riskLevel: ChildPulseSummary["riskLevel"];
+  homeworkCount7d: number;
+  playbookCount7d: number;
+  headline: string;
+  summary: string;
+  nextAction: string;
+  updatedAt: string | null;
+};
+
+type WeeklyParentReport = {
+  generatedAt: string;
+  windowDays: number;
+  summary: string;
+  wins: string[];
+  focusAreas: string[];
+  nextWeekPlan: string[];
+  businessHint: string;
+  metrics: {
+    activeChildren: number;
+    totalTurns: number;
+    homeworkAssignments: number;
+    playbookRuns: number;
+    highRiskChildren: number;
+  };
+  children: WeeklyReportChild[];
 };
 
 type HomeworkActivity = {
@@ -188,6 +268,13 @@ const worldLabels: Record<string, { ar: string; en: string }> = {
 };
 
 const voiceDialectStorageKey = "fadfada-voice-dialect";
+const memoryPreferencesStorageKey = "fadfada-memory-preferences";
+const defaultMemoryPreferences: MemoryPreferences = {
+  savedMoments: true,
+  tinyPlans: true,
+  journeySnapshots: true,
+  growthQuests: true,
+};
 
 const voiceDialects: Array<{ value: VoiceDialect; ar: string; en: string; detailAr: string; detailEn: string }> = [
   { value: "ar-EG", ar: "مصري", en: "Egyptian", detailAr: "دافئ وقريب", detailEn: "warm and close" },
@@ -212,7 +299,6 @@ const defaultChildForm: ChildForm = {
   avatarPreference: "/avatars/rami_riddles.png",
   dailyTimeLimitMinutes: "30",
 };
-const parentReturnCodeStorageKey = "fadfada-parent-return-code";
 
 const profileTabIds: ProfileTabId[] = ["account-details", "child-profiles", "journey-map", "saved-library"];
 
@@ -231,11 +317,15 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
   const [childForm, setChildForm] = useState<ChildForm>(defaultChildForm);
   const [childStatus, setChildStatus] = useState<"loading" | "idle" | "saving" | "saved" | "switching" | "error">("loading");
   const [childMessage, setChildMessage] = useState("");
+  const [activeChildPanel, setActiveChildPanel] = useState<ChildProfilesPanelId>("overview");
   const [childProfilesExpanded, setChildProfilesExpanded] = useState(true);
   const [childFormOpen, setChildFormOpen] = useState(false);
   const [childProfileLimit, setChildProfileLimit] = useState(profile.activeTier === "PLUS" || profile.activeTier === "BUSINESS" ? 5 : 1);
   const [childProfileTier, setChildProfileTier] = useState(profile.activeTier === "PLUS" || profile.activeTier === "BUSINESS" ? "PLUS" : "FREE");
   const [childPulse, setChildPulse] = useState<ChildPulseSummary[]>([]);
+  const [weeklyReport, setWeeklyReport] = useState<WeeklyParentReport | null>(null);
+  const [weeklyReportStatus, setWeeklyReportStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [weeklyReportMessage, setWeeklyReportMessage] = useState("");
   const [homeworkImage, setHomeworkImage] = useState<File | null>(null);
   const [homeworkImagePreviewUrl, setHomeworkImagePreviewUrl] = useState("");
   const [homeworkHint, setHomeworkHint] = useState("");
@@ -261,12 +351,51 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
   const [billingStatus, setBillingStatus] = useState<"idle" | "opening" | "error">("idle");
   const [billingMessage, setBillingMessage] = useState("");
   const [voiceDialect, setVoiceDialect] = useState<VoiceDialect>("ar-EG");
+  const [memoryPreferences, setMemoryPreferences] = useState<MemoryPreferences>(defaultMemoryPreferences);
+  const [journeyWorldFilter, setJourneyWorldFilter] = useState<string>("all");
+  const [capsuleSearchQuery, setCapsuleSearchQuery] = useState("");
+  const [capsuleWorldFilter, setCapsuleWorldFilter] = useState<string>("all");
+  const [capsuleTypeFilter, setCapsuleTypeFilter] = useState<"all" | CapsuleLibraryItemType>("all");
+  const [shareSafeStatusMessage, setShareSafeStatusMessage] = useState("");
   const journeyInsight = buildJourneyInsight({ savedMoments, tinyPlans, journeySnapshots, growthQuests }, language);
   const companionInsights = buildCompanionInsights(savedMoments, language);
   const storyMirrorMoments = savedMoments.filter((moment) => moment.world === "story").slice(0, 4);
   const moodConstellation = buildMoodConstellation({ savedMoments, tinyPlans, journeySnapshots, growthQuests });
   const reflectionReel = buildReflectionReel(savedMoments, journeySnapshots, language);
+  const worldTransitions = useMemo(
+    () => buildJourneyWorldTransitions({ savedMoments, tinyPlans, journeySnapshots, growthQuests }),
+    [savedMoments, tinyPlans, journeySnapshots, growthQuests]
+  );
+  const journeyWorldOptions = useMemo(
+    () => buildJourneyWorldOptions({ savedMoments, tinyPlans, journeySnapshots, growthQuests }),
+    [savedMoments, tinyPlans, journeySnapshots, growthQuests]
+  );
+  const filteredReflectionReel = journeyWorldFilter === "all"
+    ? reflectionReel
+    : reflectionReel.filter((item) => item.world === journeyWorldFilter);
+  const capsuleWorldOptions = useMemo(
+    () => buildJourneyWorldOptions({ savedMoments, tinyPlans, journeySnapshots, growthQuests }),
+    [savedMoments, tinyPlans, journeySnapshots, growthQuests]
+  );
+  const capsuleLibraryItems = useMemo(
+    () => buildCapsuleLibraryItems({ savedMoments, tinyPlans, journeySnapshots, growthQuests }, language),
+    [savedMoments, tinyPlans, journeySnapshots, growthQuests, language]
+  );
+  const emotionTimeline = useMemo(
+    () => buildEmotionTimeline({ savedMoments, tinyPlans, journeySnapshots, growthQuests }),
+    [savedMoments, tinyPlans, journeySnapshots, growthQuests]
+  );
+  const filteredCapsuleLibraryItems = useMemo(() => {
+    const normalizedQuery = capsuleSearchQuery.trim().toLowerCase();
+    return capsuleLibraryItems.filter((item) => {
+      if (capsuleTypeFilter !== "all" && item.type !== capsuleTypeFilter) return false;
+      if (capsuleWorldFilter !== "all" && item.world !== capsuleWorldFilter) return false;
+      if (!normalizedQuery) return true;
+      return `${item.title} ${item.summary}`.toLowerCase().includes(normalizedQuery);
+    });
+  }, [capsuleLibraryItems, capsuleSearchQuery, capsuleTypeFilter, capsuleWorldFilter]);
   const companionRecommendations = buildCompanionRecommendations(journeyInsight.dominantWorlds, language);
+  const parentTimeline = useMemo(() => buildParentCopilotTimeline(childProfiles, childPulse, language), [childProfiles, childPulse, language]);
 
   useEffect(() => {
     setSavedMoments(JSON.parse(localStorage.getItem("fadfada-saved-moments") || "[]") as SavedMoment[]);
@@ -274,10 +403,27 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
     setJourneySnapshots(JSON.parse(localStorage.getItem("fadfada-journey-snapshots") || "[]") as JourneySnapshot[]);
     setGrowthQuests(JSON.parse(localStorage.getItem("fadfada-growth-quests") || "[]") as GrowthQuest[]);
     setVoiceDialect(normalizeVoiceDialect(localStorage.getItem(voiceDialectStorageKey)));
-    const storedParentCode = localStorage.getItem(parentReturnCodeStorageKey)?.trim();
-    const nextParentCode = /^\d{4}$/.test(storedParentCode || "") ? storedParentCode || "" : String(Math.floor(1000 + Math.random() * 9000));
-    localStorage.setItem(parentReturnCodeStorageKey, nextParentCode);
-    setParentReturnCode(nextParentCode);
+    setMemoryPreferences(normalizeMemoryPreferences(localStorage.getItem(memoryPreferencesStorageKey)));
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    fetch("/api/parent/return-code", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() as Promise<{ code?: string }> : null)
+      .then((data) => {
+        if (!active) return;
+        const code = typeof data?.code === "string" ? data.code.trim() : "";
+        setParentReturnCode(/^\d{4}$/.test(code) ? code : "");
+      })
+      .catch(() => {
+        if (!active) return;
+        setParentReturnCode("");
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -285,11 +431,13 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
       const hash = window.location.hash.replace(/^#/, "");
       if (hash === "homework-transformer") {
         setActiveProfileTab("child-profiles");
+        setActiveChildPanel("tools");
         setActiveParentToolDialog("homework");
         return;
       }
       if (hash === "parent-playbook") {
         setActiveProfileTab("child-profiles");
+        setActiveChildPanel("tools");
         setActiveParentToolDialog("playbook");
         return;
       }
@@ -347,6 +495,33 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
       active = false;
     };
   }, [isArabic]);
+
+  useEffect(() => {
+    if (activeProfileTab !== "child-profiles") return;
+    if (weeklyReportStatus === "ready" && weeklyReport) return;
+
+    void loadWeeklyParentReport();
+  }, [activeProfileTab, language]);
+
+  async function loadWeeklyParentReport() {
+    setWeeklyReportStatus("loading");
+    setWeeklyReportMessage("");
+
+    try {
+      const response = await fetch(`/api/parent/weekly-report?language=${language}`, { cache: "no-store" });
+      const data = await response.json().catch(() => ({})) as WeeklyParentReport & { error?: string };
+
+      if (!response.ok || !data || !Array.isArray(data.children)) {
+        throw new Error(data.error || String(response.status));
+      }
+
+      setWeeklyReport(data);
+      setWeeklyReportStatus("ready");
+    } catch (error) {
+      setWeeklyReportStatus("error");
+      setWeeklyReportMessage(formatWeeklyReportError(error instanceof Error ? error.message : undefined, language));
+    }
+  }
 
   function saveVoiceDialect(nextDialect: VoiceDialect) {
     localStorage.setItem(voiceDialectStorageKey, nextDialect);
@@ -428,8 +603,22 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
   async function openChildWorkspace(childProfileId: string) {
     setChildStatus("switching");
     setChildMessage("");
-    await updateSession({ childProfileId });
-    window.location.assign("/");
+    try {
+      const nextSession = await updateSession({ childProfileId, activeChildProfileId: childProfileId });
+      const nextWorkspaceMode = nextSession?.user && "workspaceMode" in nextSession.user ? nextSession.user.workspaceMode : null;
+      const nextChildProfileId = nextSession?.user && "childProfileId" in nextSession.user ? nextSession.user.childProfileId : null;
+
+      if (nextWorkspaceMode !== "child" || nextChildProfileId !== childProfileId) {
+        setChildStatus("error");
+        setChildMessage(isArabic ? "لم يتم تفعيل مساحة الطفل بعد. حاول مرة أخرى من ملف الأطفال." : "Child workspace did not activate yet. Try again from the child profiles panel.");
+        return;
+      }
+
+      window.location.assign("/");
+    } catch {
+      setChildStatus("error");
+      setChildMessage(isArabic ? "تعذر فتح مساحة الطفل الآن. حاول مرة أخرى بعد قليل." : "Could not open the child workspace right now. Please try again shortly.");
+    }
   }
 
   async function returnToParentWorkspace() {
@@ -567,6 +756,51 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
   function clearGrowthQuests() {
     localStorage.removeItem("fadfada-growth-quests");
     setGrowthQuests([]);
+  }
+
+  function saveMemoryPreferences(next: MemoryPreferences) {
+    localStorage.setItem(memoryPreferencesStorageKey, JSON.stringify(next));
+    setMemoryPreferences(next);
+  }
+
+  function toggleMemoryPreference(key: keyof MemoryPreferences) {
+    saveMemoryPreferences({ ...memoryPreferences, [key]: !memoryPreferences[key] });
+  }
+
+  function clearAllMemoryArtifacts() {
+    localStorage.removeItem("fadfada-saved-moments");
+    localStorage.removeItem("fadfada-tiny-plans");
+    localStorage.removeItem("fadfada-journey-snapshots");
+    localStorage.removeItem("fadfada-growth-quests");
+    setSavedMoments([]);
+    setTinyPlans([]);
+    setJourneySnapshots([]);
+    setGrowthQuests([]);
+  }
+
+  async function shareSafeCapsule(item: CapsuleLibraryItem) {
+    const safeText = buildShareSafeCapsuleText(item, language);
+    const shareTitle = language === "ar" ? "كبسولة فضفضة آمنة" : "FadFada Safe Capsule";
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share({
+          title: shareTitle,
+          text: safeText,
+          url: "https://fad-fada.vercel.app",
+        });
+        setShareSafeStatusMessage(language === "ar" ? "تمت مشاركة كبسولة آمنة بدون تفاصيل حساسة." : "Shared a safe capsule without sensitive details.");
+      } else if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(`${shareTitle}\n\n${safeText}`);
+        setShareSafeStatusMessage(language === "ar" ? "تم نسخ الكبسولة الآمنة. يمكنك لصقها ومشاركتها." : "Safe capsule copied. You can paste and share it.");
+      } else {
+        setShareSafeStatusMessage(language === "ar" ? "المشاركة غير مدعومة هنا. جرّب متصفحاً أحدث." : "Share is not supported here. Try a newer browser.");
+      }
+    } catch {
+      setShareSafeStatusMessage(language === "ar" ? "تعذر إكمال المشاركة الآمنة الآن." : "Could not complete safe sharing right now.");
+    }
+
+    window.setTimeout(() => setShareSafeStatusMessage(""), 2400);
   }
 
   async function startPlusCheckout() {
@@ -717,12 +951,15 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
                   : "Each child gets a separate space and conversation history. Children do not use email or passwords, and returning to the parent profile requires parent email confirmation."}
               </p>
             </div>
-            <div className="grid w-full gap-2 sm:grid-cols-3 lg:w-auto lg:min-w-[22rem]">
+            <div className="grid w-full gap-2 sm:grid-cols-4 lg:w-auto lg:min-w-[24rem]">
               <button type="button" onClick={() => setChildProfilesExpanded((current) => !current)} className="ui-action border border-cyan-200/25 px-3 py-2 text-xs text-cyan-100 hover:bg-cyan-200 hover:text-ink">
                 {childProfilesExpanded ? (isArabic ? "إخفاء الملفات" : "Collapse") : isArabic ? "عرض الملفات" : "Show profiles"}
               </button>
               <button type="button" onClick={() => void loadChildProfiles()} disabled={childStatus === "loading"} className="ui-action border border-white/10 px-3 py-2 text-xs text-bone/70 hover:border-cyan-200/35 hover:text-cyan-100 disabled:cursor-wait disabled:opacity-60">
                 {childStatus === "loading" ? (isArabic ? "تحديث..." : "Refreshing...") : isArabic ? "تحديث النشاط" : "Refresh activity"}
+              </button>
+              <button type="button" onClick={() => void loadWeeklyParentReport()} disabled={weeklyReportStatus === "loading"} className="ui-action border border-gold/25 px-3 py-2 text-xs text-gold/82 hover:bg-gold hover:text-ink disabled:cursor-wait disabled:opacity-60">
+                {weeklyReportStatus === "loading" ? (isArabic ? "يبني التقرير..." : "Building report...") : isArabic ? "تقرير أسبوعي" : "Weekly report"}
               </button>
               <button type="button" onClick={childProfiles.length >= childProfileLimit && childProfileTier !== "PLUS" ? () => void startPlusCheckout() : () => setChildFormOpen(true)} disabled={childProfiles.length >= childProfileLimit && childProfileTier === "PLUS"} className="ui-action bg-cyan-200 px-3 py-2 text-xs text-ink hover:bg-bone disabled:opacity-60">
                 {childProfiles.length >= childProfileLimit ? (childProfileTier === "PLUS" ? (isArabic ? "اكتمل العدد" : "Limit reached") : isArabic ? "ترقية لبلس" : "Upgrade to Plus") : isArabic ? "إضافة طفل" : "Add child"}
@@ -730,6 +967,31 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
             </div>
           </div>
 
+          <div className="mt-4 flex flex-wrap gap-2" role="tablist" aria-label={isArabic ? "أقسام شاشة الأطفال" : "Children view sections"}>
+            {([
+              { id: "overview", ar: "ملخص سريع", en: "Quick overview" },
+              { id: "insights", ar: "التحليلات", en: "Insights" },
+              { id: "tools", ar: "أدوات الوالد", en: "Parent tools" },
+              { id: "profiles", ar: "ملفات الأطفال", en: "Child profiles" },
+            ] as const).map((tab) => {
+              const active = activeChildPanel === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setActiveChildPanel(tab.id)}
+                  className={`ui-action border px-3 py-2 text-xs transition-colors ${active ? "border-cyan-200/50 bg-cyan-200 text-ink" : "border-white/10 text-bone/68 hover:border-cyan-200/35 hover:text-cyan-100"}`}
+                >
+                  {isArabic ? tab.ar : tab.en}
+                </button>
+              );
+            })}
+          </div>
+
+          {activeChildPanel === "overview" ? (
+          <>
           <div className="mt-4 grid gap-3 sm:grid-cols-4">
             <div className="border border-cyan-200/12 bg-cyan-200/[0.035] p-3">
               <span className="block font-arsans text-[10px] uppercase tracking-[0.08em] text-cyan-100/50">{isArabic ? "الدخول" : "Access"}</span>
@@ -794,6 +1056,118 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
               <p className="mt-2 font-arsans text-xs text-bone/45">{isArabic ? "سيظهر الملخص بعد تسجيل نشاطات الطفل." : "Pulse cards appear once child activity is recorded."}</p>
             )}
           </div>
+          </>
+          ) : null}
+
+          {activeChildPanel === "insights" ? (
+          <>
+          <div className="mt-4 border border-gold/20 bg-gold/[0.04] p-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="font-arsans text-xs font-semibold text-gold/80">{isArabic ? "الخط الزمني لولي الأمر" : "Parent Copilot Timeline"}</p>
+                <p className="mt-1 font-arsans text-[11px] leading-5 text-bone/48">
+                  {isArabic ? "قراءة سريعة لآخر ٧ أيام: ما الذي تغيّر، وما الخطوة الأذكى الليلة؟" : "A fast read of the last 7 days: what changed, and what is the smartest move tonight?"}
+                </p>
+              </div>
+              <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-gold/62">{isArabic ? "٧ أيام" : "7 days"}</span>
+            </div>
+            {parentTimeline.length > 0 ? (
+              <div className="mt-3 grid gap-2 lg:grid-cols-2">
+                {parentTimeline.map((entry) => (
+                  <article key={entry.childProfileId} className="border border-white/10 bg-black/16 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-arsans text-sm font-semibold text-bone/88" dir="auto">{entry.nickname}</p>
+                      <span className="rounded-full border border-gold/20 px-2 py-0.5 font-arsans text-[10px] text-gold/76">{entry.badge}</span>
+                    </div>
+                    <p className="mt-2 font-arsans text-sm text-bone/82">{entry.title}</p>
+                    <p className="mt-2 font-arsans text-xs leading-5 text-bone/55">{entry.summary}</p>
+                    <p className="mt-2 font-arsans text-[11px] leading-5 text-cyan-100/72"><span className="font-semibold">{isArabic ? "الإشارة: " : "Signal: "}</span>{entry.signal}</p>
+                    <p className="mt-1 font-arsans text-[11px] leading-5 text-emerald-100/72"><span className="font-semibold">{isArabic ? "الخطوة التالية: " : "Next step: "}</span>{entry.nextStep}</p>
+                    <p className="mt-2 font-arsans text-[10px] text-bone/34">{isArabic ? "آخر تحديث: " : "Updated: "}{entry.updatedAt ? formatChildConversationDate(entry.updatedAt, language) : (isArabic ? "هادئ هذا الأسبوع" : "quiet this week")}</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-3 font-arsans text-xs leading-5 text-bone/45">{isArabic ? "سيظهر الخط الزمني عندما يصبح لدى الطفل نشاط ومؤشرات كافية لهذا الأسبوع." : "The timeline appears when a child has enough recent activity and signals this week."}</p>
+            )}
+          </div>
+          <div className="mt-4 border border-amber-200/20 bg-amber-200/[0.045] p-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="font-arsans text-xs font-semibold text-amber-100/86">{isArabic ? "التقرير الأسبوعي لولي الأمر" : "Weekly Parent Report"}</p>
+                <p className="mt-1 font-arsans text-[11px] leading-5 text-bone/50">
+                  {isArabic ? "ملخص نمو، مخاطر، وخطة تنفيذ للأسبوع القادم مبني على نشاط الطفل." : "Growth, safety, and next-week execution plan built from child activity."}
+                </p>
+              </div>
+              <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-amber-100/62">{weeklyReport?.windowDays ? `${weeklyReport.windowDays} ${isArabic ? "أيام" : "days"}` : (isArabic ? "٧ أيام" : "7 days")}</span>
+            </div>
+            {weeklyReportStatus === "loading" ? <p className="mt-3 font-arsans text-xs text-bone/55">{isArabic ? "نبني التقرير من نشاط الأسبوع..." : "Building your weekly report from recent activity..."}</p> : null}
+            {weeklyReportStatus === "error" ? <p className="mt-3 font-arsans text-xs leading-5 text-red-200">{weeklyReportMessage}</p> : null}
+            {weeklyReportStatus === "ready" && weeklyReport ? (
+              <div className="mt-3 space-y-3">
+                <p className="font-arsans text-sm leading-6 text-bone/80">{weeklyReport.summary}</p>
+                <div className="grid gap-2 sm:grid-cols-5">
+                  <WeeklyMetricTile label={isArabic ? "أطفال نشطون" : "Active children"} value={String(weeklyReport.metrics.activeChildren)} />
+                  <WeeklyMetricTile label={isArabic ? "تفاعلات" : "Turns"} value={String(weeklyReport.metrics.totalTurns)} />
+                  <WeeklyMetricTile label={isArabic ? "واجبات" : "Homework"} value={String(weeklyReport.metrics.homeworkAssignments)} />
+                  <WeeklyMetricTile label={isArabic ? "خطط ولي أمر" : "Playbooks"} value={String(weeklyReport.metrics.playbookRuns)} />
+                  <WeeklyMetricTile label={isArabic ? "مخاطر مرتفعة" : "High risk"} value={String(weeklyReport.metrics.highRiskChildren)} />
+                </div>
+
+                <div className="grid gap-2 md:grid-cols-3">
+                  <div className="border border-white/10 bg-black/15 p-3">
+                    <p className="font-arsans text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-100/75">{isArabic ? "نقاط قوة" : "Wins"}</p>
+                    <div className="mt-2 grid gap-1.5">
+                      {weeklyReport.wins.map((item) => <span key={item} className="font-arsans text-xs leading-5 text-bone/62">{item}</span>)}
+                    </div>
+                  </div>
+                  <div className="border border-white/10 bg-black/15 p-3">
+                    <p className="font-arsans text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-100/75">{isArabic ? "محاور متابعة" : "Focus"}</p>
+                    <div className="mt-2 grid gap-1.5">
+                      {weeklyReport.focusAreas.map((item) => <span key={item} className="font-arsans text-xs leading-5 text-bone/62">{item}</span>)}
+                    </div>
+                  </div>
+                  <div className="border border-white/10 bg-black/15 p-3">
+                    <p className="font-arsans text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-100/75">{isArabic ? "خطة الأسبوع القادم" : "Next week plan"}</p>
+                    <div className="mt-2 grid gap-1.5">
+                      {weeklyReport.nextWeekPlan.map((item) => <span key={item} className="font-arsans text-xs leading-5 text-bone/62">{item}</span>)}
+                    </div>
+                  </div>
+                </div>
+
+                <p className="border border-gold/18 bg-gold/[0.05] px-3 py-2 font-arsans text-xs leading-5 text-gold/88">{weeklyReport.businessHint}</p>
+
+                {weeklyReport.children.length > 0 ? (
+                  <div className="grid gap-2 lg:grid-cols-2">
+                    {weeklyReport.children.map((entry) => (
+                      <article key={entry.childProfileId} className="border border-white/10 bg-black/16 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-arsans text-sm font-semibold text-bone/88" dir="auto">{entry.nickname}</p>
+                          <span className={`rounded-full border px-2 py-0.5 font-arsans text-[10px] ${entry.riskLevel === "high" ? "border-red-200/45 text-red-100" : entry.riskLevel === "medium" ? "border-amber-200/45 text-amber-100" : "border-emerald-200/35 text-emerald-100"}`}>
+                            {formatChildPulseRisk(entry.riskLevel, language)}
+                          </span>
+                        </div>
+                        <p className="mt-2 font-arsans text-sm text-bone/82">{entry.headline}</p>
+                        <p className="mt-1 font-arsans text-xs leading-5 text-bone/56">{entry.summary}</p>
+                        <p className="mt-2 font-arsans text-[11px] leading-5 text-cyan-100/72">
+                          <span className="font-semibold">{isArabic ? "الخطوة التالية: " : "Next step: "}</span>{entry.nextAction}
+                        </p>
+                        <p className="mt-2 font-arsans text-[10px] text-bone/38">
+                          {isArabic ? "الاتجاه" : "Trend"}: {formatChildPulseTrend(entry.trend, language)} · {isArabic ? "المجال" : "World"}: {formatWorld(entry.dominantWorld, language)} · {isArabic ? "نشاط" : "Turns"}: {entry.turnCount7d}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                ) : null}
+
+                <p className="font-arsans text-[10px] text-bone/35">{isArabic ? "آخر تحديث: " : "Updated: "}{formatWeeklyReportGeneratedAt(weeklyReport.generatedAt, language)}</p>
+              </div>
+            ) : null}
+          </div>
+          </>
+          ) : null}
+
+          {activeChildPanel === "tools" ? (
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <button id="homework-transformer" type="button" onClick={() => openParentToolDialog("homework")} className="group scroll-mt-24 border border-emerald-200/18 bg-emerald-200/[0.045] p-4 text-start transition-colors hover:border-emerald-200/45 hover:bg-emerald-200/[0.085]">
               <span className="ui-kicker text-emerald-100">{isArabic ? "محول الواجب" : "Homework transformer"}</span>
@@ -808,6 +1182,7 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
               <span className="mt-3 inline-flex font-arsans text-xs font-semibold text-amber-100 group-hover:text-bone">{isArabic ? "فتح الدليل" : "Open playbook"}</span>
             </button>
           </div>
+          ) : null}
           {activeParentToolDialog === "playbook" ? (
           <div className="fixed inset-0 z-[80] overflow-y-auto bg-black/76 px-3 py-4 backdrop-blur-md sm:px-6" role="dialog" aria-modal="true" aria-label={isArabic ? "دليل ولي الأمر" : "Parent Playbook"} dir={direction}>
           <section className="mx-auto max-w-6xl border border-amber-200/22 bg-[#0E0D10] p-4 shadow-2xl shadow-black/70" dir={direction}>
@@ -1033,66 +1408,156 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
           </section>
           </div>
           ) : null}
-          <p className="mt-3 font-arsans text-xs leading-5 text-bone/48">
-            {isArabic ? `حد الأطفال الحالي: ${childProfiles.length}/${childProfileLimit} (${childProfileTier === "PLUS" ? "بلس" : "مجاني"}).` : `Current child limit: ${childProfiles.length}/${childProfileLimit} (${childProfileTier === "PLUS" ? "Plus" : "Free"}).`}
-          </p>
-          {session?.user && "workspaceMode" in session.user && session.user.workspaceMode === "child" ? (
-            <button type="button" onClick={() => void returnToParentWorkspace()} disabled={childStatus === "switching"} className="ui-action mt-4 border border-cyan-200/35 px-4 py-3 text-cyan-100 hover:bg-cyan-200 hover:text-ink disabled:opacity-60">
-              {childStatus === "switching" ? (isArabic ? "جار الرجوع..." : "Returning...") : isArabic ? "الرجوع لمساحة الوالد" : "Return to parent workspace"}
-            </button>
-          ) : null}
-
-          {childMessage ? <p className={`mt-4 font-arsans text-sm leading-6 ${childStatus === "error" ? "text-red-200" : "text-cyan-100/80"}`}>{childMessage}</p> : null}
-
-          {childProfilesExpanded ? (
-            <div className="mt-5 space-y-3">
-              {childStatus === "loading" ? <p className="font-arsans text-sm text-bone/45">{isArabic ? "جار تحميل ملفات الأطفال..." : "Loading child profiles..."}</p> : null}
-              {childProfiles.length > 0 ? (
-                <div className="grid gap-3">
-                  {childProfiles.map((child) => (
-                    <article key={child.id} className="border border-cyan-200/14 bg-black/12 p-4" dir={isArabic ? "rtl" : "ltr"}>
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="grid min-w-0 grid-cols-[3rem_1fr] items-center gap-3 text-start">
-                          <span className="relative h-12 w-12 overflow-hidden rounded-full border border-cyan-200/25 bg-cyan-200/10">
-                            <Image src={child.avatarPreference} alt={child.nickname} fill sizes="48px" className="object-cover" unoptimized />
+          {activeChildPanel === "profiles" ? (
+            <div className="mt-4 grid gap-3 xl:grid-cols-[0.95fr_1.05fr]">
+              <section className="rounded-2xl border border-cyan-200/16 bg-black/16 p-4 shadow-[0_12px_30px_rgba(0,0,0,0.18)]" dir={direction}>
+                <p className="font-arsans text-xs font-semibold text-cyan-100/82">{isArabic ? "إضافة ملف طفل" : "Add child profile"}</p>
+                <p className="mt-1 font-arsans text-xs leading-5 text-bone/55">
+                  {isArabic
+                    ? `حد الأطفال الحالي: ${childProfiles.length}/${childProfileLimit} (${childProfileTier === "PLUS" ? "بلس" : "مجاني"}).`
+                    : `Current child limit: ${childProfiles.length}/${childProfileLimit} (${childProfileTier === "PLUS" ? "Plus" : "Free"}).`}
+                </p>
+                <form onSubmit={createChildProfile} className="mt-3 space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block text-start">
+                      <span className="mb-2 block font-arsans text-xs text-bone/60">{isArabic ? "سنة الميلاد" : "Birth year"}</span>
+                      <input
+                        value={childForm.birthYear}
+                        onChange={(event) => setChildForm((current) => ({ ...current, birthYear: event.target.value }))}
+                        dir="ltr"
+                        className="w-full rounded-xl border border-white/12 bg-[#0F1216] px-3 py-2.5 font-arsans text-sm text-bone/90 outline-none focus:border-cyan-200/45"
+                      />
+                    </label>
+                    <label className="block text-start">
+                      <span className="mb-2 block font-arsans text-xs text-bone/60">{isArabic ? "الحد اليومي بالدقائق" : "Daily limit (minutes)"}</span>
+                      <input
+                        value={childForm.dailyTimeLimitMinutes}
+                        onChange={(event) => setChildForm((current) => ({ ...current, dailyTimeLimitMinutes: event.target.value }))}
+                        dir="ltr"
+                        className="w-full rounded-xl border border-white/12 bg-[#0F1216] px-3 py-2.5 font-arsans text-sm text-bone/90 outline-none focus:border-cyan-200/45"
+                      />
+                    </label>
+                  </div>
+                  <label className="block text-start">
+                    <span className="mb-2 block font-arsans text-xs text-bone/60">{isArabic ? "اسم الطفل" : "Child nickname"}</span>
+                    <input
+                      value={childForm.nickname}
+                      onChange={(event) => setChildForm((current) => ({ ...current, nickname: event.target.value }))}
+                      className="w-full rounded-xl border border-white/12 bg-[#0F1216] px-3 py-2.5 font-arsans text-sm text-bone/90 outline-none focus:border-cyan-200/45"
+                    />
+                  </label>
+                  <div>
+                    <p className="mb-2 font-arsans text-xs text-bone/62">{isArabic ? "اختر رفيق البداية" : "Choose starter companion"}</p>
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                      {childAvatarOptions.map((option) => (
+                        <button
+                          key={option.avatar}
+                          type="button"
+                          onClick={() => setChildForm((current) => ({ ...current, avatarPreference: option.avatar }))}
+                          className={`border p-1.5 text-center ${childForm.avatarPreference === option.avatar ? "border-cyan-200/70 bg-cyan-200/10" : "border-white/12 bg-[#0F1216] hover:border-cyan-200/35"}`}
+                        >
+                          <span className="relative mx-auto block h-12 w-12 overflow-hidden rounded-full bg-cyan-200/10">
+                            <Image src={option.avatar} alt={isArabic ? option.ar : option.en} fill sizes="48px" className="object-cover" unoptimized />
                           </span>
-                          <span className="min-w-0 text-start">
-                            <span className="block truncate font-arsans text-sm font-semibold text-bone/88" dir="auto">{child.nickname}</span>
-                            <span className="mt-1 block font-arsans text-xs text-bone/42">{formatChildAgeBand(child.ageBand, language)} · {child.gamePoints} pts · {child.dailyTimeLimitMinutes} {isArabic ? "دقيقة" : "min"}</span>
-                          </span>
-                        </div>
-                        <button type="button" onClick={() => void openChildWorkspace(child.id)} disabled={childStatus === "switching"} className="ui-action w-full shrink-0 border border-cyan-200/30 px-3 py-2 text-cyan-100 hover:bg-cyan-200 hover:text-ink disabled:opacity-60 sm:w-auto">
-                          {isArabic ? "فتح مساحة الطفل" : "Open child space"}
+                          <span className="mt-1 block truncate font-arsans text-[10px] text-bone/58">{isArabic ? option.ar : option.en}</span>
                         </button>
-                      </div>
-                      <div className="mt-4 space-y-2 border-t border-cyan-200/10 pt-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="font-arsans text-xs font-semibold text-cyan-100/78">{isArabic ? "نشاط هذا الطفل" : "This child activity"}</p>
-                          <span className="font-mono text-[10px] text-cyan-100/38" dir="ltr">{child.conversationHistory.length}/8</span>
-                        </div>
-                        {child.conversationHistory.length > 0 ? (
-                          <div className="grid gap-2 md:grid-cols-2">
-                            {child.conversationHistory.slice(0, 8).map((item) => (
-                              <div key={item.id} className="border border-white/10 bg-black/16 p-3 text-start">
-                                <div className="mb-2 flex flex-wrap items-center justify-between gap-2 font-arsans text-[10px] text-bone/35">
-                                  <span>{formatWorld(item.world, language)}{item.personaId ? ` · ${item.personaId}` : ""}</span>
-                                  <time dateTime={item.createdAt}>{formatChildConversationDate(item.createdAt, language)}</time>
-                                </div>
-                                <p className="font-arsans text-xs leading-5 text-bone/72" dir="auto"><span className="text-cyan-100/62">{isArabic ? "الطفل: " : "Child: "}</span>{item.childText}</p>
-                                <p className="mt-2 line-clamp-3 font-arsans text-xs leading-5 text-bone/52" dir="auto"><span className="text-cyan-100/62">{isArabic ? "الرد: " : "AI: "}</span>{item.assistantText}</p>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="border border-white/10 bg-black/12 px-3 py-2 font-arsans text-xs leading-5 text-bone/42">
-                            {isArabic ? "لا يوجد نشاط محفوظ لهذا الطفل حتى الآن. اضغط تحديث النشاط بعد الرجوع من مساحة الطفل، أو ابدأ جلسة جديدة من زر ابدأ اللعب." : "No saved activity for this child yet. Refresh after returning from the child space, or start a new child session from Start playing."}
-                          </p>
-                        )}
-                      </div>
-                    </article>
-                  ))}
+                      ))}
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={childStatus === "saving" || childProfiles.length >= childProfileLimit}
+                    className="ui-action w-full rounded-xl bg-cyan-200 px-4 py-3 text-ink hover:bg-bone disabled:opacity-60"
+                  >
+                    {childStatus === "saving" ? (isArabic ? "جار إنشاء الملف..." : "Creating profile...") : childProfiles.length >= childProfileLimit ? (isArabic ? "وصلت للحد الأقصى" : "Profile limit reached") : isArabic ? "إضافة ملف طفل" : "Add child profile"}
+                  </button>
+                </form>
+              </section>
+
+              <section className="rounded-2xl border border-cyan-200/16 bg-black/16 p-4 shadow-[0_12px_30px_rgba(0,0,0,0.18)]" dir={direction}>
+                <p className="font-arsans text-sm font-semibold text-bone/90">
+                  {isArabic
+                    ? "الطفل لا ينشئ حسابا ولا يضيف بريدا أو كلمة مرور. الوالد يضيف ملفا آمنا ثم يضغط فتح مساحة الطفل."
+                    : "Children do not create accounts or passwords. Parent adds a safe profile, then opens the child space."}
+                </p>
+                <div className="mt-3 rounded-xl border border-cyan-200/24 bg-cyan-200/[0.07] p-3">
+                  <p className="font-arsans text-xs font-semibold text-cyan-100/92">{isArabic ? "طريقة دخول الطفل" : "Child access method"}</p>
+                  <p className="mt-1 font-arsans text-sm text-bone/80">{isArabic ? "لا يوجد يوزر أو باسورد للطفل حاليا. هذا مقصود للأمان؛ الوالد يسجل الدخول ثم يختار الطفل." : "No username or password for child mode by design; parent signs in and selects the child."}</p>
                 </div>
-              ) : childStatus !== "loading" ? <p className="font-arsans text-sm leading-7 text-bone/45">{isArabic ? "لا توجد ملفات أطفال بعد. اضغط إضافة طفل لإنشاء أول مساحة." : "No child profiles yet. Press Add child to create the first space."}</p> : null}
+
+                <div className="mt-4 overflow-x-auto rounded-xl border border-white/12">
+                  <table className="w-full min-w-[36rem] border-collapse text-sm" dir={direction}>
+                    <thead className="bg-white/[0.02]">
+                      <tr>
+                        <th className="border-b border-white/10 px-3 py-2 text-start font-arsans text-xs text-cyan-100/75">{isArabic ? "الطفل" : "Child"}</th>
+                        <th className="border-b border-white/10 px-3 py-2 text-start font-arsans text-xs text-cyan-100/75">{isArabic ? "الدخول" : "Access"}</th>
+                        <th className="border-b border-white/10 px-3 py-2 text-start font-arsans text-xs text-cyan-100/75">{isArabic ? "الحد" : "Limit"}</th>
+                        <th className="border-b border-white/10 px-3 py-2 text-start font-arsans text-xs text-cyan-100/75">{isArabic ? "إجراء" : "Action"}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {childProfiles.map((child) => (
+                        <tr key={child.id} className="border-b border-white/10 transition-colors hover:bg-white/[0.02] last:border-b-0">
+                          <td className="px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <span className="relative h-9 w-9 overflow-hidden rounded-full border border-cyan-200/25 bg-cyan-200/10">
+                                <Image src={child.avatarPreference} alt={child.nickname} fill sizes="36px" className="object-cover" unoptimized />
+                              </span>
+                              <div>
+                                <p className="font-arsans text-sm font-semibold text-bone/88" dir="auto">{child.nickname}</p>
+                                <p className="font-arsans text-[11px] text-bone/45">{formatChildAgeBand(child.ageBand, language)} · {child.gamePoints} pts</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 font-arsans text-xs text-bone/72">{isArabic ? "من حساب الوالد فقط" : "Parent account only"}</td>
+                          <td className="px-3 py-2 font-arsans text-xs text-bone/72">{child.dailyTimeLimitMinutes} {isArabic ? "دقيقة يوميا" : "min/day"}</td>
+                          <td className="px-3 py-2">
+                            <button
+                              type="button"
+                              onClick={() => void openChildWorkspace(child.id)}
+                              disabled={childStatus === "switching"}
+                              className="ui-action rounded-lg border border-cyan-200/35 px-3 py-2 text-xs text-cyan-100 hover:bg-cyan-200 hover:text-ink disabled:opacity-60"
+                            >
+                              {isArabic ? "فتح مساحة الطفل" : "Open child space"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-arsans text-sm font-semibold text-cyan-100/84">{isArabic ? "آخر محادثات الطفل" : "Recent child conversations"}</p>
+                    {session?.user && "workspaceMode" in session.user && session.user.workspaceMode === "child" ? (
+                      <button type="button" onClick={() => void returnToParentWorkspace()} disabled={childStatus === "switching"} className="ui-action rounded-lg border border-cyan-200/35 px-2.5 py-1.5 text-[11px] text-cyan-100 hover:bg-cyan-200 hover:text-ink disabled:opacity-60">
+                        {childStatus === "switching" ? (isArabic ? "جار الرجوع..." : "Returning...") : isArabic ? "الرجوع للوالد" : "Back to parent"}
+                      </button>
+                    ) : null}
+                  </div>
+                  {childProfiles.length > 0 && childProfiles.some((child) => child.conversationHistory.length > 0) ? (
+                    <div className="mt-2 space-y-2">
+                      {childProfiles.slice(0, 3).map((child) => {
+                        const latest = child.conversationHistory[0];
+                        if (!latest) return null;
+                        return (
+                          <article key={`${child.id}-latest`} className="rounded-xl border border-white/12 bg-[#0F1216] px-3 py-2.5">
+                            <p className="font-arsans text-xs font-semibold text-bone/86" dir="auto">{child.nickname}</p>
+                            <p className="mt-1 font-arsans text-xs leading-5 text-bone/58" dir="auto">{latest.childText}</p>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="mt-2 rounded-xl border border-white/12 bg-[#0F1216] px-3 py-2.5 font-arsans text-xs text-bone/48">
+                      {isArabic ? "لم يبدأ هذا الطفل محادثة بعد. بعد فتح مساحة الطفل وإرسال أول رسالة ستظهر هنا." : "No child messages yet. After opening child space and sending a first message, it will appear here."}
+                    </p>
+                  )}
+                </div>
+
+                {childMessage ? <p className={`mt-3 font-arsans text-sm leading-6 ${childStatus === "error" ? "text-red-200" : "text-cyan-100/80"}`}>{childMessage}</p> : null}
+              </section>
             </div>
           ) : null}
 
@@ -1145,6 +1610,28 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
                 <InsightTile label={isArabic ? "خطوات منجزة" : "Steps done"} value={journeyInsight.completedQuestSteps.toLocaleString(isArabic ? "ar-EG" : "en-US")} />
                 <InsightTile label={isArabic ? "مؤشر التقدم" : "Progress"} value={`${journeyInsight.reflectionScore}%`} />
               </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setJourneyWorldFilter("all")}
+                  className={`ui-action border px-3 py-2 text-xs ${journeyWorldFilter === "all" ? "border-dusk/60 bg-dusk text-ink" : "border-white/10 text-bone/72 hover:border-dusk/35 hover:text-dusk"}`}
+                >
+                  {isArabic ? "كل المساحات" : "All worlds"}
+                </button>
+                {journeyWorldOptions.map((world) => {
+                  const active = journeyWorldFilter === world;
+                  return (
+                    <button
+                      key={world}
+                      type="button"
+                      onClick={() => setJourneyWorldFilter(world)}
+                      className={`ui-action border px-3 py-2 text-xs ${active ? "border-dusk/60 bg-dusk text-ink" : "border-white/10 text-bone/72 hover:border-dusk/35 hover:text-dusk"}`}
+                    >
+                      {formatWorld(world, language)}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <div className="space-y-4">
               <p className="font-arsans text-sm text-bone/55">{journeyInsight.streakSignal}</p>
@@ -1157,6 +1644,55 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
                   </div>
                 )) : <p className="font-arsans text-sm text-bone/42">{isArabic ? "ابدأ بحفظ لحظة أو خطة صغيرة لتظهر الخريطة." : "Save a moment or tiny plan to light up the map."}</p>}
               </div>
+            </div>
+          </div>
+
+          <div className="mt-6 border border-white/10 bg-black/12 p-4">
+            <p className="ui-kicker text-dusk">{isArabic ? "مسار الانتقال بين المساحات" : "World movement trail"}</p>
+            <p className="mt-2 font-arsans text-sm text-bone/58">{isArabic ? "نقرأ آخر الآثار المحفوظة لنرى كيف تنتقل من مساحة لأخرى أثناء الأيام." : "We read your latest saved artifacts to show how you move from one world to another over time."}</p>
+            <div className="mt-4 space-y-2">
+              {worldTransitions.length > 0 ? worldTransitions.slice(0, 8).map((transition) => (
+                <button
+                  key={transition.id}
+                  type="button"
+                  onClick={() => setJourneyWorldFilter(transition.to)}
+                  className="grid w-full grid-cols-[1fr_auto_auto] items-center gap-3 border border-white/10 bg-white/[0.02] px-3 py-2 text-start transition-colors hover:border-dusk/35"
+                >
+                  <span className="font-arsans text-sm text-bone/78">
+                    {formatWorld(transition.from, language)}
+                    <span className="mx-2 text-bone/35">→</span>
+                    {formatWorld(transition.to, language)}
+                  </span>
+                  <span className="font-mono text-[10px] text-dusk">{transition.count}x</span>
+                  <span className="font-arsans text-[11px] text-bone/42">{new Date(transition.lastSeenAt).toLocaleDateString(isArabic ? "ar-EG" : "en-US")}</span>
+                </button>
+              )) : <p className="font-arsans text-sm text-bone/42">{isArabic ? "لا توجد انتقالات كافية بعد. احفظ لحظات في أكثر من مساحة ليظهر المسار." : "Not enough transitions yet. Save artifacts across multiple worlds to reveal the trail."}</p>}
+            </div>
+          </div>
+
+          <div className="mt-4 border border-emerald-300/15 bg-emerald-300/[0.03] p-4">
+            <p className="ui-kicker text-emerald-200">{isArabic ? "خط زمني للمزاج" : "Emotion timeline"}</p>
+            <p className="mt-2 font-arsans text-sm text-bone/58">{isArabic ? "سجل بصري خفيف يوضح كيف تحركت حالتك عبر آخر الآثار المحفوظة." : "A lightweight visual log showing how your state moved across recent saved artifacts."}</p>
+            <div className="mt-4 overflow-x-auto pb-2 [scrollbar-width:thin]">
+              {emotionTimeline.length > 0 ? (
+                <div className="flex min-w-max items-center gap-2">
+                  {emotionTimeline.map((item, index) => (
+                    <div key={item.id} className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setJourneyWorldFilter(item.world)}
+                        className="border border-emerald-300/20 bg-black/12 px-3 py-2 text-start transition-colors hover:border-emerald-300/45"
+                      >
+                        <span className="block font-arsans text-xs text-emerald-100/88">{isArabic ? item.moodLabelAr : item.moodLabelEn}</span>
+                        <span className="mt-1 block font-arsans text-[11px] text-bone/45">{formatWorld(item.world, language)} · {new Date(item.createdAt).toLocaleDateString(isArabic ? "ar-EG" : "en-US")}</span>
+                      </button>
+                      {index < emotionTimeline.length - 1 ? <span className="text-emerald-200/65">→</span> : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="font-arsans text-sm text-bone/42">{isArabic ? "ابدأ بحفظ لحظات أو خطط ليظهر الخط الزمني." : "Save moments or plans to reveal the timeline."}</p>
+              )}
             </div>
           </div>
         </section>
@@ -1181,13 +1717,13 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
             <p className="ui-kicker text-emerald-200">{isArabic ? "شريط قبل / بعد" : "Before / after reel"}</p>
             <h2 className="mt-2 font-arserif text-3xl text-bone/90">{isArabic ? "الأثر الذي تتركه الجلسات" : "The trace your sessions leave"}</h2>
             <div className="mt-5 space-y-3">
-              {reflectionReel.length > 0 ? reflectionReel.map((item) => (
+              {filteredReflectionReel.length > 0 ? filteredReflectionReel.map((item) => (
                 <article key={`${item.createdAt}-${item.world}`} className="border border-emerald-300/15 bg-black/10 p-4">
                   <p className="font-arsans text-xs text-bone/38">{formatWorld(item.world, language)} · {new Date(item.createdAt).toLocaleDateString(isArabic ? "ar-EG" : "en-US")}</p>
                   <p className="mt-3 font-arsans text-sm leading-6 text-bone/58" dir="auto"><span className="text-bone/35">{isArabic ? "قبل: " : "Before: "}</span>{item.before}</p>
                   <p className="mt-2 font-arsans text-sm leading-6 text-emerald-100/75" dir="auto"><span className="text-emerald-200">{isArabic ? "بعد: " : "After: "}</span>{item.after}</p>
                 </article>
-              )) : <p className="font-arsans text-sm leading-7 text-bone/45">{isArabic ? "احفظ لقطة رحلة لتظهر هنا نتيجة الجلسة بدون كشف كل المحادثة." : "Save a journey snapshot to show the session outcome without exposing the full chat."}</p>}
+              )) : <p className="font-arsans text-sm leading-7 text-bone/45">{journeyWorldFilter !== "all" ? (isArabic ? "لا توجد عناصر محفوظة لهذه المساحة بعد. اختر مساحة أخرى أو فعّل الكل." : "No saved reel items for this world yet. Try another world or switch back to all.") : (isArabic ? "احفظ لقطة رحلة لتظهر هنا نتيجة الجلسة بدون كشف كل المحادثة." : "Save a journey snapshot to show the session outcome without exposing the full chat.")}</p>}
             </div>
           </div>
 
@@ -1205,6 +1741,91 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
                 </article>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section className={`${activeProfileTab === "saved-library" ? "" : "hidden"} border border-dusk/25 bg-dusk/[0.035] p-5 md:col-span-2`}>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="ui-kicker text-dusk">{isArabic ? "مكتبة الكبسولات" : "Capsule library"}</p>
+              <h2 className="mt-2 font-arserif text-3xl text-bone/90">{isArabic ? "ابحث في آثارك المحفوظة" : "Search your saved artifacts"}</h2>
+              <p className="mt-3 max-w-2xl font-arsans text-sm leading-7 text-bone/55">{isArabic ? "مكتبة موحدة تجمع اللحظات والخطط واللقطات والتحديات في مكان واحد قابل للتصفية." : "A unified library for moments, plans, snapshots, and quests with fast filtering."}</p>
+            </div>
+            <div className="w-full max-w-md">
+              <input
+                value={capsuleSearchQuery}
+                onChange={(event) => setCapsuleSearchQuery(event.target.value)}
+                placeholder={isArabic ? "ابحث بكلمة من النص أو العنوان..." : "Search by title or text..."}
+                className="w-full border border-white/10 bg-black/20 px-3 py-3 font-arsans text-sm text-bone outline-none transition-colors focus:border-dusk/45"
+                dir={direction}
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2" role="tablist" aria-label={isArabic ? "تصفية نوع الكبسولة" : "Capsule type filters"}>
+            {([
+              { id: "all", ar: "الكل", en: "All" },
+              { id: "moment", ar: "لحظة", en: "Moments" },
+              { id: "plan", ar: "خطة", en: "Plans" },
+              { id: "snapshot", ar: "لقطة", en: "Snapshots" },
+              { id: "quest", ar: "تحدي", en: "Quests" },
+            ] as const).map((option) => {
+              const active = capsuleTypeFilter === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setCapsuleTypeFilter(option.id)}
+                  className={`ui-action border px-3 py-2 text-xs ${active ? "border-dusk/60 bg-dusk text-ink" : "border-white/10 text-bone/72 hover:border-dusk/35 hover:text-dusk"}`}
+                >
+                  {isArabic ? option.ar : option.en}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setCapsuleWorldFilter("all")}
+              className={`ui-action border px-3 py-2 text-xs ${capsuleWorldFilter === "all" ? "border-gold/60 bg-gold text-ink" : "border-white/10 text-bone/72 hover:border-gold/35 hover:text-gold"}`}
+            >
+              {isArabic ? "كل المساحات" : "All worlds"}
+            </button>
+            {capsuleWorldOptions.map((world) => {
+              const active = capsuleWorldFilter === world;
+              return (
+                <button
+                  key={world}
+                  type="button"
+                  onClick={() => setCapsuleWorldFilter(world)}
+                  className={`ui-action border px-3 py-2 text-xs ${active ? "border-gold/60 bg-gold text-ink" : "border-white/10 text-bone/72 hover:border-gold/35 hover:text-gold"}`}
+                >
+                  {formatWorld(world, language)}
+                </button>
+              );
+            })}
+          </div>
+
+          {shareSafeStatusMessage ? <p className="mt-3 font-arsans text-xs text-cyan-100/85">{shareSafeStatusMessage}</p> : null}
+
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            {filteredCapsuleLibraryItems.length > 0 ? filteredCapsuleLibraryItems.map((item) => (
+              <article key={item.id} className="border border-white/10 bg-black/10 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-arsans text-sm font-semibold text-bone/88" dir="auto">{item.title}</p>
+                    <p className="mt-1 font-arsans text-xs text-bone/38">{formatCapsuleTypeLabel(item.type, language)} · {formatWorld(item.world, language)} · {new Date(item.createdAt).toLocaleDateString(isArabic ? "ar-EG" : "en-US")}</p>
+                  </div>
+                </div>
+                <p className="mt-3 font-arsans text-sm leading-6 text-bone/62" dir="auto">{item.summary}</p>
+                <div className="mt-3 flex justify-end">
+                  <button type="button" onClick={() => void shareSafeCapsule(item)} className="ui-action border border-cyan-200/35 px-3 py-2 text-xs text-cyan-100 hover:bg-cyan-200/10">
+                    {isArabic ? "مشاركة آمنة" : "Share-safe"}
+                  </button>
+                </div>
+              </article>
+            )) : <p className="font-arsans text-sm text-bone/45">{isArabic ? "لا يوجد نتائج مطابقة الآن. جرّب نوعاً آخر أو امسح البحث." : "No matching artifacts right now. Try another type or clear search."}</p>}
           </div>
         </section>
 
@@ -1241,6 +1862,71 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
                 </article>
               )) : <p className="font-arsans text-sm leading-7 text-bone/45">{isArabic ? "استخدم /story ثم احفظ الرد ليظهر هنا كمعرض هادئ." : "Use /story, then save the reply to build a quiet gallery here."}</p>}
             </div>
+          </div>
+        </section>
+
+        <section className={`${activeProfileTab === "account-details" ? "" : "hidden"} border border-cyan-200/15 bg-cyan-200/[0.025] p-5 md:col-span-2`}>
+          <p className="ui-kicker text-cyan-100">{isArabic ? "الذاكرة التي تتحكم بها" : "Memory you control"}</p>
+          <h2 className="mt-2 font-arserif text-3xl text-bone/90">{isArabic ? "اختر ما الذي يتذكره فضفضة" : "Choose what FadFada remembers"}</h2>
+          <p className="mt-3 font-arsans text-sm leading-7 text-bone/55">{isArabic ? "يمكنك إيقاف حفظ أي نوع من الآثار. الإيقاف لا يحذف القديم تلقائياً، ويمكنك مسحه فوراً من الزر أدناه." : "You can disable saving any artifact type. Turning it off does not delete old data automatically, and you can wipe everything below."}</p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            {([
+              {
+                key: "savedMoments",
+                arTitle: "اللحظات المحفوظة",
+                enTitle: "Saved moments",
+                arDetail: "زر احفظ اللحظة تحت الردود",
+                enDetail: "Save moment action under replies",
+              },
+              {
+                key: "tinyPlans",
+                arTitle: "الخطط الصغيرة",
+                enTitle: "Tiny plans",
+                arDetail: "تحويل الرد إلى خطوات تنفيذ",
+                enDetail: "Turn replies into action steps",
+              },
+              {
+                key: "journeySnapshots",
+                arTitle: "لقطات الرحلة",
+                enTitle: "Journey snapshots",
+                arDetail: "ملخصات قبل/بعد للجلسات",
+                enDetail: "Before/after session snapshots",
+              },
+              {
+                key: "growthQuests",
+                arTitle: "التحديات الصغيرة",
+                enTitle: "Growth quests",
+                arDetail: "تحديات 3 أيام القابلة للإنهاء",
+                enDetail: "3-day quests you can finish",
+              },
+            ] as const).map((item) => {
+              const enabled = memoryPreferences[item.key];
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => toggleMemoryPreference(item.key)}
+                  className={`border p-4 text-start transition-colors ${enabled ? "border-cyan-200/55 bg-cyan-200/10" : "border-white/10 bg-black/10 hover:border-cyan-200/35"}`}
+                >
+                  <span className="flex items-center justify-between gap-3">
+                    <span className="font-arsans text-sm text-bone/88">{isArabic ? item.arTitle : item.enTitle}</span>
+                    <span className={`rounded-full px-2 py-1 font-mono text-[10px] ${enabled ? "bg-cyan-200/20 text-cyan-100" : "bg-white/10 text-bone/55"}`}>{enabled ? (isArabic ? "مفعل" : "On") : (isArabic ? "متوقف" : "Off")}</span>
+                  </span>
+                  <span className="mt-2 block font-arsans text-xs text-bone/45">{isArabic ? item.arDetail : item.enDetail}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" onClick={() => saveMemoryPreferences(defaultMemoryPreferences)} className="ui-action border border-cyan-200/40 px-3 py-2 text-xs text-cyan-100 hover:bg-cyan-200/10">
+              {isArabic ? "تفعيل كل الذاكرة" : "Enable all memory"}
+            </button>
+            <button type="button" onClick={() => saveMemoryPreferences({ savedMoments: false, tinyPlans: false, journeySnapshots: false, growthQuests: false })} className="ui-action border border-white/15 px-3 py-2 text-xs text-bone/72 hover:border-white/35 hover:text-bone">
+              {isArabic ? "إيقاف الكل" : "Disable all"}
+            </button>
+            <button type="button" onClick={clearAllMemoryArtifacts} className="ui-action border border-red-200/35 px-3 py-2 text-xs text-red-100 hover:bg-red-200/10">
+              {isArabic ? "مسح كل الآثار المحفوظة" : "Clear all saved artifacts"}
+            </button>
           </div>
         </section>
 
@@ -1472,6 +2158,27 @@ function formatParentPlaybookError(error: string | undefined, language: "ar" | "
   return language === "ar" ? "لم نتمكن من بناء الخطة الآن. جرّب وصفاً أقصر أو حاول مرة أخرى." : "Could not build the playbook right now. Try a shorter description or try again.";
 }
 
+function formatWeeklyReportError(error: string | undefined, language: "ar" | "en") {
+  if (error === "PARENT_WORKSPACE_REQUIRED") return language === "ar" ? "التقرير الأسبوعي متاح لولي الأمر فقط." : "Weekly report is available in parent workspace only.";
+  if (error === "UNAUTHORIZED") return language === "ar" ? "سجّل الدخول أولاً لعرض التقرير." : "Sign in first to view the weekly report.";
+  return language === "ar" ? "تعذر إنشاء التقرير الأسبوعي الآن. حاول مرة أخرى بعد قليل." : "Could not generate the weekly report right now. Please try again shortly.";
+}
+
+function formatWeeklyReportGeneratedAt(value: string, language: "ar" | "en") {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return language === "ar" ? "غير متاح" : "Unavailable";
+  return date.toLocaleString(language === "ar" ? "ar-EG" : "en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function WeeklyMetricTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border border-amber-200/16 bg-black/14 px-2 py-2">
+      <span className="block font-arsans text-[10px] uppercase tracking-[0.08em] text-amber-100/58">{label}</span>
+      <span className="mt-1 block font-mono text-sm text-bone/88">{value}</span>
+    </div>
+  );
+}
+
 function buildConnectionRitual(item: ChildPulseSummary, language: "ar" | "en") {
   const isArabic = language === "ar";
 
@@ -1549,6 +2256,74 @@ function buildConnectionRitual(item: ChildPulseSummary, language: "ar" | "en") {
     detail: "A short phone-free moment can anchor a child in safety.",
     steps: ["Sit without screens for three minutes.", "Ask: What was one small good thing today?", "Close with one simple promise for tomorrow."],
   });
+}
+
+function buildParentCopilotTimeline(childProfiles: ChildProfile[], childPulse: ChildPulseSummary[], language: "ar" | "en") {
+  const pulseById = new Map(childPulse.map((item) => [item.childProfileId, item]));
+
+  return childProfiles
+    .map((child) => {
+      const pulse = pulseById.get(child.id);
+      if (!pulse) return null;
+
+      const latestMoment = child.conversationHistory[0];
+      const worldLabel = formatWorld(pulse.dominantWorld, language);
+      const recentChildText = latestMoment?.childText?.slice(0, 72) || "";
+      const isArabic = language === "ar";
+
+      if (pulse.riskLevel === "high") {
+        return {
+          childProfileId: child.id,
+          nickname: child.nickname,
+          badge: isArabic ? "أولوية هادئة" : "Calm priority",
+          title: isArabic ? "خفّض المطالبة وارفع القرب" : "Lower demand, raise connection",
+          summary: isArabic ? `الإشارة الحالية مرتفعة، والعالم الغالب ${worldLabel}. الليلة ليست وقت تصحيح طويل.` : `Risk is elevated and the dominant world is ${worldLabel}. Tonight is not the moment for long correction.`,
+          nextStep: isArabic ? "ابدأ بجملة أمان قصيرة ثم نشاط هادئ من دقيقتين." : "Open with one safe sentence, then a two-minute calm activity.",
+          signal: isArabic ? (recentChildText ? `آخر إشارة: ${recentChildText}` : "النشاط الأخير يحتاج اقتراباً بدون ضغط.") : (recentChildText ? `Latest cue: ${recentChildText}` : "Recent activity points to closeness before demands."),
+          updatedAt: pulse.lastActivityAt,
+        } as ParentTimelineEntry;
+      }
+
+      if (pulse.trend === "up") {
+        return {
+          childProfileId: child.id,
+          nickname: child.nickname,
+          badge: isArabic ? "نافذة مفتوحة" : "Open window",
+          title: isArabic ? "هذا وقت البناء فوق الاهتمام" : "Build on the current momentum",
+          summary: isArabic ? `النشاط صاعد هذا الأسبوع مع حضور واضح في ${worldLabel}.` : `Activity is rising this week with clear energy in ${worldLabel}.`,
+          nextStep: isArabic ? "اسأل سؤال متابعة واحداً وابنِ عليه في لعبة أو مهمة قصيرة." : "Ask one follow-up question and turn it into a short game or task.",
+          signal: isArabic ? `${pulse.turnCount7d} نشاطات خلال ٧ أيام.` : `${pulse.turnCount7d} activities over the last 7 days.`,
+          updatedAt: pulse.lastActivityAt,
+        } as ParentTimelineEntry;
+      }
+
+      if (pulse.trend === "down" || pulse.riskLevel === "medium") {
+        return {
+          childProfileId: child.id,
+          nickname: child.nickname,
+          badge: isArabic ? "إصلاح خفيف" : "Light repair",
+          title: isArabic ? "اسأل أقل، لاحظ أكثر" : "Ask less, notice more",
+          summary: isArabic ? `هناك هبوط أو حساسية متوسطة، مع ظهور ${worldLabel} كمساحة متكررة.` : `There is a dip or medium sensitivity, with ${worldLabel} showing up repeatedly.`,
+          nextStep: isArabic ? "استخدم سؤالاً واحداً فقط ثم قدّم اختيارين آمنين." : "Use only one question, then offer two safe choices.",
+          signal: isArabic ? (recentChildText ? `آخر عبارة ملفتة: ${recentChildText}` : "راجع نبرة المساء وقلّل التصحيح المباشر.") : (recentChildText ? `Latest notable phrase: ${recentChildText}` : "Review evening tone and reduce direct correction."),
+          updatedAt: pulse.lastActivityAt,
+        } as ParentTimelineEntry;
+      }
+
+      return {
+        childProfileId: child.id,
+        nickname: child.nickname,
+        badge: isArabic ? "استقرار" : "Steady",
+        title: isArabic ? "حافظ على الإيقاع بدون ازدحام" : "Keep the rhythm without crowding it",
+        summary: isArabic ? `الإيقاع مستقر هذا الأسبوع، والعالم الأقرب هو ${worldLabel}.` : `The rhythm is steady this week, with ${worldLabel} as the closest world.`,
+        nextStep: isArabic ? "اختم اليوم بطقس قصير ثابت بدل فتح موضوع جديد." : "End the day with one short steady ritual instead of opening a new topic.",
+        signal: isArabic ? `${pulse.turnCount7d} نشاطات خلال ٧ أيام.` : `${pulse.turnCount7d} activities over the last 7 days.`,
+        updatedAt: pulse.lastActivityAt,
+      } as ParentTimelineEntry;
+    })
+    .filter((entry): entry is ParentTimelineEntry => Boolean(entry))
+    .sort((left, right) => new Date(right.updatedAt || 0).getTime() - new Date(left.updatedAt || 0).getTime())
+    .slice(0, 6);
 }
 
 function formatChildProfileError(error: string | undefined, language: "ar" | "en", maxProfiles?: number, upgradeRequired?: boolean) {
@@ -1699,6 +2474,213 @@ function buildMoodConstellation(artifacts: { savedMoments: SavedMoment[]; tinyPl
   }));
 }
 
+function buildJourneyWorldOptions(artifacts: { savedMoments: SavedMoment[]; tinyPlans: TinyPlan[]; journeySnapshots: JourneySnapshot[]; growthQuests: GrowthQuest[] }) {
+  const entries = [
+    ...artifacts.savedMoments.map((item) => item.world),
+    ...artifacts.tinyPlans.map((item) => item.world),
+    ...artifacts.journeySnapshots.map((item) => item.world),
+    ...artifacts.growthQuests.map((item) => item.world),
+  ].filter((world) => typeof world === "string" && world.trim().length > 0);
+
+  return Array.from(new Set(entries));
+}
+
+function buildJourneyWorldTransitions(artifacts: { savedMoments: SavedMoment[]; tinyPlans: TinyPlan[]; journeySnapshots: JourneySnapshot[]; growthQuests: GrowthQuest[] }): JourneyWorldTransition[] {
+  const entries = [
+    ...artifacts.savedMoments.map((item) => ({ world: item.world, at: item.savedAt })),
+    ...artifacts.tinyPlans.map((item) => ({ world: item.world, at: item.createdAt })),
+    ...artifacts.journeySnapshots.map((item) => ({ world: item.world, at: item.createdAt })),
+    ...artifacts.growthQuests.map((item) => ({ world: item.world, at: item.createdAt })),
+  ]
+    .filter((item) => typeof item.world === "string" && item.world.trim().length > 0)
+    .map((item) => ({ ...item, timestamp: new Date(item.at).getTime() }))
+    .filter((item) => Number.isFinite(item.timestamp))
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  if (entries.length < 2) return [];
+
+  const transitionMap = new Map<string, JourneyWorldTransition>();
+  for (let index = 1; index < entries.length; index += 1) {
+    const from = entries[index - 1].world;
+    const to = entries[index].world;
+    if (!from || !to || from === to) continue;
+    const id = `${from}->${to}`;
+    const existing = transitionMap.get(id);
+    if (existing) {
+      existing.count += 1;
+      if (entries[index].at > existing.lastSeenAt) existing.lastSeenAt = entries[index].at;
+      continue;
+    }
+    transitionMap.set(id, { id, from, to, count: 1, lastSeenAt: entries[index].at });
+  }
+
+  return Array.from(transitionMap.values()).sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return new Date(b.lastSeenAt).getTime() - new Date(a.lastSeenAt).getTime();
+  });
+}
+
+function buildCapsuleLibraryItems(
+  artifacts: { savedMoments: SavedMoment[]; tinyPlans: TinyPlan[]; journeySnapshots: JourneySnapshot[]; growthQuests: GrowthQuest[] },
+  language: "ar" | "en"
+): CapsuleLibraryItem[] {
+  const momentItems: CapsuleLibraryItem[] = artifacts.savedMoments.map((moment) => ({
+    id: `moment-${moment.id}`,
+    type: "moment",
+    title: moment.personaName || (language === "ar" ? "لحظة محفوظة" : "Saved moment"),
+    summary: cleanArtifactText(moment.text).slice(0, 220),
+    world: moment.world,
+    createdAt: moment.savedAt,
+  }));
+
+  const planItems: CapsuleLibraryItem[] = artifacts.tinyPlans.map((plan) => ({
+    id: `plan-${plan.id}`,
+    type: "plan",
+    title: cleanArtifactText(plan.title) || (language === "ar" ? "خطة صغيرة" : "Tiny plan"),
+    summary: plan.steps.map((step) => cleanArtifactText(step)).join(" • ").slice(0, 240),
+    world: plan.world,
+    createdAt: plan.createdAt,
+  }));
+
+  const snapshotItems: CapsuleLibraryItem[] = artifacts.journeySnapshots.map((snapshot) => ({
+    id: `snapshot-${snapshot.id}`,
+    type: "snapshot",
+    title: cleanArtifactText(snapshot.title) || (language === "ar" ? "لقطة رحلة" : "Journey snapshot"),
+    summary: `${cleanArtifactText(snapshot.theme)} ${language === "ar" ? "•" : "•"} ${cleanArtifactText(snapshot.nextStep)}`.slice(0, 240),
+    world: snapshot.world,
+    createdAt: snapshot.createdAt,
+  }));
+
+  const questItems: CapsuleLibraryItem[] = artifacts.growthQuests.map((quest) => ({
+    id: `quest-${quest.id}`,
+    type: "quest",
+    title: cleanArtifactText(quest.title) || (language === "ar" ? "تحدي فضفضة" : "FadFada quest"),
+    summary: cleanArtifactText(quest.reason).slice(0, 220),
+    world: quest.world,
+    createdAt: quest.createdAt,
+  }));
+
+  return [...momentItems, ...planItems, ...snapshotItems, ...questItems].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+}
+
+function formatCapsuleTypeLabel(value: CapsuleLibraryItemType, language: "ar" | "en") {
+  const labels: Record<CapsuleLibraryItemType, { ar: string; en: string }> = {
+    moment: { ar: "لحظة", en: "Moment" },
+    plan: { ar: "خطة", en: "Plan" },
+    snapshot: { ar: "لقطة", en: "Snapshot" },
+    quest: { ar: "تحدي", en: "Quest" },
+  };
+
+  return labels[value][language];
+}
+
+function getWorldMoodLabel(world: string) {
+  if (world === "calm") return { ar: "هدوء", en: "Calm" };
+  if (world === "story") return { ar: "تخيّل", en: "Imagination" };
+  if (world === "faith") return { ar: "طمأنينة", en: "Reassurance" };
+  if (world === "build") return { ar: "حركة", en: "Momentum" };
+  if (world === "learning") return { ar: "وضوح", en: "Clarity" };
+  if (world === "celebration") return { ar: "فرح", en: "Joy" };
+  if (world === "grief") return { ar: "سكينة", en: "Stillness" };
+  return { ar: "تحول", en: "Shift" };
+}
+
+function buildEmotionTimeline(artifacts: { savedMoments: SavedMoment[]; tinyPlans: TinyPlan[]; journeySnapshots: JourneySnapshot[]; growthQuests: GrowthQuest[] }): EmotionTimelineItem[] {
+  const items: EmotionTimelineItem[] = [
+    ...artifacts.savedMoments.map((item) => {
+      const mood = getWorldMoodLabel(item.world);
+      return {
+        id: `moment-${item.id}`,
+        world: item.world,
+        moodLabelAr: mood.ar,
+        moodLabelEn: mood.en,
+        createdAt: item.savedAt,
+        source: "moment" as const,
+      };
+    }),
+    ...artifacts.tinyPlans.map((item) => {
+      const mood = getWorldMoodLabel(item.world);
+      return {
+        id: `plan-${item.id}`,
+        world: item.world,
+        moodLabelAr: mood.ar,
+        moodLabelEn: mood.en,
+        createdAt: item.createdAt,
+        source: "plan" as const,
+      };
+    }),
+    ...artifacts.journeySnapshots.map((item) => {
+      const mood = getWorldMoodLabel(item.world);
+      return {
+        id: `snapshot-${item.id}`,
+        world: item.world,
+        moodLabelAr: mood.ar,
+        moodLabelEn: mood.en,
+        createdAt: item.createdAt,
+        source: "snapshot" as const,
+      };
+    }),
+    ...artifacts.growthQuests.map((item) => {
+      const mood = getWorldMoodLabel(item.world);
+      return {
+        id: `quest-${item.id}`,
+        world: item.world,
+        moodLabelAr: mood.ar,
+        moodLabelEn: mood.en,
+        createdAt: item.createdAt,
+        source: "quest" as const,
+      };
+    }),
+  ]
+    .filter((item) => Number.isFinite(new Date(item.createdAt).getTime()))
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+  return items.slice(-12);
+}
+
+function redactSensitiveDetail(value: string) {
+  return value
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted-email]")
+    .replace(/(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?){2,4}\d{2,4}/g, "[redacted-phone]")
+    .replace(/https?:\/\/\S+/gi, "[redacted-link]")
+    .replace(/\b\d{6,}\b/g, "[redacted-number]")
+    .replace(/@[\w._-]+/g, "[redacted-handle]")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildShareSafeCapsuleText(item: CapsuleLibraryItem, language: "ar" | "en") {
+  const worldLabel = formatWorld(item.world, language);
+  const typeLabel = formatCapsuleTypeLabel(item.type, language);
+  const dateLabel = new Date(item.createdAt).toLocaleDateString(language === "ar" ? "ar-EG" : "en-US");
+  const safeTitle = redactSensitiveDetail(item.title);
+  const safeSummary = redactSensitiveDetail(item.summary);
+
+  if (language === "ar") {
+    return [
+      "هذه كبسولة فضفضة آمنة للمشاركة.",
+      `النوع: ${typeLabel}`,
+      `المساحة: ${worldLabel}`,
+      `التاريخ: ${dateLabel}`,
+      `العنوان: ${safeTitle}`,
+      `الخلاصة: ${safeSummary}`,
+      "تمت إزالة أي تفاصيل شخصية حساسة تلقائياً.",
+    ].join("\n");
+  }
+
+  return [
+    "This is a share-safe FadFada capsule.",
+    `Type: ${typeLabel}`,
+    `World: ${worldLabel}`,
+    `Date: ${dateLabel}`,
+    `Title: ${safeTitle}`,
+    `Summary: ${safeSummary}`,
+    "Potentially sensitive personal details were automatically redacted.",
+  ].join("\n");
+}
+
 function getConstellationColor(world: string) {
   if (world === "story") return "bg-gold";
   if (world === "build" || world === "learning") return "bg-emerald-300";
@@ -1719,6 +2701,22 @@ function buildStoryMirrorPreviewUrl(moment: SavedMoment) {
 
 function normalizeVoiceDialect(value: string | null): VoiceDialect {
   return voiceDialects.some((dialect) => dialect.value === value) ? value as VoiceDialect : "ar-EG";
+}
+
+function normalizeMemoryPreferences(rawValue: string | null): MemoryPreferences {
+  if (!rawValue) return defaultMemoryPreferences;
+
+  try {
+    const parsed = JSON.parse(rawValue) as Partial<MemoryPreferences>;
+    return {
+      savedMoments: parsed.savedMoments !== false,
+      tinyPlans: parsed.tinyPlans !== false,
+      journeySnapshots: parsed.journeySnapshots !== false,
+      growthQuests: parsed.growthQuests !== false,
+    };
+  } catch {
+    return defaultMemoryPreferences;
+  }
 }
 
 function formatTier(tier: string, language: "ar" | "en") {

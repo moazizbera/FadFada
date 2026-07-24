@@ -4,6 +4,7 @@ import { authOptions } from "../../../lib/auth";
 import { prisma } from "../../../lib/prisma";
 
 export const runtime = "nodejs";
+const maxSnapshotJsonLength = 12000;
 
 type SessionUser = {
   id?: string;
@@ -89,11 +90,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "INVALID_SESSION" }, { status: 400 });
   }
 
+  const persistedSnapshot = compactSnapshotForStorage(snapshot, maxSnapshotJsonLength);
+  const metadataJson = JSON.stringify(persistedSnapshot);
+
+  if (metadataJson.length > maxSnapshotJsonLength) {
+    return NextResponse.json({ error: "SESSION_TOO_LARGE" }, { status: 413 });
+  }
+
   await prisma.interactionEvent.create({
     data: {
       userId: sessionUser.id,
       eventType: "chat_session_snapshot",
-      metadataJson: JSON.stringify(snapshot).slice(0, 12000),
+      metadataJson,
       geographicRegion: "account",
     },
   });
@@ -146,4 +154,44 @@ function cleanText(value: unknown, maxLength: number) {
 function summarizeTitle(value: string) {
   const cleaned = value.replace(/\s+/g, " ").trim();
   return cleaned.length > 70 ? `${cleaned.slice(0, 67).trim()}...` : cleaned || "FadFada session";
+}
+
+function compactSnapshotForStorage(snapshot: ReturnType<typeof normalizeSnapshot>, maxLength: number) {
+  let candidate = { ...snapshot, messages: [...snapshot.messages] };
+
+  if (JSON.stringify(candidate).length <= maxLength) {
+    return candidate;
+  }
+
+  while (candidate.messages.length > 8 && JSON.stringify(candidate).length > maxLength) {
+    candidate = { ...candidate, messages: candidate.messages.slice(1) };
+  }
+
+  if (JSON.stringify(candidate).length <= maxLength) {
+    return candidate;
+  }
+
+  candidate = {
+    ...candidate,
+    messages: candidate.messages.map((message) => ({
+      ...message,
+      text: cleanText(message.text, 1100),
+    })),
+  };
+
+  if (JSON.stringify(candidate).length <= maxLength) {
+    return candidate;
+  }
+
+  candidate = {
+    ...candidate,
+    messages: candidate.messages.slice(-4).map((message) => ({
+      ...message,
+      text: cleanText(message.text, 480),
+      personaName: cleanText(message.personaName, 64) || undefined,
+      avatarPath: cleanText(message.avatarPath, 180) || undefined,
+    })),
+  };
+
+  return candidate;
 }

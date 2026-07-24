@@ -8,6 +8,8 @@ FadFada is not a normal chatbot. It adapts the full conversation experience base
 
 FadFada is built as a **mobile-first PWA** with Gemini integration, local fallback logic, safety routing, fictional human-like personas, adaptive conversation worlds, and judge-ready evidence features for hackathon validation.
 
+The current build now includes a dedicated **parent + child workspace architecture**: parents can create child profiles, switch into a child-safe workspace, send structured homework, generate short parenting playbooks, and review lightweight child pulse summaries.
+
 **Product vision:** a private bilingual emotional operating system that helps users express, transform, save, and act on their real moments.
 
 ## Checklist Status Legend
@@ -35,6 +37,11 @@ FadFada is built as a **mobile-first PWA** with Gemini integration, local fallba
 - [x] In-app demo runbook with one-tap support, learning, safety, and bilingual proof scenarios
 - [x] Visible user UI avoids hackathon/judge/internal wording
 - [x] Clear safety positioning: not therapy, not diagnosis, not emergency care
+- [x] Parent workspace with child profile management
+- [x] Child workspace mode separated from parent profile/account surfaces
+- [x] Parent-to-child workspace switching with guarded return flow
+- [x] Compact mobile quick-access menu for uncluttered navigation
+- [x] Safe-area aware installed PWA layout for modern mobile devices
 
 ### Conversation Experience
 
@@ -58,6 +65,9 @@ FadFada is built as a **mobile-first PWA** with Gemini integration, local fallba
 - [x] Fixed duplicate React message key issue
 - [x] Fixed story continuation after short replies like `أمل` and `نعم`
 - [x] Fixed celebration responses so happy moments do not become pressure/stress replies
+- [x] Child-safe workspace greeting and scoped child chat continuity
+- [x] Child persona filtering so child workspace only sees child-safe companions
+- [x] Parent and child conversation storage scoped by workspace context
 
 ### Input Modes
 
@@ -88,6 +98,8 @@ FadFada is built as a **mobile-first PWA** with Gemini integration, local fallba
 - [x] Gemini instructed not to repeat openings
 - [x] Gemini instructed to continue story/poem/faith/build context naturally
 - [x] Gemini fallback to local engine when unavailable
+- [x] Parent playbook generation route with structured JSON output
+- [x] Parent homework transformation route with multimodal image/hint input
 
 ### Safety
 
@@ -98,6 +110,10 @@ FadFada is built as a **mobile-first PWA** with Gemini integration, local fallba
 - [x] Clear product disclaimer
 - [x] Does not claim to be a therapist, doctor, psychiatrist, or emergency service
 - [x] Faith responses avoid fatwa/religious authority claims
+- [x] Child-specific AI safety contract in persona system prompts
+- [x] Child pulse risk scoring for parent summaries
+- [x] Parent return flow hardened with server-verified code instead of local-only check
+- [x] Notifications endpoint fails soft when the database is unavailable
 
 ### Personas
 
@@ -117,6 +133,9 @@ FadFada is built as a **mobile-first PWA** with Gemini integration, local fallba
 - [x] Aunt Huda / خالة هدى: warm aunt
 - [x] Youssef / يوسف: study buddy
 - [x] Dana / دانا: project builder
+- [x] Separate child companion roster for safe child workspace use
+- [x] KG-first voice/tap companion for pre-literate children
+- [x] Child-safe companions for riddles, drama, focus, nature, heritage, manners, space, logic, calm, building, sound, curiosity, animals, art, routines, and feelings
 
 ### Live Avatar Presence
 
@@ -170,6 +189,28 @@ FadFada is built as a **mobile-first PWA** with Gemini integration, local fallba
 - [x] Practice steps
 - [x] Does not force user to leave the app
 - [x] Learning expert routing for English/study/agents/workflow
+
+### Children and Parent Tools
+
+- [x] Child profiles stored in database with age band and avatar preference
+- [x] Parent-controlled child profile limits by plan tier
+- [x] Child workspace switch from parent profile
+- [x] Parent return code shown in parent profile
+- [x] Child homework inbox route for child workspace
+- [x] Parent homework transformer from image or text hint
+- [x] Parent playbook generator for difficult child situations
+- [x] Parent child pulse summary from recent child activity
+- [x] Child-safe suggestion chips, challenges, and picture-style homework activities
+- [x] Child story shelf / guided child stories in chat
+- [x] Interactive child storybook reader with poster cover, open-book pages, swipe turns, and read-aloud
+- [x] Auto-read full story mode with page-by-page narration and safe stop controls
+- [x] Story progress memory (resume from last page per story on same device)
+- [x] Story Passport summary with completed books and total reading minutes
+- [x] Resume and completed badges on story covers
+- [x] Story reward sticker reveal when a child finishes a book for the first time
+- [x] Guided next-adventure recommendation after reading progress or story completion
+- [x] Story Trail visual path showing completed, current, next, and later books
+- [x] Child points/reward toast foundations in chat experience
 
 ### Moment Capsule
 
@@ -240,6 +281,7 @@ FadFada is built as a **mobile-first PWA** with Gemini integration, local fallba
 - [x] App installed state
 - [x] Manual Add to Home Screen guidance
 - [x] PWA-ready evidence signal
+- [x] Safe viewport handling for notched/mobile devices
 
 ### Documentation
 
@@ -257,11 +299,11 @@ FadFada is built as a **mobile-first PWA** with Gemini integration, local fallba
 - [x] Voice reply output in Arabic and English using Edge neural voices
 - [x] Distinct first-version voice style per persona using Edge voice selection and rate/pitch tuning
 - [ ] Real-time fictional avatar speaking with mouth/face movement
-- [ ] User-controlled memory: save, delete, and choose what FadFada remembers
-- [ ] Emotion timeline showing changes across sessions without diagnosis language
-- [ ] World journey map showing how users move between calm, story, faith, build, learning, and celebration
-- [ ] Capsule library for saved private moments
-- [ ] Share-safe capsule with automatic sensitive-detail removal
+- [x] User-controlled memory: save, delete, and choose what FadFada remembers
+- [x] Emotion timeline showing changes across sessions without diagnosis language
+- [x] World journey map showing how users move between calm, story, faith, build, learning, and celebration
+- [x] Capsule library for saved private moments
+- [x] Share-safe capsule with automatic sensitive-detail removal
 - [ ] Longer interactive story continuation engine
 - [ ] Poetry and stories as audio
 - [ ] Ambient soundscapes that change with Conversation World
@@ -272,7 +314,7 @@ FadFada is built as a **mobile-first PWA** with Gemini integration, local fallba
 - [ ] Voice transcription for recorded reflections
 - [ ] Tone adaptation based on user feedback and preferences
 - [ ] Better Arabic dialect support: Egyptian, Gulf, Levantine, and Modern Standard Arabic
-- [ ] Advanced safety classifier beyond keyword detection
+- [~] Advanced safety classifier beyond keyword detection
 - [ ] Personalized plan generation based on history, available time, and goals
 
 ### Business Features
@@ -282,19 +324,19 @@ FadFada is built as a **mobile-first PWA** with Gemini integration, local fallba
 - [ ] Subscription tiers: Free, Plus, Premium, Team/School
 - [ ] Revenue dashboard for paid conversions, retention, most-used worlds, and helpful rate
 - [ ] Customer validation forms for willingness to pay and use cases
-- [ ] Judge live demo mode with guided 3-minute pitch path
+- [x] Judge live demo mode with guided 3-minute pitch path
 
 ### Community and Growth
 
 - [ ] Anonymous community capsules with strong moderation
-- [ ] Family-safe mode
+- [x] Family-safe mode through dedicated child workspace and parent-controlled access
 - [ ] Coach/mentor review mode for user-approved capsules
 - [ ] School/university pilot experience
 
 ### Product Quality
 
-- [ ] Persistent database for beta leads, sessions, feedback, and capsules
-- [ ] Authentication with email, Google, and anonymous guest mode
+- [x] Persistent database for profiles, telemetry, sessions, child profiles, and payment-linked records
+- [x] Authentication with email, Google, and admin access flow
 - [ ] Privacy center for export, delete, clear memory, and consent controls
 - [ ] Unit tests for routing and world detection
 - [ ] API route tests

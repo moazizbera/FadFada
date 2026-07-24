@@ -18,7 +18,47 @@ type ChildPulseSummary = {
   riskLevel: PulseRisk;
 };
 
-const dangerPattern = /suicide|kill myself|hurt myself|self harm|knife|bleeding|abuse|assault|انتحار|اقتل نفسي|أقتل نفسي|أأذي نفسي|اؤذي نفسي|إيذاء نفسي|ايذاء نفسي|سكين|نزيف|اعتداء|عنف/i;
+const highRiskSignals = [
+  "suicide",
+  "kill myself",
+  "end my life",
+  "hurt myself",
+  "self harm",
+  "cut myself",
+  "someone is hurting me",
+  "abuse",
+  "assault",
+  "molest",
+  "انتحار",
+  "انتحر",
+  "اقتل نفسي",
+  "اذي نفسي",
+  "ايذاء نفسي",
+  "ااذي نفسي",
+  "نزيف",
+  "يؤذيني",
+  "ياذيني",
+  "اعتداء",
+  "تحرش",
+  "يضربني",
+] as const;
+
+const mediumRiskSignals = [
+  "knife",
+  "bleeding",
+  "unsafe secret",
+  "dont tell my parents",
+  "dont tell mom",
+  "dont tell dad",
+  "im scared alone",
+  "سر خطير",
+  "لا تقول لماما",
+  "لا تقول لبابا",
+  "خايف لوحدي",
+  "خوفني",
+  "خائف في البيت",
+  "عنف",
+] as const;
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -103,9 +143,7 @@ export async function GET() {
     const worldKey = metadata.world || "calm";
     current.worlds.set(worldKey, (current.worlds.get(worldKey) || 0) + 1);
 
-    if (dangerPattern.test(metadata.childText)) {
-      current.riskHits += 1;
-    }
+    current.riskHits += scoreChildRiskSignals(metadata.childText);
   }
 
   const pulse: ChildPulseSummary[] = children.map((child) => {
@@ -172,7 +210,37 @@ function computeTrend(count: number, recent3dCount: number, prev3dCount: number)
 }
 
 function computeRiskLevel(riskHits: number): PulseRisk {
-  if (riskHits >= 3) return "high";
+  if (riskHits >= 4) return "high";
   if (riskHits >= 1) return "medium";
   return "low";
+}
+
+function normalizeSafetyText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u064B-\u065F\u0670]/g, "")
+    .replace(/[أإآ]/g, "ا")
+    .replace(/[ؤ]/g, "و")
+    .replace(/[ئ]/g, "ي")
+    .replace(/[ة]/g, "ه")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function scoreChildRiskSignals(childText: string) {
+  const normalized = normalizeSafetyText(childText);
+  if (!normalized) return 0;
+
+  let score = 0;
+
+  for (const signal of highRiskSignals) {
+    if (normalized.includes(signal)) score += 2;
+  }
+
+  for (const signal of mediumRiskSignals) {
+    if (normalized.includes(signal)) score += 1;
+  }
+
+  return Math.min(score, 6);
 }

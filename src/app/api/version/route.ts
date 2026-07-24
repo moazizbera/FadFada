@@ -6,7 +6,9 @@ export const dynamic = "force-dynamic";
 export function GET() {
   const commitSha = process.env.VERCEL_GIT_COMMIT_SHA || "local";
   const deploymentId = process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_URL || "local";
-  const version = `${packageJson.version}-${commitSha.slice(0, 7)}`;
+  const deploymentToken = deploymentId.replace(/^dpl_/, "").slice(0, 7);
+  const versionToken = deploymentToken || commitSha.slice(0, 7);
+  const version = `${packageJson.version}-${versionToken}`;
   const aiProvider = process.env.GOOGLE_GENAI_USE_VERTEXAI === "true" || process.env.GOOGLE_GENAI_USE_ENTERPRISE === "true" ? "vertex" : "api_key";
 
   return NextResponse.json(
@@ -21,6 +23,12 @@ export function GET() {
         model: process.env.GEMINI_MODEL || "gemini-2.0-flash",
         location: aiProvider === "vertex" ? process.env.GOOGLE_CLOUD_LOCATION || "us-central1" : null,
         keylessAuth: aiProvider === "vertex" && Boolean(process.env.GCP_WORKLOAD_IDENTITY_POOL_ID && process.env.GCP_SERVICE_ACCOUNT_EMAIL),
+      },
+      trust: {
+        workspaceIsolation: true,
+        parentReturnServerVerification: true,
+        safeSessionSnapshotStorage: true,
+        notificationsFailSoft: true,
       },
       checkedAt: new Date().toISOString(),
     },

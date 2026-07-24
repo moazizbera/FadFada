@@ -132,6 +132,16 @@ export function PwaUpdateManager() {
   }, [isProductionHost]);
 
   useEffect(() => {
+    function handleOpenInstallFromMenu() {
+      if (isStandalone) return;
+      void installApp();
+    }
+
+    window.addEventListener("fadfada-open-install", handleOpenInstallFromMenu);
+    return () => window.removeEventListener("fadfada-open-install", handleOpenInstallFromMenu);
+  }, [isStandalone, installPrompt, isProductionHost]);
+
+  useEffect(() => {
     let reloadPending = false;
 
     function handleControllerChange() {
@@ -236,51 +246,27 @@ export function PwaUpdateManager() {
     );
   }
 
-  if (!isStandalone) {
+  if (!isStandalone && installHelpOpen) {
     return (
-      <>
-        <button
-          type="button"
-          onClick={() => void installApp()}
-          className="fixed bottom-24 right-3 z-[55] flex items-center gap-2 rounded-full border border-[#C9A86A]/40 bg-[#0E0D10]/92 px-3 py-2 text-[#C9A86A] shadow-2xl backdrop-blur-xl transition-colors hover:bg-[#C9A86A] hover:text-[#0E0D10]"
-          aria-label={isArabic ? "تثبيت تطبيق فضفضة" : "Install FadFada app"}
-          dir={isArabic ? "rtl" : "ltr"}
-        >
-          <InstallIcon />
-          <span className={`${isArabic ? "font-arsans" : "font-mono uppercase tracking-[0.1em]"} text-[10px]`}>{isArabic ? "ثبّت" : "Install"}</span>
+      <div className="fixed inset-x-3 bottom-36 z-[60] mx-auto max-w-md border border-[#C9A86A]/35 bg-[#0E0D10]/95 p-4 text-bone shadow-2xl backdrop-blur-xl" dir={isArabic ? "rtl" : "ltr"}>
+        <p className={`${isArabic ? "font-arsans" : "font-mono uppercase tracking-[0.16em]"} text-[9px] text-[#C9A86A]/80`}>{isArabic ? "تثبيت التطبيق" : "Install app"}</p>
+        <p className="mt-2 font-arsans text-sm leading-6 text-[#F7F3EC]/75">
+          {!isProductionHost
+            ? isArabic
+              ? "هذا تشغيل محلي للتطوير. ثبّت التطبيق من https://fad-fada.vercel.app حتى لا يفتح على localhost."
+              : "This is a local development build. Install the app from https://fad-fada.vercel.app so it does not open localhost."
+            : isArabic
+              ? "إذا لم تظهر نافذة التثبيت، افتح قائمة المتصفح واختر تثبيت التطبيق أو إضافة إلى الشاشة الرئيسية."
+              : "If the install window does not appear, open your browser menu and choose Install app or Add to home screen."}
+        </p>
+        <button type="button" onClick={() => setInstallHelpOpen(false)} className="mt-4 w-full bg-[#C9A86A] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.1em] text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
+          {isArabic ? "تمام" : "Got it"}
         </button>
-
-        {installHelpOpen ? (
-          <div className="fixed inset-x-3 bottom-36 z-[60] mx-auto max-w-md border border-[#C9A86A]/35 bg-[#0E0D10]/95 p-4 text-bone shadow-2xl backdrop-blur-xl" dir={isArabic ? "rtl" : "ltr"}>
-            <p className={`${isArabic ? "font-arsans" : "font-mono uppercase tracking-[0.16em]"} text-[9px] text-[#C9A86A]/80`}>{isArabic ? "تثبيت التطبيق" : "Install app"}</p>
-            <p className="mt-2 font-arsans text-sm leading-6 text-[#F7F3EC]/75">
-              {!isProductionHost
-                ? isArabic
-                  ? "هذا تشغيل محلي للتطوير. ثبّت التطبيق من https://fad-fada.vercel.app حتى لا يفتح على localhost."
-                  : "This is a local development build. Install the app from https://fad-fada.vercel.app so it does not open localhost."
-                : isArabic
-                  ? "إذا لم تظهر نافذة التثبيت، افتح قائمة المتصفح واختر تثبيت التطبيق أو إضافة إلى الشاشة الرئيسية."
-                  : "If the install window does not appear, open your browser menu and choose Install app or Add to home screen."}
-            </p>
-            <button type="button" onClick={() => setInstallHelpOpen(false)} className="mt-4 w-full bg-[#C9A86A] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.1em] text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
-              {isArabic ? "تمام" : "Got it"}
-            </button>
-          </div>
-        ) : null}
-      </>
+      </div>
     );
   }
 
   return null;
-}
-
-function InstallIcon() {
-  return (
-    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 4v10m0 0 4-4m-4 4-4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M5 15.5V18a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
 }
 
 function trackPwaInstall(source: string) {

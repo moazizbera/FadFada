@@ -49,11 +49,19 @@ function parseNotificationMetadata(metadataJson: string | null) {
 
 export async function GET() {
   const now = new Date();
-  const notificationEvents = await prisma.interactionEvent.findMany({
-    where: { eventType: "admin_notification" },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
+  let notificationEvents: Array<{ id: string; metadataJson: string | null; createdAt: Date }> = [];
+
+  try {
+    notificationEvents = await prisma.interactionEvent.findMany({
+      where: { eventType: "admin_notification" },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+  } catch (error) {
+    console.error("Notifications load fallback", error);
+    return NextResponse.json({ notifications: [], degraded: true });
+  }
+
   const notifications = notificationEvents
     .map((event) => {
       const metadata = parseNotificationMetadata(event.metadataJson);
@@ -126,14 +134,21 @@ export async function POST(request: NextRequest) {
     startsAt: startsAt.toISOString(),
     endsAt: endsAt?.toISOString() || null,
   };
-  const notification = await prisma.interactionEvent.create({
-    data: {
-      userId: sessionUser.id,
-      eventType: "admin_notification",
-      metadataJson: JSON.stringify(metadata),
-      geographicRegion: "admin",
-    },
-  });
+  let notification: { id: string };
+
+  try {
+    notification = await prisma.interactionEvent.create({
+      data: {
+        userId: sessionUser.id,
+        eventType: "admin_notification",
+        metadataJson: JSON.stringify(metadata),
+        geographicRegion: "admin",
+      },
+    });
+  } catch (error) {
+    console.error("Notifications save failed", error);
+    return NextResponse.json({ ok: false, error: "NOTIFICATIONS_UNAVAILABLE" }, { status: 503 });
+  }
 
   return NextResponse.json({ ok: true, notificationId: notification.id });
 }

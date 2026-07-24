@@ -99,16 +99,23 @@ export function useAppLocale() {
 export function AppShell({ children, initialLanguage = "ar" }: AppShellProps) {
   const [language, setLanguage] = useState<AppLanguage>(initialLanguage);
   const [localeLoaded, setLocaleLoaded] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
   const direction = language === "ar" ? "rtl" : "ltr";
   const shellFontClass = language === "ar" ? "font-arsans text-right" : "font-ensans text-left";
 
+  // Only load from localStorage after hydration is complete to avoid hydration mismatch
   useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
     const storedLanguage = localStorage.getItem(appLanguageStorageKey);
-    if (storedLanguage === "ar" || storedLanguage === "en") {
+    if (storedLanguage === "ar" || storedLanguage === "en" && storedLanguage !== language) {
       setLanguage(storedLanguage);
     }
     setLocaleLoaded(true);
-  }, []);
+  }, [isHydrated]);
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -133,12 +140,14 @@ export function AppShell({ children, initialLanguage = "ar" }: AppShellProps) {
   return (
     <SessionProvider>
       <AppLocaleContext.Provider value={localeContext}>
-        <div dir={direction} className={`min-h-screen bg-ink text-bone/90 ${shellFontClass}`} data-language={language}>
-          <GlobalHeader />
-          <NotificationCenter />
-          <div className="transition-[padding,margin] duration-300 ease-out">{children}</div>
-          <GlobalFooter />
-          <PwaUpdateManager />
+        <div dir={direction} className={`min-h-screen bg-ink text-bone/90 ${shellFontClass}`} data-language={language} suppressHydrationWarning>
+          {isHydrated && <GlobalHeader />}
+          {isHydrated && <NotificationCenter />}
+          <div className="transition-[padding,margin] duration-300 ease-out">
+            {isHydrated ? children : null}
+          </div>
+          {isHydrated && <GlobalFooter />}
+          {isHydrated && <PwaUpdateManager />}
         </div>
       </AppLocaleContext.Provider>
     </SessionProvider>
