@@ -1554,10 +1554,21 @@ function getHomeworkActivityVisual(activity: ChildHomeworkActivity, index: numbe
   return { kind, count, label };
 }
 
-function ChildHomeworkVisualCard({ activity, index, language }: { activity: ChildHomeworkActivity; index: number; language: Language }) {
+function ChildHomeworkVisualCard({
+  activity,
+  index,
+  language,
+  selectedAnswer,
+  onSelectAnswer,
+}: {
+  activity: ChildHomeworkActivity;
+  index: number;
+  language: Language;
+  selectedAnswer: string | null;
+  onSelectAnswer: (value: string) => void;
+}) {
   const visual = getHomeworkActivityVisual(activity, index);
   const isArabic = language === "ar";
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [voiceAnswerStatus, setVoiceAnswerStatus] = useState<"idle" | "listening" | "unsupported" | "no-match">("idle");
   const shapes = Array.from({ length: visual.count }, (_, shapeIndex) => shapeIndex);
   const letterTiles = isArabic ? ["أ", "ب", "ت", "ث", "ج", "ح", "خ", "د"] : ["A", "B", "C", "D", "E", "F", "G", "H"];
@@ -1599,7 +1610,7 @@ function ChildHomeworkVisualCard({ activity, index, language }: { activity: Chil
         setVoiceAnswerStatus("no-match");
         return;
       }
-      setSelectedAnswer(spokenNumber);
+      onSelectAnswer(spokenNumber);
       setVoiceAnswerStatus("idle");
     };
     recognition.start();
@@ -1647,7 +1658,7 @@ function ChildHomeworkVisualCard({ activity, index, language }: { activity: Chil
                     <button
                       key={option.value}
                       type="button"
-                      onClick={() => setSelectedAnswer(option.value)}
+                      onClick={() => onSelectAnswer(option.value)}
                       className={`min-h-10 rounded-xl border px-2 py-2 font-arsans text-sm font-bold transition-colors ${active ? correct ? "border-emerald-200/55 bg-emerald-200 text-[#0E0D10]" : "border-rose-200/55 bg-rose-200 text-[#0E0D10]" : "border-white/12 bg-[#050607] text-bone/84 hover:border-amber-100/45 hover:text-amber-50"}`}
                       aria-pressed={active}
                     >
@@ -1666,18 +1677,76 @@ function ChildHomeworkVisualCard({ activity, index, language }: { activity: Chil
   );
 }
 
-function ChildHomeworkActivityCards({ activities, language }: { activities: ChildHomeworkActivity[]; language: Language }) {
+function isHomeworkAnswerCorrect(activity: ChildHomeworkActivity, index: number, answer: string | null) {
+  if (!answer) return false;
+  const visual = getHomeworkActivityVisual(activity, index);
+  return normalizeAnswerValue(answer) === String(visual.count);
+}
+
+function ChildHomeworkActivityCards({
+  activities,
+  language,
+  onPlayAction,
+}: {
+  activities: ChildHomeworkActivity[];
+  language: Language;
+  onPlayAction?: () => void;
+}) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [answersByIndex, setAnswersByIndex] = useState<Record<number, string>>({});
+  const [showCompletionCelebrate, setShowCompletionCelebrate] = useState(false);
   if (!activities.length) return null;
   const activeActivity = activities[Math.min(activeIndex, activities.length - 1)];
+  const solvedCount = activities.reduce((count, activity, index) => {
+    return count + (isHomeworkAnswerCorrect(activity, index, answersByIndex[index] || null) ? 1 : 0);
+  }, 0);
+  const allSolved = solvedCount === activities.length;
+
+  useEffect(() => {
+    setActiveIndex(0);
+    setAnswersByIndex({});
+    setShowCompletionCelebrate(false);
+  }, [activities]);
+
+  useEffect(() => {
+    const answer = answersByIndex[activeIndex];
+    if (!answer) return;
+    if (!isHomeworkAnswerCorrect(activeActivity, activeIndex, answer)) return;
+    if (activeIndex >= activities.length - 1) return;
+
+    const timer = window.setTimeout(() => {
+      setActiveIndex((current) => Math.min(activities.length - 1, current + 1));
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [activeActivity, activeIndex, activities.length, answersByIndex]);
+
+  useEffect(() => {
+    if (!allSolved || showCompletionCelebrate) return;
+    setShowCompletionCelebrate(true);
+  }, [allSolved, showCompletionCelebrate]);
+
+  function resetHomeworkRound() {
+    setAnswersByIndex({});
+    setActiveIndex(0);
+    setShowCompletionCelebrate(false);
+  }
 
   return (
     <div className="mb-4 grid gap-3">
       <div className="flex items-center justify-between gap-2 rounded-2xl border border-amber-100/14 bg-[#050607] px-3 py-2 font-arsans text-xs text-amber-50/76">
         <span>{language === "ar" ? "واجب مصور" : "Picture homework"}</span>
-        <span dir="ltr">{activeIndex + 1}/{activities.length}</span>
+        <span dir="ltr">{allSolved ? `${activities.length}/${activities.length}` : `${activeIndex + 1}/${activities.length}`}</span>
       </div>
-      <ChildHomeworkVisualCard key={`${activeActivity.title}-${activeActivity.prompt}-${activeIndex}`} activity={activeActivity} index={activeIndex} language={language} />
+      <ChildHomeworkVisualCard
+        key={`${activeActivity.title}-${activeActivity.prompt}-${activeIndex}`}
+        activity={activeActivity}
+        index={activeIndex}
+        language={language}
+        selectedAnswer={answersByIndex[activeIndex] || null}
+        onSelectAnswer={(value) => {
+          setAnswersByIndex((current) => ({ ...current, [activeIndex]: value }));
+        }}
+      />
       {activities.length > 1 ? (
         <div className="grid grid-cols-2 gap-2">
           <button type="button" onClick={() => setActiveIndex((current) => Math.max(0, current - 1))} disabled={activeIndex === 0} className="ui-action rounded-xl border border-white/10 px-3 py-2 font-arsans text-xs text-bone/70 hover:border-amber-100/35 hover:text-amber-100 disabled:opacity-40">
@@ -1686,6 +1755,39 @@ function ChildHomeworkActivityCards({ activities, language }: { activities: Chil
           <button type="button" onClick={() => setActiveIndex((current) => Math.min(activities.length - 1, current + 1))} disabled={activeIndex >= activities.length - 1} className="ui-action rounded-xl border border-amber-100/28 bg-amber-100/10 px-3 py-2 font-arsans text-xs text-amber-50 hover:bg-amber-100 hover:text-[#0E0D10] disabled:opacity-40">
             {language === "ar" ? "التالي" : "Next"}
           </button>
+        </div>
+      ) : null}
+      {showCompletionCelebrate ? (
+        <div className="rounded-2xl border border-emerald-100/30 bg-emerald-100/[0.12] p-3 text-start shadow-[0_18px_44px_rgba(16,185,129,0.18)]">
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 place-items-center rounded-2xl border border-emerald-100/45 bg-black/20 text-2xl">🏅</span>
+            <div className="min-w-0">
+              <p className="font-arsans text-sm font-bold text-emerald-50">{language === "ar" ? "أحسنت! أنهيت كل الأسئلة" : "Great job! You finished all questions"}</p>
+              <p className="font-arsans text-xs text-emerald-50/80" dir="ltr">{solvedCount}/{activities.length}</p>
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={resetHomeworkRound}
+              className="ui-action rounded-xl border border-white/14 bg-black/20 px-3 py-2 font-arsans text-xs text-bone/84 hover:border-emerald-100/45 hover:text-emerald-50"
+            >
+              {language === "ar" ? "أعد اللعب" : "Play again"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (onPlayAction) {
+                  onPlayAction();
+                  return;
+                }
+                resetHomeworkRound();
+              }}
+              className="ui-action rounded-xl border border-emerald-100/32 bg-emerald-100/16 px-3 py-2 font-arsans text-xs font-semibold text-emerald-50 hover:bg-emerald-100 hover:text-[#0E0D10]"
+            >
+              {language === "ar" ? "ابدأ اللعب" : "Start playing"}
+            </button>
+          </div>
         </div>
       ) : null}
     </div>
@@ -4473,7 +4575,7 @@ export function ChatWindow() {
                   <p className="mb-2 font-arsans text-[11px] text-[#C9A86A]/70">{messageDisplayName}</p>
                   {message.generatedMedia ? <GeneratedMediaCard language={messageLanguage} asset={message.generatedMedia} /> : null}
                   {messageChildStory ? <ChildStorySceneCard story={messageChildStory} language={messageLanguage} /> : null}
-                  {messageHomeworkActivities.length ? <ChildHomeworkActivityCards activities={messageHomeworkActivities} language={messageLanguage} /> : null}
+                  {messageHomeworkActivities.length ? <ChildHomeworkActivityCards activities={messageHomeworkActivities} language={messageLanguage} onPlayAction={startChildTapGame} /> : null}
                   <TypewriterSync
                     text={messagePersonaEnvironment.formatAssistantText?.(messageText) ?? messageText}
                     language={messageLanguage}
