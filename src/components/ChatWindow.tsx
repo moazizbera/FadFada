@@ -4490,9 +4490,6 @@ export function ChatWindow() {
       <form onSubmit={submitMessage} className="fixed inset-x-3 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-30 mx-auto flex max-h-[46dvh] max-w-[42rem] flex-col gap-2 overflow-y-auto rounded-[1.1rem] border border-white/10 bg-[#111014]/92 p-2.5 shadow-[0_22px_70px_rgba(0,0,0,0.45)] backdrop-blur-2xl [scrollbar-width:thin] sm:max-h-none sm:rounded-[1.35rem] sm:p-3 md:bottom-6">
         <BottomNav
           language={language}
-          accountHref={isChildWorkspace ? "/" : session?.user ? "/profile" : "/auth/signin?callbackUrl=/"}
-          accountName={accountName}
-          accountImage={accountImage}
           onHome={() => scrollToSection("home")}
           onChat={() => {
             scrollToConversationEnd();
@@ -7234,9 +7231,6 @@ function UserFlowGuide({ language }: { language: Language }) {
 
 function BottomNav({
   language,
-  accountHref,
-  accountName,
-  accountImage,
   onHome,
   onChat,
   onBreathe,
@@ -7245,9 +7239,6 @@ function BottomNav({
   onMenu,
 }: {
   language: Language;
-  accountHref: string;
-  accountName: string;
-  accountImage: string | null;
   onHome: () => void;
   onChat: () => void;
   onBreathe?: () => void;
@@ -7256,10 +7247,19 @@ function BottomNav({
   onMenu: () => void;
 }) {
   const isArabic = language === "ar";
-  const accountInitial = accountName.trim().slice(0, 1).toUpperCase() || (isArabic ? "ح" : "A");
   const itemClass = "flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-bone/62 transition-colors hover:bg-white/[0.05] hover:text-[#C9A86A]";
   const labelClass = `${isArabic ? "font-arsans" : "font-ensans"} text-[10px] leading-none`;
-  const gridColsClass = onPersona && onStories && onBreathe ? "grid-cols-7" : onPersona && onBreathe ? "grid-cols-6" : onPersona ? "grid-cols-5" : onBreathe ? "grid-cols-5" : "grid-cols-4";
+  const gridColsClass = onPersona && onStories && onBreathe
+    ? "grid-cols-6"
+    : onPersona && onStories
+      ? "grid-cols-5"
+      : onPersona && onBreathe
+        ? "grid-cols-5"
+        : onStories && onBreathe
+          ? "grid-cols-5"
+          : onPersona || onStories || onBreathe
+            ? "grid-cols-4"
+            : "grid-cols-3";
 
   return (
     <nav className="relative z-20 mx-auto mt-4 w-full max-w-[42rem] px-2 pb-2" dir={isArabic ? "rtl" : "ltr"} aria-label={isArabic ? "تنقل التطبيق" : "App navigation"}>
@@ -7294,12 +7294,6 @@ function BottomNav({
           <MenuIcon />
           <span className={labelClass}>{isArabic ? "القائمة" : "Menu"}</span>
         </button>
-        <Link href={accountHref} className={itemClass}>
-          <span className="relative grid h-5 w-5 overflow-hidden rounded-full border border-white/10 bg-slate-950/80">
-            {accountImage ? <Image src={accountImage} alt={accountName} fill sizes="20px" className="object-cover" unoptimized /> : <span className="grid h-full w-full place-items-center font-ensans text-[9px] font-semibold text-[#C9A86A]">{accountInitial}</span>}
-          </span>
-          <span className={labelClass}>{isArabic ? "الحساب" : "Account"}</span>
-        </Link>
       </div>
     </nav>
   );
