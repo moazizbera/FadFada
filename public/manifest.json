@@ -10,12 +10,67 @@
   "orientation": "portrait-primary",
   "start_url": "https://fad-fada.vercel.app/",
   "scope": "https://fad-fada.vercel.app/",
+  "categories": ["health", "lifestyle", "education"],
+  "screenshots": [
+    {
+      "src": "/screenshot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Fadfada home screen"
+    },
+    {
+      "src": "/screenshot-narrow.png",
+      "sizes": "720x1280",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Fadfada home screen"
+    }
+  ],
   "icons": [
     {
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New conversation",
+      "short_name": "Chat",
+      "url": "https://fad-fada.vercel.app/?fadfadaAction=start",
+      "description": "Start a new reflection"
+    },
+    {
+      "name": "Choose a companion",
+      "short_name": "Companions",
+      "url": "https://fad-fada.vercel.app/?fadfadaAction=avatars",
+      "description": "Browse available companions"
+    },
+    {
+      "name": "Story shelf",
+      "short_name": "Stories",
+      "url": "https://fad-fada.vercel.app/?fadfadaAction=stories",
+      "description": "Open the story shelf"
     }
   ]
 }
