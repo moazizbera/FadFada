@@ -4181,25 +4181,44 @@ export function ChatWindow() {
               ? "مساحة عربية/إنجليزية هادئة: اكتب ما بداخلك، واختر من القائمة عندما تحتاج رفيقًا أو خطوة أو حفظ لحظة."
               : "A calm Arabic/English space: write what is inside, then open the menu when you need a companion, a step, or a saved moment."}
         </p>
-        <div className="mt-5 grid w-full max-w-xl gap-2 sm:grid-cols-3" dir={language === "ar" ? "rtl" : "ltr"}>
-          <button type="button" onClick={isChildWorkspace ? startChildTapGame : focusInput} className="ui-action rounded-xl bg-[#E6C36A] px-4 py-3 text-[#0E0D10] shadow-[0_14px_34px_rgba(230,195,106,0.22)] transition-colors hover:bg-[#F7F3EC]">
-            {isChildWorkspace ? language === "ar" ? "ابدأ اللعب" : "Start playing" : language === "ar" ? "ابدأ الفضفضة" : "Start venting"}
-          </button>
-          {isChildWorkspace ? (
-            <button type="button" onClick={openStoryShelf} className="ui-action inline-flex items-center justify-center gap-2 rounded-xl border border-sky-200/35 bg-sky-200/10 px-4 py-3 text-sky-100 transition-colors hover:bg-sky-200 hover:text-[#0E0D10]">
-              <StoryIcon />
-              <span>{language === "ar" ? "القصص" : "Stories"}</span>
+        {isChildWorkspace ? (
+          <div className="mt-5 w-full max-w-2xl" dir={language === "ar" ? "rtl" : "ltr"}>
+            <div className="-mx-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex min-w-max items-center gap-1.5">
+                <button type="button" onClick={startChildTapGame} className="ui-action h-10 min-w-[6.4rem] shrink-0 rounded-xl bg-[#E6C36A] px-3 text-xs text-[#0E0D10] shadow-[0_10px_24px_rgba(230,195,106,0.2)] transition-colors hover:bg-[#F7F3EC]">
+                  {language === "ar" ? "ابدأ اللعب" : "Start playing"}
+                </button>
+                <button type="button" onClick={openStoryShelf} className="ui-action inline-flex h-10 min-w-[5.6rem] shrink-0 items-center justify-center gap-1.5 rounded-xl border border-sky-200/35 bg-sky-200/10 px-3 text-xs text-sky-100 transition-colors hover:bg-sky-200 hover:text-[#0E0D10]">
+                  <StoryIcon />
+                  <span>{language === "ar" ? "القصص" : "Stories"}</span>
+                </button>
+                <button type="button" onClick={() => avatarsEnabled ? openAvatarDrawer() : setToolsOpen(true)} className="ui-action h-10 min-w-[6.9rem] shrink-0 rounded-xl border border-white/18 bg-white/[0.055] px-3 text-xs text-[#F7F3EC]/84 transition-colors hover:border-[#F7F3EC]/45 hover:text-[#F7F3EC]">
+                  {language === "ar" ? "اختر رفيقك" : "Choose your friend"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => startDailyChildMoment(activeChildMomentSlide.item, activeChildMomentSlide.id)}
+                  disabled={isThinking || !activePersonaIsChild}
+                  className="ui-action h-10 min-w-[6.4rem] shrink-0 rounded-xl border border-sky-100/24 bg-sky-100/[0.11] px-3 text-xs text-sky-50 transition-colors hover:bg-sky-100 hover:text-[#0E0D10] disabled:cursor-wait disabled:opacity-60"
+                >
+                  {language === "ar" ? "لحظة اليوم" : "Today moment"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-5 grid w-full max-w-xl gap-2 sm:grid-cols-3" dir={language === "ar" ? "rtl" : "ltr"}>
+            <button type="button" onClick={focusInput} className="ui-action rounded-xl bg-[#E6C36A] px-4 py-3 text-[#0E0D10] shadow-[0_14px_34px_rgba(230,195,106,0.22)] transition-colors hover:bg-[#F7F3EC]">
+              {language === "ar" ? "ابدأ الفضفضة" : "Start venting"}
             </button>
-          ) : null}
-          {!isChildWorkspace ? (
             <button type="button" onClick={() => setVisitorShowcaseOpen(true)} className="ui-action rounded-xl border border-[#E6C36A]/45 bg-black/24 px-4 py-3 text-[#E6C36A] transition-colors hover:bg-[#E6C36A] hover:text-[#0E0D10]">
               {language === "ar" ? "استكشف الميزات" : "Explore features"}
             </button>
-          ) : null}
-          <button type="button" onClick={() => avatarsEnabled ? openAvatarDrawer() : setToolsOpen(true)} className="ui-action rounded-xl border border-white/18 bg-white/[0.055] px-4 py-3 text-[#F7F3EC]/84 transition-colors hover:border-[#F7F3EC]/45 hover:text-[#F7F3EC]">
-            {isChildWorkspace ? language === "ar" ? "اختر رفيقك" : "Choose your friend" : language === "ar" ? "اختر رفيق" : "Choose persona"}
-          </button>
-        </div>
+            <button type="button" onClick={() => avatarsEnabled ? openAvatarDrawer() : setToolsOpen(true)} className="ui-action rounded-xl border border-white/18 bg-white/[0.055] px-4 py-3 text-[#F7F3EC]/84 transition-colors hover:border-[#F7F3EC]/45 hover:text-[#F7F3EC]">
+              {language === "ar" ? "اختر رفيق" : "Choose persona"}
+            </button>
+          </div>
+        )}
         {!isChildWorkspace ? (
           <div className="mt-4 w-full max-w-2xl rounded-3xl border border-[#E6C36A]/18 bg-black/18 p-3 shadow-[0_22px_70px_rgba(0,0,0,0.2)]" dir={language === "ar" ? "rtl" : "ltr"}>
             <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-start">

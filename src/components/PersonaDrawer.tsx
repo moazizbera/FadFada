@@ -1026,7 +1026,6 @@ export function PersonaDrawer({
                       </div>
 
                       <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.035] p-2.5">
-                        <p className={`${isArabic ? "font-arsans" : "font-ensans"} mb-2 px-1 text-[11px] font-semibold text-[#C9A86A]/76`}>{isArabic ? "اختر بسرعة" : "Quick taps"}</p>
                         <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                           {(isArabic ? selectedChildStory.tapChoicesAr : selectedChildStory.tapChoicesEn).map((choice, index) => (
                             <button
