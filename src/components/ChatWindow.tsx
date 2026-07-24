@@ -1696,6 +1696,7 @@ function ChildHomeworkActivityCards({
   const [answersByIndex, setAnswersByIndex] = useState<Record<number, string>>({});
   const [showCompletionCelebrate, setShowCompletionCelebrate] = useState(false);
   if (!activities.length) return null;
+  const activitiesSignature = activities.map((activity, index) => `${index}:${activity.title}|${activity.prompt}|${activity.hint}`).join("\n");
   const activeActivity = activities[Math.min(activeIndex, activities.length - 1)];
   const solvedCount = activities.reduce((count, activity, index) => {
     return count + (isHomeworkAnswerCorrect(activity, index, answersByIndex[index] || null) ? 1 : 0);
@@ -1706,7 +1707,7 @@ function ChildHomeworkActivityCards({
     setActiveIndex(0);
     setAnswersByIndex({});
     setShowCompletionCelebrate(false);
-  }, [activities]);
+  }, [activitiesSignature]);
 
   useEffect(() => {
     const answer = answersByIndex[activeIndex];
