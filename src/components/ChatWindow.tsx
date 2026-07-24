@@ -1934,6 +1934,8 @@ export function ChatWindow() {
   const [childRewardToast, setChildRewardToast] = useState<{ id: string; text: string } | null>(null);
   const [childHomeworkAssignments, setChildHomeworkAssignments] = useState<ChildHomeworkAssignment[]>([]);
   const [childHomeworkStatus, setChildHomeworkStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [childMomentSlideIndex, setChildMomentSlideIndex] = useState(0);
+  const [childHomeworkSlideIndex, setChildHomeworkSlideIndex] = useState(0);
   const [breathingOpen, setBreathingOpen] = useState(false);
   const recorderRef = useRef<ISpeechRecognition | null>(null);
   const keepRecordingRef = useRef(false);
@@ -1983,6 +1985,35 @@ export function ChatWindow() {
   }, [activePersonaIsChild, isChildWorkspace, messages]);
   const childSuggestionChips = isChildWorkspace && activePersonaIsChild ? latestChildAssistantMessage?.suggestions?.slice(0, 3) ?? [] : [];
   const latestUserMessage = useMemo(() => [...messages].reverse().find((message) => message.role === "user"), [messages]);
+  const childMomentSlides = useMemo(() => ([
+    {
+      id: "learn" as const,
+      icon: "sparkles",
+      emoji: "📘",
+      title: language === "ar" ? "تعلّم" : "Learn",
+      item: dailyChildMoment.learn,
+      cardClassName: "border-amber-100/30 bg-gradient-to-br from-amber-100/20 to-amber-200/8 text-amber-50",
+    },
+    {
+      id: "feel" as const,
+      icon: "favorite",
+      emoji: "☁️",
+      title: language === "ar" ? "شعوري" : "Feel",
+      item: dailyChildMoment.feel,
+      cardClassName: "border-rose-100/28 bg-gradient-to-br from-rose-100/18 to-pink-200/8 text-rose-50",
+    },
+    {
+      id: "connect" as const,
+      icon: "diversity_1",
+      emoji: "🤝",
+      title: language === "ar" ? "اتصال" : "Connect",
+      item: dailyChildMoment.connect,
+      cardClassName: "border-emerald-100/30 bg-gradient-to-br from-emerald-100/18 to-cyan-200/8 text-emerald-50",
+    },
+  ]), [dailyChildMoment, language]);
+  const activeChildMomentSlide = childMomentSlides[childMomentSlideIndex % childMomentSlides.length];
+  const childHomeworkSlides = useMemo(() => childHomeworkAssignments.slice(0, 6), [childHomeworkAssignments]);
+  const activeChildHomeworkSlide = childHomeworkSlides[childHomeworkSlideIndex % Math.max(childHomeworkSlides.length, 1)];
   const storyboardGallerySourceMessage = useMemo<ChatMessage>(() => latestAssistantMessage ?? {
     id: "storyboard-gallery-demo",
     role: "assistant",
@@ -2026,6 +2057,34 @@ export function ChatWindow() {
   useEffect(() => {
     if (!avatarsEnabled) setPersonaOpen(false);
   }, [avatarsEnabled]);
+
+  useEffect(() => {
+    if (childMomentSlideIndex >= childMomentSlides.length) {
+      setChildMomentSlideIndex(0);
+    }
+  }, [childMomentSlideIndex, childMomentSlides.length]);
+
+  useEffect(() => {
+    if (childHomeworkSlideIndex >= Math.max(childHomeworkSlides.length, 1)) {
+      setChildHomeworkSlideIndex(0);
+    }
+  }, [childHomeworkSlideIndex, childHomeworkSlides.length]);
+
+  useEffect(() => {
+    if (!isChildWorkspace || childMomentSlides.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setChildMomentSlideIndex((current) => (current + 1) % childMomentSlides.length);
+    }, 5200);
+    return () => window.clearInterval(timer);
+  }, [isChildWorkspace, childMomentSlides.length]);
+
+  useEffect(() => {
+    if (!isChildWorkspace || childHomeworkSlides.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setChildHomeworkSlideIndex((current) => (current + 1) % childHomeworkSlides.length);
+    }, 5600);
+    return () => window.clearInterval(timer);
+  }, [isChildWorkspace, childHomeworkSlides.length]);
 
   useEffect(() => {
     // Set daily moment date after hydration to avoid server/client mismatch
@@ -4222,31 +4281,50 @@ export function ChatWindow() {
           <div className="mt-5 w-full max-w-2xl rounded-3xl border border-sky-100/22 bg-sky-100/[0.065] p-3 shadow-[0_24px_70px_rgba(56,189,248,0.12)]" dir={language === "ar" ? "rtl" : "ltr"}>
             <div className="flex flex-wrap items-center justify-between gap-2 px-1">
               <div className="text-start">
-                <p className="font-arsans text-[11px] font-semibold uppercase tracking-[0.08em] text-sky-100/70">{language === "ar" ? "لحظة اليوم الصغيرة" : "Today's small moment"}</p>
-                <p className="mt-1 font-arsans text-xs font-medium text-[#F7F3EC]/66">{language === "ar" ? "تعلم، شعور، واتصال لطيف في أقل من خمس دقائق." : "Learn, feel, and connect in under five minutes."}</p>
+                <p className="font-arsans text-[11px] font-semibold uppercase tracking-[0.08em] text-sky-100/70">{language === "ar" ? "لحظة اليوم" : "Today"}</p>
               </div>
               <span className="rounded-full border border-sky-100/18 bg-black/20 px-2.5 py-1 font-mono text-[10px] text-sky-100/62" dir="ltr">{dailyChildMoment.dateKey}</span>
             </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
-              {[
-                { id: "learn" as const, icon: "sparkles", titleAr: "تعلّم", titleEn: "Learn", item: dailyChildMoment.learn, className: "border-amber-100/28 bg-amber-100/[0.085] text-amber-50 shadow-[0_16px_36px_rgba(251,191,36,0.08)]" },
-                { id: "feel" as const, icon: "favorite", titleAr: "شعوري", titleEn: "Feel", item: dailyChildMoment.feel, className: "border-rose-100/28 bg-rose-100/[0.075] text-rose-50 shadow-[0_16px_36px_rgba(251,113,133,0.08)]" },
-                { id: "connect" as const, icon: "diversity_1", titleAr: "اتصال", titleEn: "Connect", item: dailyChildMoment.connect, className: "border-emerald-100/28 bg-emerald-100/[0.075] text-emerald-50 shadow-[0_16px_36px_rgba(52,211,153,0.08)]" },
-              ].map((card) => (
-                <button
-                  key={card.id}
-                  type="button"
-                  onClick={() => startDailyChildMoment(card.item, card.id)}
-                  disabled={isThinking || !activePersonaIsChild}
-                  className={`group min-h-28 rounded-2xl border p-3 text-start transition duration-300 hover:-translate-y-0.5 hover:border-[#F7F3EC]/35 disabled:cursor-wait disabled:opacity-60 ${card.className}`}
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="font-arsans text-xs font-semibold text-current/70">{language === "ar" ? card.titleAr : card.titleEn}</span>
-                    <SymbolIcon name={card.icon} className="h-5 w-5 text-current/55" />
-                  </span>
-                  <span className="mt-3 block font-arsans text-sm font-semibold leading-5 text-[#F7F3EC]/90">{card.item.label}</span>
-                  <span className="mt-2 block font-arsans text-[11px] font-medium leading-5 text-[#F7F3EC]/62">{language === "ar" ? "اضغط وابدأ مع رفيقك" : "Tap to start with your friend"}</span>
-                </button>
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setChildMomentSlideIndex((current) => (current - 1 + childMomentSlides.length) % childMomentSlides.length)}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-sky-100/24 bg-black/20 text-sky-100/72 transition-colors hover:bg-sky-100/15"
+                aria-label={language === "ar" ? "السابق" : "Previous"}
+              >
+                <span className="font-arsans text-base">{language === "ar" ? "→" : "←"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => startDailyChildMoment(activeChildMomentSlide.item, activeChildMomentSlide.id)}
+                disabled={isThinking || !activePersonaIsChild}
+                className={`group relative min-h-36 flex-1 overflow-hidden rounded-2xl border p-4 text-start shadow-[0_16px_36px_rgba(0,0,0,0.16)] transition duration-300 hover:-translate-y-0.5 hover:border-[#F7F3EC]/35 disabled:cursor-wait disabled:opacity-60 ${activeChildMomentSlide.cardClassName}`}
+              >
+                <span className="absolute -right-3 -top-3 text-4xl opacity-25">{activeChildMomentSlide.emoji}</span>
+                <span className="flex items-center justify-between gap-2">
+                  <span className="font-arsans text-xs font-semibold text-current/75">{activeChildMomentSlide.title}</span>
+                  <SymbolIcon name={activeChildMomentSlide.icon} className="h-6 w-6 text-current/60" />
+                </span>
+                <span className="mt-3 block font-arsans text-base font-bold leading-6 text-[#F7F3EC]">{activeChildMomentSlide.item.label}</span>
+                <span className="mt-4 inline-flex rounded-full border border-white/20 bg-black/18 px-3 py-1 font-arsans text-xs font-semibold text-[#F7F3EC]/86">
+                  {language === "ar" ? "ابدأ" : "Start"}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setChildMomentSlideIndex((current) => (current + 1) % childMomentSlides.length)}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-sky-100/24 bg-black/20 text-sky-100/72 transition-colors hover:bg-sky-100/15"
+                aria-label={language === "ar" ? "التالي" : "Next"}
+              >
+                <span className="font-arsans text-base">{language === "ar" ? "←" : "→"}</span>
+              </button>
+            </div>
+            <div className="mt-2 flex items-center justify-center gap-1.5" aria-hidden="true">
+              {childMomentSlides.map((slide, index) => (
+                <span
+                  key={slide.id}
+                  className={`h-1.5 rounded-full transition-all ${index === childMomentSlideIndex ? "w-6 bg-sky-100/90" : "w-1.5 bg-sky-100/35"}`}
+                />
               ))}
             </div>
           </div>
@@ -4256,32 +4334,62 @@ export function ChatWindow() {
             <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-start">
               <div>
                 <p className="font-arsans text-[11px] font-semibold uppercase tracking-[0.08em] text-emerald-100/70">{language === "ar" ? "واجباتي" : "My homework"}</p>
-                <p className="mt-1 font-arsans text-xs font-medium text-[#F7F3EC]/62">{language === "ar" ? "هنا تظهر الأسئلة التي أرسلها ولي الأمر لك." : "Questions your parent sends to you appear here."}</p>
               </div>
               <span className="rounded-full border border-emerald-100/18 bg-black/20 px-2.5 py-1 font-mono text-[10px] text-emerald-100/62" dir="ltr">{childHomeworkAssignments.length}</span>
             </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {childHomeworkAssignments.length > 0 ? childHomeworkAssignments.slice(0, 4).map((assignment) => (
-                <button
-                  key={assignment.id}
-                  type="button"
-                  onClick={() => startChildHomework(assignment)}
-                  disabled={isThinking || !activePersonaIsChild}
-                  className="group min-h-32 rounded-2xl border border-emerald-100/24 bg-black/18 p-3 text-start transition duration-300 hover:-translate-y-0.5 hover:border-emerald-100/42 hover:bg-emerald-100/12 disabled:cursor-wait disabled:opacity-60"
-                >
-                  <span className="flex items-start justify-between gap-3">
-                    <span className="font-arsans text-sm font-bold leading-5 text-[#F7F3EC]/92">{assignment.detectedTask}</span>
-                    <SymbolIcon name="school" className="h-5 w-5 shrink-0 text-emerald-100/58" />
-                  </span>
-                  <span className="mt-2 line-clamp-2 block font-arsans text-xs leading-5 text-[#F7F3EC]/60">{assignment.childIntro}</span>
-                  <span className="mt-3 inline-flex rounded-full border border-emerald-100/20 px-2.5 py-1 font-arsans text-[11px] font-semibold text-emerald-100/76">{language === "ar" ? "ابدأ الأسئلة" : "Start questions"}</span>
-                </button>
-              )) : (
-                <div className="rounded-2xl border border-dashed border-emerald-100/18 bg-black/12 p-4 text-start sm:col-span-2">
-                  <p className="font-arsans text-sm font-semibold text-[#F7F3EC]/78">{childHomeworkStatus === "loading" ? (language === "ar" ? "جار تحميل الواجبات..." : "Loading homework...") : language === "ar" ? "لا يوجد واجب مرسل بعد" : "No homework sent yet"}</p>
-                  <p className="mt-1 font-arsans text-xs leading-5 text-[#F7F3EC]/45">{language === "ar" ? "اطلب من ولي الأمر رفع صورة الواجب من صفحة الملف الشخصي." : "Ask your parent to upload homework from the profile page."}</p>
+            <div className="mt-3">
+              {childHomeworkSlides.length > 0 ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setChildHomeworkSlideIndex((current) => (current - 1 + childHomeworkSlides.length) % childHomeworkSlides.length)}
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-emerald-100/24 bg-black/20 text-emerald-100/72 transition-colors hover:bg-emerald-100/15"
+                    aria-label={language === "ar" ? "السابق" : "Previous"}
+                  >
+                    <span className="font-arsans text-base">{language === "ar" ? "→" : "←"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => activeChildHomeworkSlide && startChildHomework(activeChildHomeworkSlide)}
+                    disabled={isThinking || !activePersonaIsChild || !activeChildHomeworkSlide}
+                    className="group relative min-h-36 flex-1 overflow-hidden rounded-2xl border border-emerald-100/24 bg-gradient-to-br from-black/18 to-emerald-100/10 p-4 text-start transition duration-300 hover:-translate-y-0.5 hover:border-emerald-100/42 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    <span className="absolute -right-2 -top-2 text-4xl opacity-25">🎒</span>
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="font-arsans text-sm font-bold leading-6 text-[#F7F3EC]/94">{activeChildHomeworkSlide?.detectedTask || (language === "ar" ? "واجب" : "Homework")}</span>
+                      <SymbolIcon name="school" className="h-6 w-6 shrink-0 text-emerald-100/58" />
+                    </span>
+                    {activeChildHomeworkSlide?.childIntro ? (
+                      <span className="mt-2 line-clamp-1 block font-arsans text-xs leading-5 text-[#F7F3EC]/66">{activeChildHomeworkSlide.childIntro}</span>
+                    ) : null}
+                    <span className="mt-4 inline-flex rounded-full border border-emerald-100/25 px-3 py-1 font-arsans text-xs font-semibold text-emerald-100/82">
+                      {language === "ar" ? "ابدأ" : "Start"}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChildHomeworkSlideIndex((current) => (current + 1) % childHomeworkSlides.length)}
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-emerald-100/24 bg-black/20 text-emerald-100/72 transition-colors hover:bg-emerald-100/15"
+                    aria-label={language === "ar" ? "التالي" : "Next"}
+                  >
+                    <span className="font-arsans text-base">{language === "ar" ? "←" : "→"}</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-emerald-100/18 bg-black/12 p-4 text-start">
+                  <p className="font-arsans text-sm font-semibold text-[#F7F3EC]/78">{childHomeworkStatus === "loading" ? (language === "ar" ? "جار التحميل..." : "Loading...") : language === "ar" ? "لا يوجد واجب بعد" : "No homework yet"}</p>
                 </div>
               )}
+              {childHomeworkSlides.length > 1 ? (
+                <div className="mt-2 flex items-center justify-center gap-1.5" aria-hidden="true">
+                  {childHomeworkSlides.map((assignment, index) => (
+                    <span
+                      key={assignment.id}
+                      className={`h-1.5 rounded-full transition-all ${index === childHomeworkSlideIndex ? "w-6 bg-emerald-100/90" : "w-1.5 bg-emerald-100/35"}`}
+                    />
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -6126,7 +6234,7 @@ function SmartFeatureShowcase({
             <div className="min-w-0">
               <p className="ui-kicker" style={{ color: activeSlide.accent }}>{isArabic ? "واجهة ذكية للزائر" : "Smart visitor showcase"}</p>
               <h2 className="mt-2 max-w-xl font-arui text-2xl font-semibold leading-8 text-[#F7F3EC]/95 sm:text-3xl sm:leading-10">
-                {isArabic ? "الميزات تتحرك بسلاسة بدل قائمة طويلة" : "Features glide smoothly instead of a long wall"}
+                {isArabic ? "كل ميزة في لقطة واضحة" : "One clear feature at a time"}
               </h2>
             </div>
             <button type="button" onClick={() => setIsExpanded(true)} className="ui-action shrink-0 rounded-full border border-white/12 bg-black/24 px-3 py-2 font-arsans text-xs text-[#F7F3EC]/72 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
