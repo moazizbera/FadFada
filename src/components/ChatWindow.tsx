@@ -10,10 +10,6 @@ import { childStories, type ChildStory } from "../lib/childStories";
 import { NEW_CHILDREN_ROSTER, personas, type Persona, type PersonaId, type PersonaVoiceConfig } from "../lib/personas";
 import { selectableWorlds, worlds, type WorldId } from "../lib/worlds";
 import { useAppLocale } from "./AppShell";
-import { AppBottomNav } from "./BottomNav";
-import { BreathingExercise } from "./BreathingExercise";
-import { EmptyState } from "./EmptyState";
-import { OnboardingFlow } from "./OnboardingFlow";
 import { PersonaDrawer } from "./PersonaDrawer";
 import { TypewriterSync, type EmotionalCadence } from "./TypewriterSync";
 
@@ -1937,12 +1933,6 @@ export function ChatWindow() {
   const [childRewardToast, setChildRewardToast] = useState<{ id: string; text: string } | null>(null);
   const [childHomeworkAssignments, setChildHomeworkAssignments] = useState<ChildHomeworkAssignment[]>([]);
   const [childHomeworkStatus, setChildHomeworkStatus] = useState<"idle" | "loading" | "error">("idle");
-  const [breathingOpen, setBreathingOpen] = useState(false);
-  const [bottomNavTab, setBottomNavTab] = useState<"home" | "chat" | "stories" | "breathe" | "settings">("home");
-  const [onboardingComplete, setOnboardingComplete] = useState(() => {
-    if (typeof window !== "undefined") return localStorage.getItem("fadfada-onboarding-done") === "true";
-    return true;
-  });
   const recorderRef = useRef<ISpeechRecognition | null>(null);
   const keepRecordingRef = useRef(false);
   const recordingRestartCountRef = useRef(0);
@@ -4714,50 +4704,6 @@ export function ChatWindow() {
         onCustomPersonaSave={saveCustomPersona}
         onAvatarRate={rateAvatar}
       />
-
-      {breathingOpen ? (
-        <BreathingExercise language={language} onClose={() => setBreathingOpen(false)} />
-      ) : null}
-
-      <AppBottomNav
-        language={language}
-        activeTab={bottomNavTab}
-        isChildWorkspace={isChildWorkspace}
-        onSelect={(tab) => {
-          setBottomNavTab(tab);
-          if (tab === "home") {
-            scrollToSection("home");
-          } else if (tab === "chat") {
-            scrollToSection("chat");
-            window.setTimeout(focusInput, 120);
-          } else if (tab === "stories") {
-            openStoryShelf();
-          } else if (tab === "breathe") {
-            setBreathingOpen(true);
-          } else if (tab === "settings") {
-            setToolsOpen(true);
-          }
-        }}
-      />
-
-      {!onboardingComplete && authStatus === "authenticated" ? (
-        <OnboardingFlow
-          language={language}
-          userName={effectiveUserName ?? undefined}
-          onComplete={(mood, companionId) => {
-            localStorage.setItem("fadfada-onboarding-done", "true");
-            if (companionId && visiblePersonas.some((persona) => persona.id === companionId)) {
-              setPersonaId(companionId as PersonaId);
-            }
-            setOnboardingComplete(true);
-            window.setTimeout(focusInput, 200);
-          }}
-          onSkip={() => {
-            localStorage.setItem("fadfada-onboarding-done", "true");
-            setOnboardingComplete(true);
-          }}
-        />
-      ) : null}
     </main>
   );
 }
