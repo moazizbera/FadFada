@@ -4705,42 +4705,6 @@ export function ChatWindow() {
               : language === "ar" ? "مسودة بدون اتصال جاهزة للإرسال." : "Offline draft is ready to send."}
           </p>
         ) : null}
-        {isChildWorkspace && activePersonaIsChild ? (
-          <div className="relative overflow-hidden rounded-2xl border border-[#C9A86A]/20 bg-[#C9A86A]/[0.06] p-2" dir={language === "ar" ? "rtl" : "ltr"}>
-            <div className="flex items-center justify-between gap-2">
-              {childRewardToast ? (
-                <span className="rounded-full border border-amber-200/35 bg-amber-200/15 px-2.5 py-1 font-mono text-[10px] text-amber-100 shadow-[0_0_22px_rgba(251,191,36,0.22)]">
-                  {childRewardToast.text}
-                </span>
-              ) : null}
-            </div>
-            {latestChildAssistantMessage?.challenge ? (
-              <p className="mt-1.5 max-h-12 overflow-y-auto rounded-xl border border-white/10 bg-black/18 px-2.5 py-1.5 font-arsans text-xs leading-5 text-[#F7F3EC]/70">
-                {latestChildAssistantMessage.challenge.question}
-              </p>
-            ) : null}
-            <div className="mt-1.5 grid grid-cols-3 gap-1.5 sm:gap-2">
-              {childSuggestionChips.length > 0 ? childSuggestionChips.map((suggestion) => {
-                const visual = getChildChoiceVisual(suggestion);
-                return (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    onClick={() => submitChildSuggestion(suggestion)}
-                    disabled={isThinking}
-                    className="ui-action group rounded-xl border border-[#C9A86A]/24 bg-black/24 p-1 text-center font-arsans transition duration-200 hover:-translate-y-0.5 hover:border-[#C9A86A]/65 hover:bg-[#C9A86A]/14 disabled:cursor-wait disabled:opacity-55 sm:rounded-[1.15rem] sm:p-1.5"
-                    aria-label={visual.label}
-                  >
-                    <ChildChoicePicture visual={visual} />
-                    <span className="mt-1 block min-h-5 px-0.5 text-[11px] font-bold leading-5 text-[#F7F3EC]/92 group-hover:text-white sm:mt-1.5 sm:min-h-7 sm:px-1 sm:text-sm sm:leading-7">
-                      {visual.label}
-                    </span>
-                  </button>
-                );
-              }) : null}
-            </div>
-          </div>
-        ) : null}
         <div className="flex w-full items-end gap-2 sm:gap-3">
         {!isChildWorkspace ? (
           <div className="flex shrink-0 items-center gap-1.5" dir="ltr" aria-label={language === "ar" ? "أدوات الإدخال السريعة" : "Quick input tools"}>
