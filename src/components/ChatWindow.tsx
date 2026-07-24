@@ -10,6 +10,7 @@ import { childStories, type ChildStory } from "../lib/childStories";
 import { NEW_CHILDREN_ROSTER, personas, type Persona, type PersonaId, type PersonaVoiceConfig } from "../lib/personas";
 import { selectableWorlds, worlds, type WorldId } from "../lib/worlds";
 import { useAppLocale } from "./AppShell";
+import { BreathingExercise } from "./BreathingExercise";
 import { PersonaDrawer } from "./PersonaDrawer";
 import { TypewriterSync, type EmotionalCadence } from "./TypewriterSync";
 
@@ -1933,6 +1934,7 @@ export function ChatWindow() {
   const [childRewardToast, setChildRewardToast] = useState<{ id: string; text: string } | null>(null);
   const [childHomeworkAssignments, setChildHomeworkAssignments] = useState<ChildHomeworkAssignment[]>([]);
   const [childHomeworkStatus, setChildHomeworkStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [breathingOpen, setBreathingOpen] = useState(false);
   const recorderRef = useRef<ISpeechRecognition | null>(null);
   const keepRecordingRef = useRef(false);
   const recordingRestartCountRef = useRef(0);
@@ -4494,8 +4496,12 @@ export function ChatWindow() {
           onHome={() => scrollToSection("home")}
           onChat={() => {
             scrollToConversationEnd();
-            window.setTimeout(scrollToConversationEnd, 120);
+            window.setTimeout(() => {
+              scrollToConversationEnd();
+              focusInput();
+            }, 120);
           }}
+          onBreathe={() => setBreathingOpen(true)}
           onPersona={avatarsEnabled ? openAvatarDrawer : undefined}
           onStories={isChildWorkspace && avatarsEnabled ? openStoryShelf : undefined}
           onMenu={() => setToolsOpen(true)}
@@ -4704,6 +4710,10 @@ export function ChatWindow() {
         onCustomPersonaSave={saveCustomPersona}
         onAvatarRate={rateAvatar}
       />
+
+      {breathingOpen ? (
+        <BreathingExercise language={language} onClose={() => setBreathingOpen(false)} />
+      ) : null}
     </main>
   );
 }
@@ -7229,6 +7239,7 @@ function BottomNav({
   accountImage,
   onHome,
   onChat,
+  onBreathe,
   onPersona,
   onStories,
   onMenu,
@@ -7239,6 +7250,7 @@ function BottomNav({
   accountImage: string | null;
   onHome: () => void;
   onChat: () => void;
+  onBreathe?: () => void;
   onPersona?: () => void;
   onStories?: () => void;
   onMenu: () => void;
@@ -7247,18 +7259,25 @@ function BottomNav({
   const accountInitial = accountName.trim().slice(0, 1).toUpperCase() || (isArabic ? "ح" : "A");
   const itemClass = "flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-bone/62 transition-colors hover:bg-white/[0.05] hover:text-[#C9A86A]";
   const labelClass = `${isArabic ? "font-arsans" : "font-ensans"} text-[10px] leading-none`;
+  const gridColsClass = onPersona && onStories && onBreathe ? "grid-cols-7" : onPersona && onBreathe ? "grid-cols-6" : onPersona ? "grid-cols-5" : onBreathe ? "grid-cols-5" : "grid-cols-4";
 
   return (
     <nav className="relative z-20 mx-auto mt-4 w-full max-w-[42rem] px-2 pb-2" dir={isArabic ? "rtl" : "ltr"} aria-label={isArabic ? "تنقل التطبيق" : "App navigation"}>
-      <div className={`grid ${onPersona && onStories ? "grid-cols-6" : onPersona ? "grid-cols-5" : "grid-cols-4"} gap-1 rounded-2xl border border-white/10 bg-[#0E0D10]/94 p-1 shadow-[0_18px_54px_rgba(0,0,0,0.34)] backdrop-blur-2xl`}>
+      <div className={`grid ${gridColsClass} gap-1 rounded-2xl border border-white/10 bg-[#0E0D10]/94 p-1 shadow-[0_18px_54px_rgba(0,0,0,0.34)] backdrop-blur-2xl`}>
         <button type="button" onClick={onHome} className={itemClass}>
           <HomeIcon />
           <span className={labelClass}>{isArabic ? "الرئيسية" : "Home"}</span>
         </button>
         <button type="button" onClick={onChat} className={itemClass}>
-          <EndIcon />
-          <span className={labelClass}>{isArabic ? "النهاية" : "End"}</span>
+          <ChatIcon />
+          <span className={labelClass}>{isArabic ? "المحادثة" : "Chat"}</span>
         </button>
+        {onBreathe ? (
+        <button type="button" onClick={onBreathe} className={itemClass}>
+          <BreatheIcon />
+          <span className={labelClass}>{isArabic ? "تنفس" : "Breathe"}</span>
+        </button>
+        ) : null}
         {onPersona ? (
         <button type="button" onClick={onPersona} className={itemClass}>
           <PersonaIcon />
@@ -7390,6 +7409,16 @@ function EndIcon() {
       <path d="M12 4.75v11.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
       <path d="m6.75 11.75 5.25 5.25 5.25-5.25" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M6 20h12" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function BreatheIcon() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 5.5c-2.6 0-4.75 2.15-4.75 4.75S9.4 15 12 15s4.75-2.15 4.75-4.75S14.6 5.5 12 5.5Z" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M5.5 18c1.1-1.8 3.2-3 6.5-3s5.4 1.2 6.5 3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M12 3v2.5M12 18.5V21" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
     </svg>
   );
 }
