@@ -4708,9 +4708,6 @@ export function ChatWindow() {
         {isChildWorkspace && activePersonaIsChild ? (
           <div className="relative overflow-hidden rounded-2xl border border-[#C9A86A]/20 bg-[#C9A86A]/[0.06] p-2" dir={language === "ar" ? "rtl" : "ltr"}>
             <div className="flex items-center justify-between gap-2">
-              <p className="font-arsans text-[11px] font-semibold text-[#F7F3EC]/78">
-                {language === "ar" ? "اختر بسرعة" : "Tap to play"}
-              </p>
               {childRewardToast ? (
                 <span className="rounded-full border border-amber-200/35 bg-amber-200/15 px-2.5 py-1 font-mono text-[10px] text-amber-100 shadow-[0_0_22px_rgba(251,191,36,0.22)]">
                   {childRewardToast.text}
@@ -4740,11 +4737,7 @@ export function ChatWindow() {
                     </span>
                   </button>
                 );
-              }) : (
-                <p className="rounded-xl border border-white/10 bg-black/18 px-3 py-2 font-arsans text-xs text-[#F7F3EC]/48 sm:col-span-3">
-                  {isThinking ? (language === "ar" ? "الرفيق يجهز اختياراً مرحاً..." : "Your guide is preparing playful choices...") : language === "ar" ? "اكتب كلمة قصيرة لبدء اللعبة، ثم استخدم الأزرار." : "Type one short word to start, then use the buttons."}
-                </p>
-              )}
+              }) : null}
             </div>
           </div>
         ) : null}
