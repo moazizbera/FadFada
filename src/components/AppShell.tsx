@@ -83,7 +83,6 @@ type AccountProfile = {
 const AppLocaleContext = createContext<AppLocaleContextValue | null>(null);
 const appLanguageStorageKey = "fadfada-language";
 const fadfadaHomeActionEventName = "fadfada:home-action";
-const parentReturnCodeStorageKey = "fadfada-parent-return-code";
 const savedParentPlansStorageKey = "fadfada-parent-plans";
 
 export function useAppLocale() {
@@ -194,6 +193,7 @@ function GlobalHeader() {
   const [parentReturnStatus, setParentReturnStatus] = useState<"idle" | "switching" | "error">("idle");
   const [parentReturnOpen, setParentReturnOpen] = useState(false);
   const [parentReturnCodeInput, setParentReturnCodeInput] = useState("");
+  const [parentReturnCode, setParentReturnCode] = useState("");
   const [, setEscapePressCount] = useState(0);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const activitiesMenuRef = useRef<HTMLDivElement | null>(null);
@@ -258,14 +258,13 @@ function GlobalHeader() {
     setParentReturnOpen(true);
   }
 
-  function getOrCreateParentReturnCode() {
-    if (typeof window === "undefined") return "";
-
-    const storedCode = window.localStorage.getItem(parentReturnCodeStorageKey)?.trim();
-    if (/^\d{4}$/.test(storedCode || "")) return storedCode || "";
-
-    const nextCode = String(Math.floor(1000 + Math.random() * 9000));
-    window.localStorage.setItem(parentReturnCodeStorageKey, nextCode);
+  async function loadParentReturnCode() {
+    const response = await fetch("/api/parent/return-code", { cache: "no-store" }).catch(() => null);
+    if (!response?.ok) return "";
+    const data = (await response.json().catch(() => ({}))) as { code?: string };
+    const nextCode = typeof data.code === "string" ? data.code.trim() : "";
+    if (!/^\d{4}$/.test(nextCode)) return "";
+    setParentReturnCode(nextCode);
     return nextCode;
   }
 
@@ -273,14 +272,28 @@ function GlobalHeader() {
     event?.preventDefault();
     if (parentReturnStatus === "switching") return;
 
-    if (!bypassGate && parentReturnCodeInput.replace(/\D/g, "") !== getOrCreateParentReturnCode()) {
+    const enteredCode = parentReturnCodeInput.replace(/\D/g, "").slice(0, 4);
+    const validCode = parentReturnCode || await loadParentReturnCode();
+
+    if (!bypassGate && enteredCode !== validCode) {
       setParentReturnStatus("error");
       return;
     }
 
     setParentReturnStatus("switching");
     try {
-      await updateSession({ clearChildProfile: true });
+      const submittedParentReturnCode = bypassGate ? validCode : enteredCode;
+      const nextSession = await updateSession({
+        clearChildProfile: true,
+        childProfileId: null,
+        activeChildProfileId: null,
+        parentReturnCode: submittedParentReturnCode,
+      });
+      const nextWorkspaceMode = nextSession?.user && "workspaceMode" in nextSession.user ? nextSession.user.workspaceMode : null;
+      if (nextWorkspaceMode === "child") {
+        setParentReturnStatus("error");
+        return;
+      }
       window.location.assign("/profile#child-profiles");
     } catch {
       setParentReturnStatus("error");
@@ -300,6 +313,26 @@ function GlobalHeader() {
       return nextCount;
     });
   }
+
+  useEffect(() => {
+    if (status !== "authenticated" || !isChildWorkspace) {
+      setParentReturnCode("");
+      return;
+    }
+
+    let active = true;
+    loadParentReturnCode().then((code) => {
+      if (!active) return;
+      setParentReturnCode(code);
+    }).catch(() => {
+      if (!active) return;
+      setParentReturnCode("");
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [isChildWorkspace, status]);
 
   useEffect(() => {
     if (status !== "authenticated" || isChildWorkspace) {

@@ -1714,19 +1714,6 @@ function ChildHomeworkActivityCards({
   }, [activitiesSignature]);
 
   useEffect(() => {
-    if (!hasActivities || closedAfterPlay || !activeActivity) return;
-    const answer = answersByIndex[activeIndex];
-    if (!answer) return;
-    if (!isHomeworkAnswerCorrect(activeActivity, activeIndex, answer)) return;
-    if (activeIndex >= activities.length - 1) return;
-
-    const timer = window.setTimeout(() => {
-      setActiveIndex((current) => Math.min(activities.length - 1, current + 1));
-    }, 450);
-    return () => window.clearTimeout(timer);
-  }, [activeActivity, activeIndex, activities.length, answersByIndex, closedAfterPlay, hasActivities]);
-
-  useEffect(() => {
     if (!allSolved || showCompletionCelebrate) return;
     setShowCompletionCelebrate(true);
   }, [allSolved, showCompletionCelebrate]);
@@ -1752,7 +1739,16 @@ function ChildHomeworkActivityCards({
         language={language}
         selectedAnswer={answersByIndex[activeIndex] || null}
         onSelectAnswer={(value) => {
+          const previousAnswer = answersByIndex[activeIndex] || null;
+          const nowCorrect = isHomeworkAnswerCorrect(activeActivity, activeIndex, value);
+          const wasCorrect = isHomeworkAnswerCorrect(activeActivity, activeIndex, previousAnswer);
           setAnswersByIndex((current) => ({ ...current, [activeIndex]: value }));
+
+          if (!wasCorrect && nowCorrect && activeIndex < activities.length - 1) {
+            window.setTimeout(() => {
+              setActiveIndex((current) => (current === activeIndex ? Math.min(activities.length - 1, current + 1) : current));
+            }, 450);
+          }
         }}
       />
       {activities.length > 1 && !showCompletionCelebrate ? (

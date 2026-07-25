@@ -2,8 +2,8 @@
 // Strategy: Network-first for HTML/API, Cache-first for static assets
 // This prevents hydration mismatches while enabling offline support
 
-const CACHE_NAME = "fadfada-static-v1";
-const OFFLINE_CACHE = "fadfada-offline-v1";
+const CACHE_NAME = "fadfada-static-v2";
+const OFFLINE_CACHE = "fadfada-offline-v2";
 
 // Static assets that can be safely cached (never change per-deployment)
 const STATIC_ASSETS = [
@@ -72,9 +72,9 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Strategy 4: Stale-while-revalidate for JS/CSS chunks
+  // Strategy 4: Network-first for JS/CSS chunks to avoid stale bundle mismatches after deploy
   if (isJsOrCss(url)) {
-    event.respondWith(staleWhileRevalidate(request, CACHE_NAME));
+    event.respondWith(networkFirstStatic(request, CACHE_NAME));
     return;
   }
 
@@ -201,6 +201,21 @@ async function staleWhileRevalidate(request, cacheName) {
     .catch(() => cached);
 
   return cached || fetchPromise;
+}
+
+async function networkFirstStatic(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  try {
+    const response = await fetch(request, { cache: "no-store" });
+    if (response.ok) {
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    throw new Error("Network unavailable");
+  }
 }
 
 self.addEventListener("message", (event) => {
