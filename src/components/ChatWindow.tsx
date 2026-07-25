@@ -1687,15 +1687,22 @@ function ChildHomeworkActivityCards({
   activities,
   language,
   onPlayAction,
+  childProfileId,
+  childNickname,
 }: {
   activities: ChildHomeworkActivity[];
   language: Language;
   onPlayAction?: () => void;
+  childProfileId?: string;
+  childNickname?: string | null;
 }) {
+  const homeworkResultsStorageKey = "fadfada-child-homework-results";
   const [activeIndex, setActiveIndex] = useState(0);
   const [answersByIndex, setAnswersByIndex] = useState<Record<number, string>>({});
   const [showCompletionCelebrate, setShowCompletionCelebrate] = useState(false);
   const [closedAfterPlay, setClosedAfterPlay] = useState(false);
+  const [savedResultId, setSavedResultId] = useState("");
+  const [awardedBadgeLabel, setAwardedBadgeLabel] = useState("");
   const hasActivities = activities.length > 0;
   const activitiesSignature = activities.map((activity, index) => `${index}:${activity.title}|${activity.prompt}|${activity.hint}`).join("\n");
   const activeActivity = hasActivities ? activities[Math.min(activeIndex, activities.length - 1)] : null;
@@ -1711,12 +1718,43 @@ function ChildHomeworkActivityCards({
     setAnswersByIndex({});
     setShowCompletionCelebrate(false);
     setClosedAfterPlay(false);
+    setSavedResultId("");
+    setAwardedBadgeLabel("");
   }, [activitiesSignature]);
 
   useEffect(() => {
     if (!allSolved || showCompletionCelebrate) return;
     setShowCompletionCelebrate(true);
   }, [allSolved, showCompletionCelebrate]);
+
+  useEffect(() => {
+    if (!allSolved || savedResultId || typeof window === "undefined") return;
+
+    const badgeLabel = language === "ar" ? "وسام المُنجز" : "Finisher badge";
+    const resultId = crypto.randomUUID();
+    const record = {
+      id: resultId,
+      childProfileId: childProfileId || "guest-child",
+      childNickname: childNickname || null,
+      signature: activitiesSignature,
+      completedAt: new Date().toISOString(),
+      solvedCount,
+      totalCount: activities.length,
+      badgeLabel,
+    };
+
+    try {
+      const existing = JSON.parse(window.localStorage.getItem(homeworkResultsStorageKey) || "[]") as Array<typeof record>;
+      const isDuplicate = existing.some((item) => item.childProfileId === record.childProfileId && item.signature === record.signature);
+      const next = isDuplicate ? existing : [...existing, record];
+      window.localStorage.setItem(homeworkResultsStorageKey, JSON.stringify(next.slice(-120)));
+      setSavedResultId(resultId);
+      setAwardedBadgeLabel(badgeLabel);
+    } catch {
+      setSavedResultId(resultId);
+      setAwardedBadgeLabel(badgeLabel);
+    }
+  }, [activities.length, activitiesSignature, allSolved, childNickname, childProfileId, language, savedResultId, solvedCount]);
 
   function resetHomeworkRound() {
     setAnswersByIndex({});
@@ -1729,7 +1767,7 @@ function ChildHomeworkActivityCards({
   return (
     <div className="mb-4 grid gap-3">
       <div className="flex items-center justify-between gap-2 rounded-2xl border border-amber-100/14 bg-[#050607] px-3 py-2 font-arsans text-xs text-amber-50/76">
-        <span>{language === "ar" ? "واجب مصور" : "Picture homework"}</span>
+        <span>{language === "ar" ? "تحدي مصوّر" : "Picture challenge"}</span>
         <span dir="ltr">{allSolved ? `${activities.length}/${activities.length}` : `${activeIndex + 1}/${activities.length}`}</span>
       </div>
       <ChildHomeworkVisualCard
@@ -1770,13 +1808,17 @@ function ChildHomeworkActivityCards({
               <p className="font-arsans text-xs text-emerald-50/80" dir="ltr">{solvedCount}/{activities.length}</p>
             </div>
           </div>
+          <p className="mt-2 rounded-xl border border-emerald-100/28 bg-black/20 px-3 py-2 font-arsans text-xs text-emerald-50/84">
+            {language === "ar" ? "تم حفظ النتيجة تلقائياً" : "Result saved automatically"}
+            {awardedBadgeLabel ? ` • ${awardedBadgeLabel}` : ""}
+          </p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={resetHomeworkRound}
               className="ui-action rounded-xl border border-white/14 bg-black/20 px-3 py-2 font-arsans text-xs text-bone/84 hover:border-emerald-100/45 hover:text-emerald-50"
             >
-              {language === "ar" ? "أعد اللعب" : "Play again"}
+              {language === "ar" ? "إعادة نفس التحدي" : "Replay this challenge"}
             </button>
             <button
               type="button"
@@ -1790,9 +1832,12 @@ function ChildHomeworkActivityCards({
               }}
               className="ui-action rounded-xl border border-emerald-100/32 bg-emerald-100/16 px-3 py-2 font-arsans text-xs font-semibold text-emerald-50 hover:bg-emerald-100 hover:text-[#0E0D10]"
             >
-              {language === "ar" ? "ابدأ اللعب" : "Start playing"}
+              {language === "ar" ? "ابدأ لعبة جديدة" : "Start a new game"}
             </button>
           </div>
+          <p className="mt-2 font-arsans text-[11px] text-emerald-50/70">
+            {language === "ar" ? "الأول يعيد نفس الأسئلة، والثاني يفتح لعبة مختلفة." : "First replays this quiz, second opens a different game."}
+          </p>
         </div>
       ) : null}
     </div>
@@ -4580,7 +4625,15 @@ export function ChatWindow() {
                   <p className="mb-2 font-arsans text-[11px] text-[#C9A86A]/70">{messageDisplayName}</p>
                   {message.generatedMedia ? <GeneratedMediaCard language={messageLanguage} asset={message.generatedMedia} /> : null}
                   {messageChildStory ? <ChildStorySceneCard story={messageChildStory} language={messageLanguage} /> : null}
-                  {messageHomeworkActivities.length ? <ChildHomeworkActivityCards activities={messageHomeworkActivities} language={messageLanguage} onPlayAction={startChildTapGame} /> : null}
+                  {messageHomeworkActivities.length ? (
+                    <ChildHomeworkActivityCards
+                      activities={messageHomeworkActivities}
+                      language={messageLanguage}
+                      onPlayAction={startChildTapGame}
+                      childProfileId={activeChildProfileId}
+                      childNickname={activeChildNickname}
+                    />
+                  ) : null}
                   <TypewriterSync
                     text={messagePersonaEnvironment.formatAssistantText?.(messageText) ?? messageText}
                     language={messageLanguage}
