@@ -195,6 +195,7 @@ async function analyzeHomework(request: ParsedHomeworkRequest, oidcToken?: strin
           "Never ask for school name, teacher name, class, location, child full name, phone, address, or private data.",
           "Do not shame mistakes. Keep the child-facing text short, warm, and tap-friendly.",
           "For KG/pre-literate children, use oral, matching, tracing, counting, color, and pointing style activities instead of long reading.",
+          "If the requested language is Arabic, write all child-facing and parent-facing sentences in Arabic. If the worksheet teaches English letters or words, keep only the target letter/word itself in English, but explain the task in Arabic.",
           "Include answers for the parent, but write prompts so the child gets hints before answers.",
           "Return strict JSON only. No markdown fences. No extra text.",
         ].join("\n"),
@@ -221,6 +222,7 @@ function buildHomeworkPrompt(request: ParsedHomeworkRequest) {
     },
     outputRules: {
       language: isArabic ? "Arabic only, simple parent-friendly Arabic." : "English only.",
+      bilingualGuard: isArabic ? "Do not output English instructions such as Trace, Match, Choose, or full English sentences. If the task is about an English letter like A/B/C, keep the letter itself but explain the action in Arabic." : "Keep all instructions in English.",
       activities: "Return 5 to 7 activities. Mix quiz, match, trace, story, and challenge when appropriate.",
       childIntro: "One short exciting line a parent can read to the child.",
       parentSummary: "One sentence explaining what the worksheet is teaching.",
@@ -257,24 +259,93 @@ function normalizeHomeworkPayload(payload: HomeworkPayload | null, fallback: Hom
   const activities = payload.activities
     .filter((activity) => activity && typeof activity.prompt === "string" && activity.prompt.trim())
     .slice(0, 7)
-    .map((activity) => ({
-      type: types.has(activity.type) ? activity.type : "quiz" as HomeworkActivityType,
-      title: cleanText(activity.title, language === "ar" ? "نشاط سريع" : "Quick activity"),
-      prompt: cleanText(activity.prompt, language === "ar" ? "اختر الإجابة الصحيحة." : "Choose the correct answer."),
-      hint: cleanText(activity.hint, language === "ar" ? "ابدأ بخطوة صغيرة." : "Start with one small clue."),
-      answer: cleanText(activity.answer, language === "ar" ? "راجع مع الطفل بهدوء." : "Review calmly with the child."),
-      choices: Array.isArray(activity.choices) ? activity.choices.filter((choice) => typeof choice === "string" && choice.trim()).slice(0, 4).map((choice) => choice.trim().slice(0, 80)) : undefined,
-      visual: normalizeActivityVisual(activity.visual, activity),
-    }));
+    .map((activity, index) => {
+      const normalizedActivity = {
+        type: types.has(activity.type) ? activity.type : "quiz" as HomeworkActivityType,
+        title: cleanText(activity.title, language === "ar" ? "نشاط سريع" : "Quick activity"),
+        prompt: cleanText(activity.prompt, language === "ar" ? "اختر الإجابة الصحيحة." : "Choose the correct answer."),
+        hint: cleanText(activity.hint, language === "ar" ? "ابدأ بخطوة صغيرة." : "Start with one small clue."),
+        answer: cleanText(activity.answer, language === "ar" ? "راجع مع الطفل بهدوء." : "Review calmly with the child."),
+        choices: Array.isArray(activity.choices) ? activity.choices.filter((choice) => typeof choice === "string" && choice.trim()).slice(0, 4).map((choice) => choice.trim().slice(0, 80)) : undefined,
+        visual: normalizeActivityVisual(activity.visual, activity),
+      };
+
+      return language === "ar" ? normalizeArabicHomeworkActivity(normalizedActivity, fallback.activities[index] ?? fallback.activities[0]) : normalizedActivity;
+    });
 
   return {
     subject: subjects.has(payload.subject) ? payload.subject : fallback.subject,
-    detectedTask: cleanText(payload.detectedTask, fallback.detectedTask),
-    parentSummary: cleanText(payload.parentSummary, fallback.parentSummary),
-    childIntro: cleanText(payload.childIntro, fallback.childIntro),
+    detectedTask: normalizeHomeworkTextForLanguage(cleanText(payload.detectedTask, fallback.detectedTask), fallback.detectedTask, language),
+    parentSummary: normalizeHomeworkTextForLanguage(cleanText(payload.parentSummary, fallback.parentSummary), fallback.parentSummary, language),
+    childIntro: normalizeHomeworkTextForLanguage(cleanText(payload.childIntro, fallback.childIntro), fallback.childIntro, language),
     activities: activities.length ? activities : fallback.activities,
-    safetyNote: cleanText(payload.safetyNote, fallback.safetyNote),
+    safetyNote: normalizeHomeworkTextForLanguage(cleanText(payload.safetyNote, fallback.safetyNote), fallback.safetyNote, language),
   };
+}
+
+function normalizeArabicHomeworkActivity(activity: HomeworkActivity, fallbackActivity: HomeworkActivity): HomeworkActivity {
+  const title = normalizeHomeworkTextForLanguage(activity.title, fallbackActivity.title, "ar");
+  const prompt = normalizeHomeworkTextForLanguage(activity.prompt, fallbackActivity.prompt, "ar");
+  const hint = normalizeHomeworkTextForLanguage(activity.hint, fallbackActivity.hint, "ar");
+  const answer = normalizeHomeworkTextForLanguage(activity.answer, fallbackActivity.answer, "ar");
+  const englishToken = extractHomeworkToken(`${activity.title} ${activity.prompt} ${activity.answer}`);
+
+  if (containsMostlyEnglish(activity.title) || containsMostlyEnglish(activity.prompt)) {
+    if (activity.type === "trace" && englishToken) {
+      return {
+        ...activity,
+        title: `تتبّع الحرف ${englishToken}`,
+        prompt: `تتبّع الحرف ${englishToken} الكبير.`,
+        hint: "ابدأ من أعلى واتبع الشكل بهدوء.",
+        answer: `الحرف المطلوب هو ${englishToken}.`,
+      };
+    }
+
+    if ((activity.type === "match" || activity.type === "quiz") && englishToken) {
+      return {
+        ...activity,
+        title: `نشاط الحرف ${englishToken}`,
+        prompt: `ابحث عن الحرف ${englishToken} واختره.`,
+        hint: `ركّز على شكل الحرف ${englishToken}.`,
+        answer: `الإجابة الصحيحة هي ${englishToken}.`,
+      };
+    }
+
+    return {
+      ...activity,
+      title: fallbackActivity.title,
+      prompt: fallbackActivity.prompt,
+      hint: fallbackActivity.hint,
+      answer: fallbackActivity.answer,
+    };
+  }
+
+  return {
+    ...activity,
+    title,
+    prompt,
+    hint,
+    answer,
+  };
+}
+
+function normalizeHomeworkTextForLanguage(value: string, fallback: string, language: Language) {
+  if (language !== "ar") return value;
+  return containsMostlyEnglish(value) ? fallback : value;
+}
+
+function containsMostlyEnglish(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  const arabicMatches = trimmed.match(/[\u0600-\u06FF]/g) ?? [];
+  const latinMatches = trimmed.match(/[A-Za-z]/g) ?? [];
+  return latinMatches.length >= 4 && arabicMatches.length === 0;
+}
+
+function extractHomeworkToken(value: string) {
+  const match = value.match(/\b([A-Z])\b|['"]([A-Za-z])['"]|\b([A-Za-z]{1,2})\b/);
+  const token = match?.[1] || match?.[2] || match?.[3] || "";
+  return token ? token.toUpperCase() : "";
 }
 
 function buildFallbackHomework(language: Language, ageBand: ChildAgeBand | "unknown", hint: string): HomeworkPayload {
