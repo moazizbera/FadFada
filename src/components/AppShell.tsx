@@ -62,6 +62,7 @@ type ParentHomeworkChildFollowup = {
 };
 
 type ParentHomeworkFollowupResponse = {
+  range?: "today" | "7d" | "30d" | "all";
   children: ParentHomeworkChildFollowup[];
   totals: {
     totalAssignments: number;
@@ -70,6 +71,8 @@ type ParentHomeworkFollowupResponse = {
     totalPoints: number;
   };
 };
+
+type ParentHomeworkFollowupRange = "today" | "7d" | "30d" | "all";
 
 type ParentPlaybookResult = {
   title: string;
@@ -689,6 +692,21 @@ function ParentToolDialog({ tool, onClose }: { tool: ParentTool; onClose: () => 
   const [savedParentPlans, setSavedParentPlans] = useState<SavedParentPlan[]>([]);
   const [homeworkFollowup, setHomeworkFollowup] = useState<ParentHomeworkFollowupResponse | null>(null);
   const [homeworkFollowupStatus, setHomeworkFollowupStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [homeworkFollowupRange, setHomeworkFollowupRange] = useState<ParentHomeworkFollowupRange>("30d");
+
+  function loadHomeworkFollowupForRange(range: ParentHomeworkFollowupRange) {
+    setHomeworkFollowupStatus("loading");
+    fetch(`/api/parent/homework/status?range=${range}`, { cache: "no-store" })
+      .then((response) => response.ok ? response.json() as Promise<ParentHomeworkFollowupResponse> : Promise.reject(new Error(String(response.status))))
+      .then((data) => {
+        setHomeworkFollowup(data);
+        setHomeworkFollowupStatus("idle");
+      })
+      .catch(() => {
+        setHomeworkFollowup(null);
+        setHomeworkFollowupStatus("error");
+      });
+  }
 
   useEffect(() => {
     let active = true;
@@ -720,7 +738,7 @@ function ParentToolDialog({ tool, onClose }: { tool: ParentTool; onClose: () => 
     if (tool !== "followup") return;
     let active = true;
     setHomeworkFollowupStatus("loading");
-    fetch("/api/parent/homework/status", { cache: "no-store" })
+    fetch(`/api/parent/homework/status?range=${homeworkFollowupRange}`, { cache: "no-store" })
       .then((response) => response.ok ? response.json() as Promise<ParentHomeworkFollowupResponse> : Promise.reject(new Error(String(response.status))))
       .then((data) => {
         if (!active) return;
@@ -736,7 +754,7 @@ function ParentToolDialog({ tool, onClose }: { tool: ParentTool; onClose: () => 
     return () => {
       active = false;
     };
-  }, [tool]);
+  }, [homeworkFollowupRange, tool]);
 
   useEffect(() => {
     return () => {
@@ -872,19 +890,9 @@ function ParentToolDialog({ tool, onClose }: { tool: ParentTool; onClose: () => 
             language={language}
             data={homeworkFollowup}
             status={homeworkFollowupStatus}
-            onRefresh={() => {
-              setHomeworkFollowupStatus("loading");
-              fetch("/api/parent/homework/status", { cache: "no-store" })
-                .then((response) => response.ok ? response.json() as Promise<ParentHomeworkFollowupResponse> : Promise.reject(new Error(String(response.status))))
-                .then((data) => {
-                  setHomeworkFollowup(data);
-                  setHomeworkFollowupStatus("idle");
-                })
-                .catch(() => {
-                  setHomeworkFollowup(null);
-                  setHomeworkFollowupStatus("error");
-                });
-            }}
+            range={homeworkFollowupRange}
+            onRangeChange={setHomeworkFollowupRange}
+            onRefresh={() => loadHomeworkFollowupForRange(homeworkFollowupRange)}
           />
         ) : tool === "homework" ? (
           <div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
@@ -1042,17 +1050,40 @@ function ParentHomeworkFollowupPanel({
   language,
   data,
   status,
+  range,
+  onRangeChange,
   onRefresh,
 }: {
   language: AppLanguage;
   data: ParentHomeworkFollowupResponse | null;
   status: "idle" | "loading" | "error";
+  range: ParentHomeworkFollowupRange;
+  onRangeChange: (range: ParentHomeworkFollowupRange) => void;
   onRefresh: () => void;
 }) {
   const isArabic = language === "ar";
+  const rangeOptions: Array<{ id: ParentHomeworkFollowupRange; ar: string; en: string }> = [
+    { id: "today", ar: "اليوم", en: "Today" },
+    { id: "7d", ar: "7 أيام", en: "7 days" },
+    { id: "30d", ar: "30 يوم", en: "30 days" },
+    { id: "all", ar: "الكل", en: "All" },
+  ];
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-black/20 p-2">
+        {rangeOptions.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => onRangeChange(option.id)}
+            className={`ui-action rounded-lg px-3 py-1.5 font-arsans text-xs transition-colors ${range === option.id ? "bg-sky-100 text-ink" : "border border-sky-200/25 bg-sky-200/10 text-sky-100 hover:bg-sky-200 hover:text-ink"}`}
+          >
+            {isArabic ? option.ar : option.en}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200/20 bg-sky-200/[0.06] p-3">
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-arsans text-xs text-sky-100/82 sm:grid-cols-4">
           <p>{isArabic ? "كل الواجبات" : "All homework"}: <span className="font-semibold text-sky-50">{data?.totals.totalAssignments ?? 0}</span></p>

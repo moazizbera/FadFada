@@ -33,13 +33,18 @@ type ChildFollowup = {
   assignments: HomeworkAssignmentSummary[];
 };
 
-export async function GET() {
+type FollowupRange = "today" | "7d" | "30d" | "all";
+
+export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   const parentContext = requireParentWorkspace(session?.user);
 
   if (!parentContext.ok) {
     return NextResponse.json({ error: parentContext.error }, { status: parentContext.status });
   }
+
+  const range = parseFollowupRange(new URL(request.url).searchParams.get("range"));
+  const cutoffDate = buildRangeCutoffDate(range);
 
   const [children, events] = await Promise.all([
     prisma.childProfile.findMany({
@@ -114,6 +119,13 @@ export async function GET() {
         missionPoints: completion?.missionPoints || 0,
       };
 
+      if (cutoffDate) {
+        const assignedAtDate = new Date(summary.assignedAt);
+        if (Number.isNaN(assignedAtDate.getTime()) || assignedAtDate < cutoffDate) {
+          continue;
+        }
+      }
+
       const current = groupedByChild.get(childProfileId) ?? [];
       current.push(summary);
       groupedByChild.set(childProfileId, current);
@@ -155,9 +167,34 @@ export async function GET() {
   );
 
   return NextResponse.json({
+    range,
     children: childrenFollowup,
     totals,
   });
+}
+
+function parseFollowupRange(value: string | null): FollowupRange {
+  if (value === "today" || value === "7d" || value === "30d" || value === "all") {
+    return value;
+  }
+  return "30d";
+}
+
+function buildRangeCutoffDate(range: FollowupRange) {
+  if (range === "all") return null;
+
+  const now = new Date();
+  if (range === "today") {
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    return startOfDay;
+  }
+
+  const cutoffDays = range === "7d" ? 7 : 30;
+  const cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - cutoffDays + 1);
+  cutoff.setHours(0, 0, 0, 0);
+  return cutoff;
 }
 
 function normalizeSubject(value: unknown): HomeworkAssignmentSummary["subject"] {
