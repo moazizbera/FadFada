@@ -1695,8 +1695,10 @@ function ChildHomeworkActivityCards({
   const [activeIndex, setActiveIndex] = useState(0);
   const [answersByIndex, setAnswersByIndex] = useState<Record<number, string>>({});
   const [showCompletionCelebrate, setShowCompletionCelebrate] = useState(false);
+  const [closedAfterPlay, setClosedAfterPlay] = useState(false);
   if (!activities.length) return null;
   const activitiesSignature = activities.map((activity, index) => `${index}:${activity.title}|${activity.prompt}|${activity.hint}`).join("\n");
+  if (closedAfterPlay) return null;
   const activeActivity = activities[Math.min(activeIndex, activities.length - 1)];
   const solvedCount = activities.reduce((count, activity, index) => {
     return count + (isHomeworkAnswerCorrect(activity, index, answersByIndex[index] || null) ? 1 : 0);
@@ -1707,6 +1709,7 @@ function ChildHomeworkActivityCards({
     setActiveIndex(0);
     setAnswersByIndex({});
     setShowCompletionCelebrate(false);
+    setClosedAfterPlay(false);
   }, [activitiesSignature]);
 
   useEffect(() => {
@@ -1778,6 +1781,7 @@ function ChildHomeworkActivityCards({
             <button
               type="button"
               onClick={() => {
+                setClosedAfterPlay(true);
                 if (onPlayAction) {
                   onPlayAction();
                   return;
