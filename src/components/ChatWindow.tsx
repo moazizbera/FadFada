@@ -1751,7 +1751,7 @@ function ChildHomeworkActivityCards({
           setAnswersByIndex((current) => ({ ...current, [activeIndex]: value }));
         }}
       />
-      {activities.length > 1 ? (
+      {activities.length > 1 && !showCompletionCelebrate ? (
         <div className="grid grid-cols-2 gap-2">
           <button type="button" onClick={() => setActiveIndex((current) => Math.max(0, current - 1))} disabled={activeIndex === 0} className="ui-action rounded-xl border border-white/10 px-3 py-2 font-arsans text-xs text-bone/70 hover:border-amber-100/35 hover:text-amber-100 disabled:opacity-40">
             {language === "ar" ? "السابق" : "Previous"}
