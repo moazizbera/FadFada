@@ -123,6 +123,7 @@ function parseHomeworkAssignment(
   try {
     const parsed = JSON.parse(event.metadataJson) as Record<string, unknown>;
     if (parsed.childProfileId !== childProfileId) return null;
+    const assignmentLanguage = parsed.language === "en" ? "en" : "ar";
 
     const homework = parsed.homework as Partial<HomeworkPayload> | undefined;
     if (!homework || !Array.isArray(homework.activities)) return null;
@@ -130,15 +131,7 @@ function parseHomeworkAssignment(
     const activities = homework.activities
       .filter((activity): activity is HomeworkActivity => Boolean(activity && typeof activity.prompt === "string" && activity.prompt.trim()))
       .slice(0, 7)
-      .map((activity) => ({
-        type: normalizeActivityType(activity.type),
-        title: cleanText(activity.title, "Practice"),
-        prompt: cleanText(activity.prompt, "Try one question."),
-        hint: cleanText(activity.hint, "Start with one small clue."),
-        answer: cleanText(activity.answer, ""),
-        choices: Array.isArray(activity.choices) ? activity.choices.filter((choice) => typeof choice === "string" && choice.trim()).slice(0, 4) : undefined,
-        visual: normalizeActivityVisual(activity.visual, activity),
-      }));
+      .map((activity) => normalizeChildHomeworkActivity(activity, assignmentLanguage));
 
     if (activities.length === 0) return null;
 
@@ -148,8 +141,8 @@ function parseHomeworkAssignment(
       assignedAt: typeof parsed.assignedAt === "string" ? parsed.assignedAt : event.createdAt.toISOString(),
       source: parsed.source === "hint" ? "hint" : "image",
       subject: normalizeSubject(homework.subject),
-      detectedTask: cleanText(homework.detectedTask, "Homework practice"),
-      childIntro: cleanText(homework.childIntro, "Ready? Let’s practice together."),
+      detectedTask: normalizeHomeworkTextForLanguage(cleanText(homework.detectedTask, assignmentLanguage === "ar" ? "تحدي واجب" : "Homework practice"), assignmentLanguage),
+      childIntro: normalizeHomeworkTextForLanguage(cleanText(homework.childIntro, assignmentLanguage === "ar" ? "جاهز؟ لنبدأ خطوة خطوة." : "Ready? Let’s practice together."), assignmentLanguage),
       activities,
       missionCompleted: Boolean(missionCompletion),
       missionCompletedAt: missionCompletion?.completedAt || null,
@@ -158,6 +151,96 @@ function parseHomeworkAssignment(
   } catch {
     return null;
   }
+}
+
+function normalizeChildHomeworkActivity(activity: HomeworkActivity, language: "ar" | "en"): HomeworkActivity {
+  const normalizedType = normalizeActivityType(activity.type);
+  const titleFallback = language === "ar" ? "نشاط" : "Practice";
+  const promptFallback = language === "ar" ? "اختر الإجابة الصحيحة." : "Try one question.";
+  const hintFallback = language === "ar" ? "ابدأ بخطوة صغيرة." : "Start with one small clue.";
+  const answerFallback = language === "ar" ? "راجع الإجابة مع ولي الأمر." : "Review with a parent.";
+  const title = normalizeHomeworkTextForLanguage(cleanText(activity.title, titleFallback), language) || titleFallback;
+  const prompt = normalizeHomeworkTextForLanguage(cleanText(activity.prompt, promptFallback), language) || promptFallback;
+  const hint = normalizeHomeworkTextForLanguage(cleanText(activity.hint, hintFallback), language) || hintFallback;
+  const answer = normalizeHomeworkTextForLanguage(cleanText(activity.answer, answerFallback), language) || answerFallback;
+  const fallbackArabic = {
+    title: normalizedType === "trace" ? "تتبّع الحرف" : normalizedType === "match" ? "وصّل بشكل صحيح" : "نشاط سريع",
+    prompt: normalizedType === "trace" ? "تتبّع الحرف المطلوب خطوة خطوة." : normalizedType === "match" ? "اختر الإجابة الصحيحة من الخيارات." : "اقرأ السؤال واختر الإجابة الصحيحة.",
+    hint: "ابدأ بهدوء ولا تستعجل.",
+    answer: "راجع الإجابة مع ولي الأمر.",
+  };
+
+  if (language === "ar" && (containsMostlyEnglish(title) || containsMostlyEnglish(prompt))) {
+    const token = extractHomeworkToken(`${activity.title || ""} ${activity.prompt || ""} ${activity.answer || ""}`);
+    if (normalizedType === "trace" && token) {
+      return {
+        type: normalizedType,
+        title: `تتبّع الحرف ${token}`,
+        prompt: `تتبّع الحرف ${token} الكبير.`,
+        hint: "ابدأ من أعلى واتبع الشكل بهدوء.",
+        answer: `الحرف الصحيح هو ${token}.`,
+        choices: token ? [token] : undefined,
+        visual: normalizeActivityVisual(activity.visual, activity),
+      };
+    }
+
+    if ((normalizedType === "match" || normalizedType === "quiz") && token) {
+      return {
+        type: normalizedType,
+        title: `نشاط الحرف ${token}`,
+        prompt: `ابحث عن الحرف ${token} واختره.`,
+        hint: `ركّز على شكل الحرف ${token}.`,
+        answer: `الإجابة الصحيحة هي ${token}.`,
+        choices: [token, "أ", "ب", "ت"].slice(0, 4),
+        visual: normalizeActivityVisual(activity.visual, activity),
+      };
+    }
+
+    return {
+      type: normalizedType,
+      title: fallbackArabic.title,
+      prompt: fallbackArabic.prompt,
+      hint: fallbackArabic.hint,
+      answer: fallbackArabic.answer,
+      choices: Array.isArray(activity.choices) ? activity.choices.filter((choice) => typeof choice === "string" && choice.trim()).slice(0, 4) : undefined,
+      visual: normalizeActivityVisual(activity.visual, activity),
+    };
+  }
+
+  return {
+    type: normalizedType,
+    title,
+    prompt,
+    hint,
+    answer,
+    choices: Array.isArray(activity.choices) ? activity.choices.filter((choice) => typeof choice === "string" && choice.trim()).slice(0, 4) : undefined,
+    visual: normalizeActivityVisual(activity.visual, activity),
+  };
+}
+
+function normalizeHomeworkTextForLanguage(value: string, language: "ar" | "en") {
+  const stripped = value
+    .replace(/^\s*#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .trim();
+
+  if (language !== "ar") return stripped;
+  return containsMostlyEnglish(stripped) ? "" : stripped;
+}
+
+function containsMostlyEnglish(value: string) {
+  const text = value.trim();
+  if (!text) return false;
+  const arabicChars = text.match(/[\u0600-\u06FF]/g) ?? [];
+  const englishChars = text.match(/[A-Za-z]/g) ?? [];
+  return englishChars.length >= 4 && arabicChars.length === 0;
+}
+
+function extractHomeworkToken(value: string) {
+  const match = value.match(/\b([A-Z])\b|['"]([A-Za-z])['"]|\b([A-Za-z]{1,2})\b/);
+  const token = match?.[1] || match?.[2] || match?.[3] || "";
+  return token ? token.toUpperCase() : "";
 }
 
 function parseMissionCompletion(event: { metadataJson: string | null; createdAt: Date }, childProfileId: string) {
