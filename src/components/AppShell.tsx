@@ -10,9 +10,9 @@ import { NotificationCenter } from "./NotificationCenter";
 import { PwaUpdateManager } from "./PwaUpdateManager";
 
 type AppLanguage = "ar" | "en";
-type HomeHeaderAction = "start" | "avatars" | "stories" | "newChat";
+type HomeHeaderAction = "start" | "avatars" | "stories" | "homework" | "newChat";
 type AccountTier = "FREE" | "PLUS" | "BUSINESS";
-type ParentTool = "homework" | "playbook" | "plans";
+type ParentTool = "homework" | "followup" | "playbook" | "plans";
 
 type ParentChildProfile = {
   id: string;
@@ -36,6 +36,39 @@ type HomeworkResult = {
   childIntro: string;
   activities: HomeworkActivity[];
   safetyNote: string;
+};
+
+type ParentHomeworkAssignmentStatus = {
+  id: string;
+  childProfileId: string;
+  childNickname: string;
+  detectedTask: string;
+  subject: HomeworkResult["subject"];
+  assignedAt: string;
+  missionCompleted: boolean;
+  missionCompletedAt: string | null;
+  missionPoints: number;
+};
+
+type ParentHomeworkChildFollowup = {
+  childProfileId: string;
+  childNickname: string;
+  totalAssignments: number;
+  completedAssignments: number;
+  pendingAssignments: number;
+  completionRate: number;
+  totalPoints: number;
+  assignments: ParentHomeworkAssignmentStatus[];
+};
+
+type ParentHomeworkFollowupResponse = {
+  children: ParentHomeworkChildFollowup[];
+  totals: {
+    totalAssignments: number;
+    completedAssignments: number;
+    pendingAssignments: number;
+    totalPoints: number;
+  };
 };
 
 type ParentPlaybookResult = {
@@ -215,6 +248,7 @@ function GlobalHeader() {
     { action: "start", label: isArabic ? "ابدأ" : "Start" },
     { action: "avatars", label: isArabic ? "الرفاق" : "Avatars" },
     ...(isChildWorkspace ? [{ action: "stories" as const, label: isArabic ? "القصص" : "Stories" }] : []),
+    ...(isChildWorkspace ? [{ action: "homework" as const, label: isArabic ? "واجب" : "Homework" }] : []),
     { action: "newChat", label: isArabic ? "محادثة جديدة" : "New chat" },
   ];
   const adminTabs = [
@@ -228,6 +262,7 @@ function GlobalHeader() {
   ];
   const parentActivityLinks: Array<{ tool: ParentTool; label: string; accent: string }> = [
     { tool: "homework", label: isArabic ? "محول الواجب" : "Homework transformer", accent: "text-emerald-100" },
+    { tool: "followup", label: isArabic ? "متابعة الواجب" : "Homework follow-up", accent: "text-sky-100" },
     { tool: "playbook", label: isArabic ? "دليل ولي الأمر" : "Parent Playbook", accent: "text-amber-100" },
     { tool: "plans", label: isArabic ? "خطط أطفالي" : "My kids plans", accent: "text-cyan-100" },
   ];
@@ -652,6 +687,8 @@ function ParentToolDialog({ tool, onClose }: { tool: ParentTool; onClose: () => 
   const [playbookMessage, setPlaybookMessage] = useState("");
   const [playbookResult, setPlaybookResult] = useState<ParentPlaybookResult | null>(null);
   const [savedParentPlans, setSavedParentPlans] = useState<SavedParentPlan[]>([]);
+  const [homeworkFollowup, setHomeworkFollowup] = useState<ParentHomeworkFollowupResponse | null>(null);
+  const [homeworkFollowupStatus, setHomeworkFollowupStatus] = useState<"idle" | "loading" | "error">("idle");
 
   useEffect(() => {
     let active = true;
@@ -678,6 +715,28 @@ function ParentToolDialog({ tool, onClose }: { tool: ParentTool; onClose: () => 
   useEffect(() => {
     setSavedParentPlans(readSavedParentPlans());
   }, []);
+
+  useEffect(() => {
+    if (tool !== "followup") return;
+    let active = true;
+    setHomeworkFollowupStatus("loading");
+    fetch("/api/parent/homework/status", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() as Promise<ParentHomeworkFollowupResponse> : Promise.reject(new Error(String(response.status))))
+      .then((data) => {
+        if (!active) return;
+        setHomeworkFollowup(data);
+        setHomeworkFollowupStatus("idle");
+      })
+      .catch(() => {
+        if (!active) return;
+        setHomeworkFollowup(null);
+        setHomeworkFollowupStatus("error");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [tool]);
 
   useEffect(() => {
     return () => {
@@ -780,7 +839,13 @@ function ParentToolDialog({ tool, onClose }: { tool: ParentTool; onClose: () => 
     setPlaybookMessage("");
   }
 
-  const title = tool === "homework" ? (isArabic ? "محول الواجب" : "Homework transformer") : tool === "plans" ? (isArabic ? "خطط أطفالي" : "My kids plans") : (isArabic ? "دليل ولي الأمر" : "Parent Playbook");
+  const title = tool === "homework"
+    ? (isArabic ? "محول الواجب" : "Homework transformer")
+    : tool === "followup"
+      ? (isArabic ? "متابعة الواجب" : "Homework follow-up")
+      : tool === "plans"
+        ? (isArabic ? "خطط أطفالي" : "My kids plans")
+        : (isArabic ? "دليل ولي الأمر" : "Parent Playbook");
 
   return (
     <div className="fixed inset-0 z-[120] flex flex-col bg-[#050607] px-3 py-4 sm:px-6" role="dialog" aria-modal="true" aria-label={title} dir={direction}>
@@ -788,7 +853,7 @@ function ParentToolDialog({ tool, onClose }: { tool: ParentTool; onClose: () => 
         <div className="mb-4 flex flex-shrink-0 items-start justify-between gap-3">
           <div>
             <p className={`ui-kicker ${tool === "homework" ? "text-emerald-100" : "text-amber-100"}`}>{title}</p>
-            <h2 className="mt-2 font-arserif text-2xl text-bone/90">{tool === "homework" ? (isArabic ? "نافذة تحويل الواجب" : "Homework popup") : tool === "plans" ? (isArabic ? "الخطط المحفوظة" : "Saved plans") : (isArabic ? "نافذة خطة ولي الأمر" : "Parent plan popup")}</h2>
+            <h2 className="mt-2 font-arserif text-2xl text-bone/90">{tool === "homework" ? (isArabic ? "نافذة تحويل الواجب" : "Homework popup") : tool === "followup" ? (isArabic ? "متابعة أداء الأطفال" : "Children performance follow-up") : tool === "plans" ? (isArabic ? "الخطط المحفوظة" : "Saved plans") : (isArabic ? "نافذة خطة ولي الأمر" : "Parent plan popup")}</h2>
           </div>
           <button type="button" onClick={onClose} className={`ui-action border border-white/10 px-3 py-2 text-xs text-bone/65 ${tool === "homework" ? "hover:border-emerald-200/35 hover:text-emerald-100" : "hover:border-amber-200/35 hover:text-amber-100"}`}>
             {isArabic ? "إغلاق" : "Close"}
@@ -802,6 +867,25 @@ function ParentToolDialog({ tool, onClose }: { tool: ParentTool; onClose: () => 
             setSavedParentPlans(nextPlans);
             writeSavedParentPlans(nextPlans);
           }} />
+        ) : tool === "followup" ? (
+          <ParentHomeworkFollowupPanel
+            language={language}
+            data={homeworkFollowup}
+            status={homeworkFollowupStatus}
+            onRefresh={() => {
+              setHomeworkFollowupStatus("loading");
+              fetch("/api/parent/homework/status", { cache: "no-store" })
+                .then((response) => response.ok ? response.json() as Promise<ParentHomeworkFollowupResponse> : Promise.reject(new Error(String(response.status))))
+                .then((data) => {
+                  setHomeworkFollowup(data);
+                  setHomeworkFollowupStatus("idle");
+                })
+                .catch(() => {
+                  setHomeworkFollowup(null);
+                  setHomeworkFollowupStatus("error");
+                });
+            }}
+          />
         ) : tool === "homework" ? (
           <div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
             <form onSubmit={submitHomework} className="space-y-3 text-start">
@@ -950,6 +1034,88 @@ function ParentHomeworkResultPanel({ result, language, imagePreviewUrl, imageNam
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ParentHomeworkFollowupPanel({
+  language,
+  data,
+  status,
+  onRefresh,
+}: {
+  language: AppLanguage;
+  data: ParentHomeworkFollowupResponse | null;
+  status: "idle" | "loading" | "error";
+  onRefresh: () => void;
+}) {
+  const isArabic = language === "ar";
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200/20 bg-sky-200/[0.06] p-3">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-arsans text-xs text-sky-100/82 sm:grid-cols-4">
+          <p>{isArabic ? "كل الواجبات" : "All homework"}: <span className="font-semibold text-sky-50">{data?.totals.totalAssignments ?? 0}</span></p>
+          <p>{isArabic ? "مكتمل" : "Completed"}: <span className="font-semibold text-emerald-100">{data?.totals.completedAssignments ?? 0}</span></p>
+          <p>{isArabic ? "غير مكتمل" : "Pending"}: <span className="font-semibold text-amber-100">{data?.totals.pendingAssignments ?? 0}</span></p>
+          <p>{isArabic ? "النقاط" : "Points"}: <span className="font-semibold text-cyan-100">{data?.totals.totalPoints ?? 0}</span></p>
+        </div>
+        <button type="button" onClick={onRefresh} className="ui-action rounded-xl border border-sky-200/28 bg-sky-200/12 px-3 py-2 font-arsans text-xs text-sky-100 hover:bg-sky-200 hover:text-ink" disabled={status === "loading"}>
+          {status === "loading" ? (isArabic ? "تحديث..." : "Refreshing...") : (isArabic ? "تحديث" : "Refresh")}
+        </button>
+      </div>
+
+      {status === "error" ? (
+        <p className="rounded-xl border border-red-200/28 bg-red-950/40 p-3 font-arsans text-sm text-red-100">
+          {isArabic ? "تعذر تحميل متابعة الواجب الآن." : "Could not load homework follow-up right now."}
+        </p>
+      ) : null}
+
+      {status === "loading" && !data ? (
+        <p className="rounded-xl border border-white/10 bg-[#050607] p-3 font-arsans text-sm text-bone/72">{isArabic ? "جار تحميل الأداء..." : "Loading performance..."}</p>
+      ) : null}
+
+      {data && data.children.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-white/16 bg-[#050607] p-3 font-arsans text-sm text-bone/70">{isArabic ? "لا توجد ملفات أطفال بعد." : "No child profiles yet."}</p>
+      ) : null}
+
+      {data?.children.map((child) => (
+        <section key={child.childProfileId} className="rounded-2xl border border-white/10 bg-[#050607] p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="font-arsans text-sm font-semibold text-bone/92">{child.childNickname}</h3>
+            <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+              <span className="rounded-full border border-amber-100/28 bg-amber-100/12 px-2 py-0.5 text-amber-100">{isArabic ? "غير مكتمل" : "Pending"}: {child.pendingAssignments}</span>
+              <span className="rounded-full border border-emerald-100/28 bg-emerald-100/12 px-2 py-0.5 text-emerald-100">{isArabic ? "مكتمل" : "Completed"}: {child.completedAssignments}</span>
+              <span className="rounded-full border border-cyan-100/28 bg-cyan-100/12 px-2 py-0.5 text-cyan-100">{isArabic ? "الإنجاز" : "Rate"}: {child.completionRate}%</span>
+            </div>
+          </div>
+
+          {child.assignments.length === 0 ? (
+            <p className="mt-2 rounded-xl border border-dashed border-white/14 bg-black/25 px-3 py-2 font-arsans text-xs text-bone/66">{isArabic ? "لم يتم إرسال واجبات لهذا الطفل بعد." : "No homework assigned to this child yet."}</p>
+          ) : (
+            <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1 [scrollbar-color:rgba(125,211,252,0.42)_transparent]">
+              {child.assignments.map((assignment) => (
+                <article key={assignment.id} className="rounded-xl border border-white/10 bg-[#0E0D10] p-2.5">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="font-arsans text-xs font-semibold text-bone/88">{assignment.detectedTask}</p>
+                      <p className="mt-1 font-arsans text-[11px] text-bone/50">{formatParentToolHomeworkSubject(assignment.subject, language)} • {formatFollowupDateLabel(assignment.assignedAt, language)}</p>
+                    </div>
+                    {assignment.missionCompleted ? (
+                      <span className="rounded-full border border-emerald-100/28 bg-emerald-100/14 px-2 py-0.5 font-arsans text-[10px] text-emerald-100">{isArabic ? "مكتمل" : "Completed"}{assignment.missionPoints > 0 ? ` +${assignment.missionPoints}` : ""}</span>
+                    ) : (
+                      <span className="rounded-full border border-amber-100/26 bg-amber-100/12 px-2 py-0.5 font-arsans text-[10px] text-amber-100">{isArabic ? "قيد الانتظار" : "Pending"}</span>
+                    )}
+                  </div>
+                  {assignment.missionCompletedAt ? (
+                    <p className="mt-1 font-arsans text-[10px] text-emerald-100/74">{isArabic ? "أُنجز في" : "Completed at"}: {formatFollowupDateLabel(assignment.missionCompletedAt, language)}</p>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      ))}
     </div>
   );
 }
@@ -1107,6 +1273,17 @@ function formatParentToolHomeworkActivityType(value: HomeworkActivity["type"], l
   return labels[value]?.[language] || value;
 }
 
+function formatFollowupDateLabel(value: string, language: AppLanguage) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString(language === "ar" ? "ar-EG" : "en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function formatParentToolHomeworkError(error: string | undefined, language: AppLanguage) {
   if (error === "UNSUPPORTED_IMAGE_TYPE") return language === "ar" ? "نوع الصورة غير مدعوم. استخدم PNG أو JPG أو WEBP." : "Unsupported image type. Use PNG, JPG, or WEBP.";
   if (error === "IMAGE_TOO_LARGE") return language === "ar" ? "الصورة كبيرة جداً. جرّب صورة أقل من ٨ ميجابايت." : "The image is too large. Try an image under 8 MB.";
@@ -1127,6 +1304,7 @@ function HeaderActionIcon({ action }: { action: HomeHeaderAction }) {
   if (action === "start") return <StartHeaderIcon />;
   if (action === "avatars") return <AvatarsHeaderIcon />;
   if (action === "stories") return <StoryHeaderIcon />;
+  if (action === "homework") return <HomeworkHeaderIcon />;
   return <NewChatIcon />;
 }
 
@@ -1162,6 +1340,15 @@ function StoryHeaderIcon() {
     <svg className="relative h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <path d="M3.25 3.4A1.4 1.4 0 0 1 4.65 2h7.1v9.4h-7.1a1.4 1.4 0 0 0-1.4 1.4V3.4Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
       <path d="M3.25 12.8a1.4 1.4 0 0 1 1.4-1.4h7.1M5.7 5h3.7M5.7 7h2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function HomeworkHeaderIcon() {
+  return (
+    <svg className="relative h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M3.2 3.5c0-.66.54-1.2 1.2-1.2h6.2l2.2 2.2v8.1c0 .66-.54 1.2-1.2 1.2H4.4c-.66 0-1.2-.54-1.2-1.2V3.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M10.6 2.3v2.2h2.2M5.4 7h5.2M5.4 9.4h5.2M5.4 11.8h3.1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
     </svg>
   );
 }

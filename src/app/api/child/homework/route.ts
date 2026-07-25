@@ -95,7 +95,13 @@ export async function GET() {
     .filter((event) => event.eventType === "child_homework_assignment")
     .map((event) => parseHomeworkAssignment(event, childContext.childProfileId, completionByAssignment.get(event.id)))
     .filter((assignment): assignment is HomeworkAssignment => Boolean(assignment))
-    .slice(0, 6);
+    .sort((left, right) => {
+      if (left.missionCompleted !== right.missionCompleted) {
+        return left.missionCompleted ? 1 : -1;
+      }
+      return Date.parse(right.assignedAt) - Date.parse(left.assignedAt);
+    })
+    .slice(0, 30);
 
   const missionSummary: MissionSummary = {
     completedCount7d: completionByAssignment.size,

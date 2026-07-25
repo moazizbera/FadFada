@@ -45,7 +45,7 @@ interface SpeechRecognitionErrorEvent {
 }
 
 type Language = "ar" | "en";
-type HomeHeaderAction = "start" | "avatars" | "stories" | "newChat";
+type HomeHeaderAction = "start" | "avatars" | "stories" | "homework" | "newChat";
 
 type BehaviorStyle = "signature" | "deep" | "coach" | "quick";
 type HomeToolPanel = "checkin" | "sessions" | "progress" | "tone" | "prompts" | "plans" | "about";
@@ -89,6 +89,9 @@ type ChildHomeworkAssignment = {
   activities: ChildHomeworkActivity[];
   assignedAt: string;
   source: "image" | "hint";
+  missionCompleted: boolean;
+  missionCompletedAt: string | null;
+  missionPoints: number;
 };
 
 type ChatMessage = {
@@ -2086,6 +2089,8 @@ export function ChatWindow() {
   const [childRewardToast, setChildRewardToast] = useState<{ id: string; text: string } | null>(null);
   const [childHomeworkAssignments, setChildHomeworkAssignments] = useState<ChildHomeworkAssignment[]>([]);
   const [childHomeworkStatus, setChildHomeworkStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [childHomeworkDrawerOpen, setChildHomeworkDrawerOpen] = useState(false);
+  const [childHomeworkTab, setChildHomeworkTab] = useState<"pending" | "completed">("pending");
   const [childMomentSlideIndex, setChildMomentSlideIndex] = useState(0);
   const [childHomeworkSlideIndex, setChildHomeworkSlideIndex] = useState(0);
   const [breathingOpen, setBreathingOpen] = useState(false);
@@ -2164,7 +2169,18 @@ export function ChatWindow() {
     },
   ]), [dailyChildMoment, language]);
   const activeChildMomentSlide = childMomentSlides[childMomentSlideIndex % childMomentSlides.length];
-  const childHomeworkSlides = useMemo(() => childHomeworkAssignments.slice(0, 6), [childHomeworkAssignments]);
+  const pendingChildHomeworkAssignments = useMemo(
+    () => childHomeworkAssignments.filter((assignment) => !assignment.missionCompleted),
+    [childHomeworkAssignments]
+  );
+  const completedChildHomeworkAssignments = useMemo(
+    () => childHomeworkAssignments.filter((assignment) => assignment.missionCompleted),
+    [childHomeworkAssignments]
+  );
+  const childHomeworkSlides = useMemo(() => {
+    const source = pendingChildHomeworkAssignments.length > 0 ? pendingChildHomeworkAssignments : childHomeworkAssignments;
+    return source.slice(0, 10);
+  }, [childHomeworkAssignments, pendingChildHomeworkAssignments]);
   const activeChildHomeworkSlide = childHomeworkSlides[childHomeworkSlideIndex % Math.max(childHomeworkSlides.length, 1)];
   const storyboardGallerySourceMessage = useMemo<ChatMessage>(() => latestAssistantMessage ?? {
     id: "storyboard-gallery-demo",
@@ -2237,6 +2253,16 @@ export function ChatWindow() {
     }, 5600);
     return () => window.clearInterval(timer);
   }, [isChildWorkspace, childHomeworkSlides.length]);
+
+  useEffect(() => {
+    if (pendingChildHomeworkAssignments.length === 0 && completedChildHomeworkAssignments.length > 0) {
+      setChildHomeworkTab("completed");
+      return;
+    }
+    if (pendingChildHomeworkAssignments.length > 0) {
+      setChildHomeworkTab("pending");
+    }
+  }, [completedChildHomeworkAssignments.length, pendingChildHomeworkAssignments.length]);
 
   useEffect(() => {
     // Set daily moment date after hydration to avoid server/client mismatch
@@ -2589,6 +2615,34 @@ export function ChatWindow() {
 
   useEffect(() => {
     let active = true;
+    let refreshTimer: number | null = null;
+
+    const loadAssignments = (silent = false) => {
+      if (!isChildWorkspace || !activeChildProfileId) {
+        setChildHomeworkAssignments([]);
+        setChildHomeworkStatus("idle");
+        return;
+      }
+
+      if (!silent) {
+        setChildHomeworkStatus("loading");
+      }
+
+      fetch("/api/child/homework", { cache: "no-store" })
+        .then((response) => response.ok ? response.json() : Promise.reject(new Error(String(response.status))))
+        .then((data: { assignments?: ChildHomeworkAssignment[] }) => {
+          if (!active) return;
+          setChildHomeworkAssignments(Array.isArray(data.assignments) ? data.assignments : []);
+          setChildHomeworkStatus("idle");
+        })
+        .catch(() => {
+          if (!active) return;
+          if (!silent) {
+            setChildHomeworkAssignments([]);
+          }
+          setChildHomeworkStatus("error");
+        });
+    };
 
     if (!isChildWorkspace || !activeChildProfileId) {
       setChildHomeworkAssignments([]);
@@ -2596,22 +2650,23 @@ export function ChatWindow() {
       return;
     }
 
-    setChildHomeworkStatus("loading");
-    fetch("/api/child/homework", { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error(String(response.status))))
-      .then((data: { assignments?: ChildHomeworkAssignment[] }) => {
-        if (!active) return;
-        setChildHomeworkAssignments(Array.isArray(data.assignments) ? data.assignments : []);
-        setChildHomeworkStatus("idle");
-      })
-      .catch(() => {
-        if (!active) return;
-        setChildHomeworkAssignments([]);
-        setChildHomeworkStatus("error");
-      });
+    loadAssignments();
+
+    const handleWindowFocus = () => {
+      loadAssignments(true);
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    refreshTimer = window.setInterval(() => {
+      loadAssignments(true);
+    }, 30000);
 
     return () => {
       active = false;
+      if (refreshTimer !== null) {
+        window.clearInterval(refreshTimer);
+      }
+      window.removeEventListener("focus", handleWindowFocus);
     };
   }, [activeChildProfileId, isChildWorkspace]);
 
@@ -2899,6 +2954,14 @@ export function ChatWindow() {
       return;
     }
 
+    if (action === "homework") {
+      if (!isChildWorkspace) return;
+      setPersonaOpen(false);
+      setToolsOpen(false);
+      setChildHomeworkDrawerOpen(true);
+      return;
+    }
+
     if (action === "newChat") {
       setPersonaOpen(false);
       setToolsOpen(false);
@@ -2926,7 +2989,7 @@ export function ChatWindow() {
       window.history.replaceState(null, "", nextUrl);
     }
 
-    if (initialAction === "start" || initialAction === "avatars" || initialAction === "stories" || initialAction === "newChat") {
+    if (initialAction === "start" || initialAction === "avatars" || initialAction === "stories" || initialAction === "homework" || initialAction === "newChat") {
       window.setTimeout(() => runHomeHeaderAction(initialAction), 180);
       params.delete("fadfadaAction");
       const nextSearch = params.toString();
@@ -4246,6 +4309,84 @@ export function ChatWindow() {
     document.body
   ) : null;
 
+  const activeHomeworkList = childHomeworkTab === "pending" ? pendingChildHomeworkAssignments : completedChildHomeworkAssignments;
+
+  const childHomeworkDialog = childHomeworkDrawerOpen && isChildWorkspace && typeof document !== "undefined" ? createPortal(
+    <div className="fixed inset-0 z-[85] overflow-y-auto bg-[#050607]/84 px-3 py-4 backdrop-blur-xl sm:px-5" role="dialog" aria-modal="true" aria-label={language === "ar" ? "قائمة الواجب" : "Homework list"} dir={language === "ar" ? "rtl" : "ltr"}>
+      <button type="button" className="absolute inset-0" onClick={() => setChildHomeworkDrawerOpen(false)} aria-label={language === "ar" ? "إغلاق قائمة الواجب" : "Close homework list"} />
+      <section className="relative mx-auto max-w-3xl rounded-[1.5rem] border border-emerald-100/22 bg-[#0E0D10]/96 p-3 shadow-[0_32px_120px_rgba(0,0,0,0.58)] sm:p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 pb-3">
+          <div className="text-start">
+            <p className="ui-kicker text-emerald-100/84">{language === "ar" ? "لوحة الواجب" : "Homework board"}</p>
+            <h2 className="mt-1 font-arui text-xl font-semibold text-[#F7F3EC]/94">{language === "ar" ? "واجباتي" : "My homework"}</h2>
+            <p className="mt-1 font-arsans text-xs text-[#F7F3EC]/62" dir="ltr">{pendingChildHomeworkAssignments.length}/{childHomeworkAssignments.length} {language === "ar" ? "غير مكتمل" : "pending"}</p>
+          </div>
+          <button type="button" onClick={() => setChildHomeworkDrawerOpen(false)} className="ui-action h-10 w-10 rounded-full border border-white/12 bg-black/22 text-lg text-[#F7F3EC]/70 transition-colors hover:border-[#F7F3EC]/35 hover:text-[#F7F3EC]" aria-label={language === "ar" ? "إغلاق" : "Close"}>×</button>
+        </div>
+
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-white/10 bg-black/25 p-1">
+          <button
+            type="button"
+            onClick={() => setChildHomeworkTab("pending")}
+            className={`ui-action flex-1 rounded-lg px-3 py-2 font-arsans text-xs transition-colors ${childHomeworkTab === "pending" ? "bg-amber-100 text-[#0E0D10]" : "text-amber-100/78 hover:bg-amber-100/14"}`}
+          >
+            {language === "ar" ? "غير مكتمل" : "Pending"} ({pendingChildHomeworkAssignments.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setChildHomeworkTab("completed")}
+            className={`ui-action flex-1 rounded-lg px-3 py-2 font-arsans text-xs transition-colors ${childHomeworkTab === "completed" ? "bg-emerald-100 text-[#0E0D10]" : "text-emerald-100/78 hover:bg-emerald-100/14"}`}
+          >
+            {language === "ar" ? "مكتمل" : "Completed"} ({completedChildHomeworkAssignments.length})
+          </button>
+        </div>
+
+        <div className="mt-3 max-h-[70vh] space-y-2 overflow-y-auto pr-1 [scrollbar-color:rgba(110,231,183,0.45)_transparent]">
+          {activeHomeworkList.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-white/16 bg-black/25 p-3 font-arsans text-sm text-bone/70">
+              {childHomeworkTab === "pending"
+                ? (language === "ar" ? "ممتاز! لا يوجد واجب غير مكتمل الآن." : "Amazing! No pending homework right now.")
+                : (language === "ar" ? "لا توجد واجبات مكتملة بعد." : "No completed homework yet.")}
+            </p>
+          ) : activeHomeworkList.map((assignment) => (
+            <article key={assignment.id} className="rounded-xl border border-white/12 bg-[#050607] p-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="font-arsans text-sm font-semibold text-bone/90">{assignment.detectedTask}</p>
+                  <p className="mt-1 font-arsans text-[11px] text-bone/52">{new Date(assignment.assignedAt).toLocaleDateString(language === "ar" ? "ar-EG" : "en-US", { month: "short", day: "numeric" })}</p>
+                </div>
+                {assignment.missionCompleted ? (
+                  <span className="rounded-full border border-emerald-100/28 bg-emerald-100/14 px-2 py-0.5 font-arsans text-[10px] text-emerald-100">{language === "ar" ? "مكتمل" : "Completed"}</span>
+                ) : (
+                  <span className="rounded-full border border-amber-100/28 bg-amber-100/12 px-2 py-0.5 font-arsans text-[10px] text-amber-100">{language === "ar" ? "قيد الحل" : "In progress"}</span>
+                )}
+              </div>
+
+              <p className="mt-2 font-arsans text-xs text-bone/72 line-clamp-2">{assignment.childIntro}</p>
+
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <span className="font-arsans text-[11px] text-bone/55" dir="ltr">{assignment.activities.length} {language === "ar" ? "أنشطة" : "activities"}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChildHomeworkDrawerOpen(false);
+                    startChildHomework(assignment);
+                  }}
+                  className="ui-action rounded-lg border border-emerald-100/26 bg-emerald-100/14 px-3 py-1.5 font-arsans text-xs text-emerald-50 hover:bg-emerald-100 hover:text-[#0E0D10]"
+                >
+                  {assignment.missionCompleted
+                    ? (language === "ar" ? "أعد اللعب" : "Replay")
+                    : (language === "ar" ? "ابدأ الواجب" : "Start homework")}
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>,
+    document.body
+  ) : null;
+
   return (
     <main
       className={`relative mx-auto flex min-h-screen max-w-5xl flex-col overflow-hidden px-4 pb-40 pt-20 transition-all duration-700 ease-in-out sm:pb-48 md:pb-40 ${personaEnvironment.ambientClassName} ${personaEnvironment.textClassName} ${personaEnvironment.typographyClassName}`}
@@ -4346,6 +4487,13 @@ export function ChatWindow() {
                 </button>
                 <button type="button" onClick={() => avatarsEnabled ? openAvatarDrawer() : setToolsOpen(true)} className="ui-action h-10 min-w-[6.9rem] shrink-0 rounded-xl border border-white/18 bg-white/[0.055] px-3 text-xs text-[#F7F3EC]/84 transition-colors hover:border-[#F7F3EC]/45 hover:text-[#F7F3EC]">
                   {language === "ar" ? "اختر رفيقك" : "Choose your friend"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChildHomeworkDrawerOpen(true)}
+                  className="ui-action h-10 min-w-[6.4rem] shrink-0 rounded-xl border border-emerald-100/24 bg-emerald-100/12 px-3 text-xs text-emerald-50 transition-colors hover:bg-emerald-100 hover:text-[#0E0D10]"
+                >
+                  {language === "ar" ? "الواجب" : "Homework"}
                 </button>
                 <button
                   type="button"
@@ -4501,7 +4649,7 @@ export function ChatWindow() {
               <div className="rounded-2xl border border-emerald-100/20 bg-black/16 p-2.5">
                 <div className="flex items-center justify-between gap-2 px-0.5 text-start">
                   <p className="font-arsans text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-100/72">{language === "ar" ? "واجباتي" : "My homework"}</p>
-                  <span className="rounded-full border border-emerald-100/16 bg-black/20 px-2 py-0.5 font-mono text-[9px] text-emerald-100/60" dir="ltr">{childHomeworkAssignments.length}</span>
+                  <span className="rounded-full border border-emerald-100/16 bg-black/20 px-2 py-0.5 font-mono text-[9px] text-emerald-100/60" dir="ltr">{pendingChildHomeworkAssignments.length}/{childHomeworkAssignments.length}</span>
                 </div>
                 <div className="mt-2">
                   {childHomeworkSlides.length > 0 ? (
@@ -4526,7 +4674,9 @@ export function ChatWindow() {
                           <SymbolIcon name="school" className="h-5 w-5 shrink-0 text-emerald-100/58" />
                         </span>
                         <span className="mt-2.5 inline-flex rounded-full border border-emerald-100/25 px-2.5 py-0.5 font-arsans text-[11px] font-semibold text-emerald-100/82">
-                          {language === "ar" ? "ابدأ" : "Start"}
+                          {activeChildHomeworkSlide?.missionCompleted
+                            ? (language === "ar" ? "مكتمل" : "Completed")
+                            : (language === "ar" ? "ابدأ" : "Start")}
                         </span>
                       </button>
                       <button
@@ -4678,6 +4828,8 @@ export function ChatWindow() {
       {receiptDialog}
 
       {storyboardGalleryDialog}
+
+      {childHomeworkDialog}
 
       {toolsOpen ? (
         <HomeToolsDialog
