@@ -10,6 +10,7 @@ type HomeworkActivity = {
   title: string;
   prompt: string;
   hint: string;
+  answer?: string;
   choices?: string[];
   visual?: HomeworkActivityVisual;
 };
@@ -134,6 +135,7 @@ function parseHomeworkAssignment(
         title: cleanText(activity.title, "Practice"),
         prompt: cleanText(activity.prompt, "Try one question."),
         hint: cleanText(activity.hint, "Start with one small clue."),
+        answer: cleanText(activity.answer, ""),
         choices: Array.isArray(activity.choices) ? activity.choices.filter((choice) => typeof choice === "string" && choice.trim()).slice(0, 4) : undefined,
         visual: normalizeActivityVisual(activity.visual, activity),
       }));

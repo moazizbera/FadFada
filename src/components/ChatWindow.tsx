@@ -71,6 +71,7 @@ type ChildHomeworkActivity = {
   title: string;
   prompt: string;
   hint: string;
+  answer?: string;
   choices?: string[];
   visual?: ChildHomeworkVisual;
 };
@@ -1540,7 +1541,7 @@ function ChildStorySceneCard({ story, language }: { story: ChildStory; language:
   );
 }
 
-function getHomeworkActivityVisual(activity: ChildHomeworkActivity, index: number): { kind: ChildHomeworkVisual["kind"]; count: number; label: string } {
+function getHomeworkActivityVisual(activity: ChildHomeworkActivity, index: number): { kind: ChildHomeworkVisual["kind"]; count: number; label: string; expectedAnswer: string | null } {
   const text = `${activity.title} ${activity.prompt} ${activity.hint}`.toLowerCase();
   const kind = activity.visual?.kind
     ?? (/نجوم|نجمة|star/.test(text) ? "stars"
@@ -1554,7 +1555,68 @@ function getHomeworkActivityVisual(activity: ChildHomeworkActivity, index: numbe
     ? Math.min(8, Math.max(2, Math.round(activity.visual.count)))
     : [5, 4, 3, 6][index % 4];
   const label = activity.visual?.label?.trim() || activity.title || activity.prompt.slice(0, 32);
-  return { kind, count, label };
+  const expectedAnswer = inferHomeworkExpectedAnswer(activity, kind);
+  return { kind, count, label, expectedAnswer };
+}
+
+function inferHomeworkExpectedAnswer(activity: ChildHomeworkActivity, kind: ChildHomeworkVisual["kind"]) {
+  const text = `${activity.answer || ""} ${activity.prompt || ""} ${activity.title || ""}`;
+  const arabicWordMatch = text.match(/["'«»]\s*([\u0600-\u06FF]{2,})\s*["'«»]/);
+  if (kind === "letters" && arabicWordMatch?.[1]) {
+    return arabicWordMatch[1][0] || null;
+  }
+
+  if (kind === "letters") {
+    const arabicLetterMatch = text.match(/[\u0621-\u064A]/);
+    if (arabicLetterMatch?.[0]) return arabicLetterMatch[0];
+    const latinLetterMatch = text.match(/\b([A-Za-z])\b/);
+    if (latinLetterMatch?.[1]) return latinLetterMatch[1].toUpperCase();
+  }
+
+  if (kind === "numbers" || kind === "mixed" || kind === "stars" || kind === "circles" || kind === "triangles" || kind === "squares") {
+    const numericText = normalizeAnswerValue(activity.answer || activity.prompt || "");
+    if (numericText) return numericText;
+  }
+
+  return null;
+}
+
+function normalizeLetterChoice(value: string) {
+  return value.trim().toUpperCase().replace(/[\u064B-\u065F\u0670]/g, "");
+}
+
+function buildLetterAnswerOptions(activity: ChildHomeworkActivity, expectedAnswer: string | null, isArabic: boolean) {
+  const arabicAlphabet = ["أ", "ب", "ت", "ث", "ج", "ح", "خ", "د", "ذ", "ر", "ز", "س", "ش", "ص", "ض", "ط", "ظ", "ع", "غ", "ف", "ق", "ك", "ل", "م", "ن", "ه", "و", "ي"];
+  const englishAlphabet = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
+  const expected = expectedAnswer ? normalizeLetterChoice(expectedAnswer) : "";
+
+  const extractedChoices = Array.isArray(activity.choices)
+    ? activity.choices
+      .map((choice) => {
+        const clean = choice.trim();
+        const arabicMatch = clean.match(/[\u0621-\u064A]/)?.[0] || "";
+        const latinMatch = clean.match(/[A-Za-z]/)?.[0]?.toUpperCase() || "";
+        return arabicMatch || latinMatch || "";
+      })
+      .filter(Boolean)
+    : [];
+
+  const unique = Array.from(new Set(extractedChoices.map((choice) => normalizeLetterChoice(choice))));
+  const hasExpected = expected ? unique.includes(expected) : false;
+
+  if (unique.length >= 2 && (!expected || hasExpected)) {
+    const options = unique.slice(0, 4);
+    if (expected && !options.includes(expected)) {
+      options[0] = expected;
+    }
+    return options.map((choice) => ({ value: choice, label: choice }));
+  }
+
+  const alphabet = isArabic ? arabicAlphabet : englishAlphabet;
+  const fallbackExpected = expected || alphabet[0];
+  const distractors = alphabet.filter((letter) => normalizeLetterChoice(letter) !== fallbackExpected).slice(0, 3);
+  const options = [fallbackExpected, ...distractors].slice(0, 4);
+  return options.map((choice) => ({ value: choice, label: choice }));
 }
 
 function ChildHomeworkVisualCard({
@@ -1578,8 +1640,10 @@ function ChildHomeworkVisualCard({
   const countKinds: ChildHomeworkVisual["kind"][] = ["stars", "circles", "triangles", "squares", "numbers", "mixed"];
   const answerOptions = countKinds.includes(visual.kind)
     ? buildCountingAnswerOptions(visual.count, isArabic)
-    : (activity.choices || []).slice(0, 4).map((choice) => ({ value: choice, label: choice }));
-  const selectedIsCorrect = selectedAnswer ? normalizeAnswerValue(selectedAnswer) === String(visual.count) : false;
+    : visual.kind === "letters"
+      ? buildLetterAnswerOptions(activity, visual.expectedAnswer, isArabic)
+      : (activity.choices || []).slice(0, 4).map((choice) => ({ value: choice, label: choice }));
+  const selectedIsCorrect = selectedAnswer ? isHomeworkAnswerCorrect(activity, index, selectedAnswer) : false;
 
   function speakQuestion() {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
@@ -1683,6 +1747,14 @@ function ChildHomeworkVisualCard({
 function isHomeworkAnswerCorrect(activity: ChildHomeworkActivity, index: number, answer: string | null) {
   if (!answer) return false;
   const visual = getHomeworkActivityVisual(activity, index);
+  if (visual.kind === "letters" && visual.expectedAnswer) {
+    return normalizeLetterChoice(answer) === normalizeLetterChoice(visual.expectedAnswer);
+  }
+  if (!["stars", "circles", "triangles", "squares", "numbers", "mixed"].includes(visual.kind)) {
+    const normalizedAnswer = normalizeLetterChoice(answer);
+    const activityAnswer = normalizeLetterChoice(activity.answer || "");
+    return Boolean(activityAnswer) && normalizedAnswer === activityAnswer;
+  }
   return normalizeAnswerValue(answer) === String(visual.count);
 }
 
