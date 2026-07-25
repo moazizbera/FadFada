@@ -1696,14 +1696,15 @@ function ChildHomeworkActivityCards({
   const [answersByIndex, setAnswersByIndex] = useState<Record<number, string>>({});
   const [showCompletionCelebrate, setShowCompletionCelebrate] = useState(false);
   const [closedAfterPlay, setClosedAfterPlay] = useState(false);
-  if (!activities.length) return null;
+  const hasActivities = activities.length > 0;
   const activitiesSignature = activities.map((activity, index) => `${index}:${activity.title}|${activity.prompt}|${activity.hint}`).join("\n");
-  if (closedAfterPlay) return null;
-  const activeActivity = activities[Math.min(activeIndex, activities.length - 1)];
-  const solvedCount = activities.reduce((count, activity, index) => {
-    return count + (isHomeworkAnswerCorrect(activity, index, answersByIndex[index] || null) ? 1 : 0);
-  }, 0);
-  const allSolved = solvedCount === activities.length;
+  const activeActivity = hasActivities ? activities[Math.min(activeIndex, activities.length - 1)] : null;
+  const solvedCount = hasActivities
+    ? activities.reduce((count, activity, index) => {
+      return count + (isHomeworkAnswerCorrect(activity, index, answersByIndex[index] || null) ? 1 : 0);
+    }, 0)
+    : 0;
+  const allSolved = hasActivities && solvedCount === activities.length;
 
   useEffect(() => {
     setActiveIndex(0);
@@ -1713,6 +1714,7 @@ function ChildHomeworkActivityCards({
   }, [activitiesSignature]);
 
   useEffect(() => {
+    if (!hasActivities || closedAfterPlay || !activeActivity) return;
     const answer = answersByIndex[activeIndex];
     if (!answer) return;
     if (!isHomeworkAnswerCorrect(activeActivity, activeIndex, answer)) return;
@@ -1722,7 +1724,7 @@ function ChildHomeworkActivityCards({
       setActiveIndex((current) => Math.min(activities.length - 1, current + 1));
     }, 450);
     return () => window.clearTimeout(timer);
-  }, [activeActivity, activeIndex, activities.length, answersByIndex]);
+  }, [activeActivity, activeIndex, activities.length, answersByIndex, closedAfterPlay, hasActivities]);
 
   useEffect(() => {
     if (!allSolved || showCompletionCelebrate) return;
@@ -1734,6 +1736,8 @@ function ChildHomeworkActivityCards({
     setActiveIndex(0);
     setShowCompletionCelebrate(false);
   }
+
+  if (!hasActivities || !activeActivity || closedAfterPlay) return null;
 
   return (
     <div className="mb-4 grid gap-3">
