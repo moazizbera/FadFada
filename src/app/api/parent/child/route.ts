@@ -340,8 +340,11 @@ function toChildProfileResponse(profile: {
 }
 
 function normalizeBirthYear(value: unknown) {
-  const birthYear = parseLocalizedInteger(value);
+  const parsedValue = parseLocalizedInteger(value);
   const currentYear = new Date().getUTCFullYear();
+  const birthYear = parsedValue >= minimumSupportedAge && parsedValue <= maximumSupportedAge
+    ? currentYear - parsedValue
+    : parsedValue;
   const age = currentYear - birthYear;
 
   if (!Number.isInteger(birthYear) || age < minimumSupportedAge || age > maximumSupportedAge) {
@@ -413,6 +416,7 @@ function parseLocalizedInteger(value: unknown) {
 
   const normalized = normalizeLocalizedDigits(value)
     .replace(/[\u200E\u200F\u061C\u202A-\u202E]/g, "")
+    .replace(/[\u066C\u060C,_\s]/g, "")
     .trim();
   const match = normalized.match(/-?\d+/);
 
