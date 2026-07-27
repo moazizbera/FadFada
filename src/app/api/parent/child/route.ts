@@ -166,6 +166,25 @@ export async function POST(request: NextRequest) {
   const avatarPreference = sanitizeAvatarPreference(body.avatarPreference);
   const dailyTimeLimitMinutes = sanitizeDailyTimeLimit(body.dailyTimeLimitMinutes);
 
+  try {
+    const existingWithSameNickname = await prisma.childProfile.findFirst({
+      where: {
+        parentId: parentContext.userId,
+        nickname: {
+          equals: nickname,
+          mode: "insensitive",
+        },
+      },
+      select: { id: true },
+    });
+
+    if (existingWithSameNickname) {
+      return NextResponse.json({ error: "CHILD_NICKNAME_ALREADY_EXISTS" }, { status: 409 });
+    }
+  } catch (error) {
+    return buildChildProfileDatabaseErrorResponse(error);
+  }
+
   let childProfile: {
     id: string;
     nickname: string;

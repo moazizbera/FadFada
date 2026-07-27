@@ -571,6 +571,13 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
     setChildStatus("saving");
     setChildMessage("");
 
+    const normalizedNickname = childForm.nickname.trim().toLocaleLowerCase();
+    if (normalizedNickname && childProfiles.some((profile) => profile.nickname.trim().toLocaleLowerCase() === normalizedNickname)) {
+      setChildStatus("error");
+      setChildMessage(language === "ar" ? "اسم الطفل مستخدم مسبقاً في حسابك. اختر اسماً مختلفاً لكل طفل." : "This child name already exists in your account. Please choose a different name.");
+      return;
+    }
+
     const response = await fetch("/api/parent/child", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -2339,6 +2346,10 @@ function formatChildProfileError(error: string | undefined, language: "ar" | "en
       return isArabic ? `الخطة المجانية تسمح بـ ${limit} ملف طفل. أضف أطفالاً أكثر بالترقية إلى بلس.` : `The free plan allows ${limit} child profile. Upgrade to Plus to add more children.`;
     }
     return isArabic ? `وصلت للحد الأقصى الحالي: ${limit} ملفات أطفال.` : `You reached the current child profile limit: ${limit}.`;
+  }
+
+  if (error === "CHILD_NICKNAME_ALREADY_EXISTS") {
+    return isArabic ? "اسم الطفل موجود بالفعل ضمن هذا الحساب. اختر اسماً مختلفاً لكل طفل." : "This child name already exists under your account. Please use a different name for each child.";
   }
 
   if (error === "PARENT_WORKSPACE_REQUIRED") {
