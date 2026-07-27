@@ -8,3 +8,21 @@ node_modules
 .git
 .tmp-mobile-review
 vercel.local-build.json
+
+# Local agent/tooling and workspace artifacts
+.agents
+.belt
+__pycache__
+tsconfig.tsbuildinfo
+
+# Non-production docs and media generation assets
+docs
+scripts
+deploy-output.txt
+deploy-test.txt
+Fadfada_wrongPresentation.png
+skills-lock.json
+wrangler.toml
+
+# Research notebooks not used by Next.js app runtime
+*.ipynb
