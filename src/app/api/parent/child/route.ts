@@ -340,7 +340,11 @@ function toChildProfileResponse(profile: {
 }
 
 function normalizeBirthYear(value: unknown) {
-  const birthYear = typeof value === "number" ? value : typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
+  const birthYear = typeof value === "number"
+    ? value
+    : typeof value === "string"
+      ? Number.parseInt(normalizeLocalizedDigits(value).trim(), 10)
+      : Number.NaN;
   const currentYear = new Date().getUTCFullYear();
   const age = currentYear - birthYear;
 
@@ -386,11 +390,21 @@ function sanitizeAvatarPreference(value: unknown) {
 }
 
 function sanitizeDailyTimeLimit(value: unknown) {
-  const minutes = typeof value === "number" ? value : typeof value === "string" ? Number.parseInt(value, 10) : defaultDailyTimeLimitMinutes;
+  const minutes = typeof value === "number"
+    ? value
+    : typeof value === "string"
+      ? Number.parseInt(normalizeLocalizedDigits(value).trim(), 10)
+      : defaultDailyTimeLimitMinutes;
 
   if (!Number.isInteger(minutes)) {
     return defaultDailyTimeLimitMinutes;
   }
 
   return Math.min(120, Math.max(10, minutes));
+}
+
+function normalizeLocalizedDigits(value: string) {
+  return value
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)));
 }
