@@ -340,11 +340,7 @@ function toChildProfileResponse(profile: {
 }
 
 function normalizeBirthYear(value: unknown) {
-  const birthYear = typeof value === "number"
-    ? value
-    : typeof value === "string"
-      ? Number.parseInt(normalizeLocalizedDigits(value).trim(), 10)
-      : Number.NaN;
+  const birthYear = parseLocalizedInteger(value);
   const currentYear = new Date().getUTCFullYear();
   const age = currentYear - birthYear;
 
@@ -390,11 +386,8 @@ function sanitizeAvatarPreference(value: unknown) {
 }
 
 function sanitizeDailyTimeLimit(value: unknown) {
-  const minutes = typeof value === "number"
-    ? value
-    : typeof value === "string"
-      ? Number.parseInt(normalizeLocalizedDigits(value).trim(), 10)
-      : defaultDailyTimeLimitMinutes;
+  const parsedMinutes = parseLocalizedInteger(value);
+  const minutes = Number.isNaN(parsedMinutes) ? defaultDailyTimeLimitMinutes : parsedMinutes;
 
   if (!Number.isInteger(minutes)) {
     return defaultDailyTimeLimitMinutes;
@@ -407,4 +400,21 @@ function normalizeLocalizedDigits(value: string) {
   return value
     .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
     .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)));
+}
+
+function parseLocalizedInteger(value: unknown) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? Math.trunc(value) : Number.NaN;
+  }
+
+  if (typeof value !== "string") {
+    return Number.NaN;
+  }
+
+  const normalized = normalizeLocalizedDigits(value)
+    .replace(/[\u200E\u200F\u061C\u202A-\u202E]/g, "")
+    .trim();
+  const match = normalized.match(/-?\d+/);
+
+  return match ? Number.parseInt(match[0], 10) : Number.NaN;
 }
