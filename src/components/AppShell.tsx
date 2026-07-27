@@ -373,7 +373,7 @@ function GlobalHeader() {
   }, [isChildWorkspace, status]);
 
   useEffect(() => {
-    if (status !== "authenticated" || isChildWorkspace) {
+    if (status !== "authenticated" || isChildWorkspace || !accountOpen) {
       setAccountProfile(null);
       return;
     }
@@ -389,7 +389,7 @@ function GlobalHeader() {
     return () => {
       active = false;
     };
-  }, [isChildWorkspace, status]);
+  }, [accountOpen, isChildWorkspace, status]);
 
   useEffect(() => {
     if (!isAdminArea || typeof window === "undefined") {

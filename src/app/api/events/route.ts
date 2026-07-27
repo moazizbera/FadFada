@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const eventType = body.eventType?.trim();
 
     if (!eventType || !allowedEventTypes.has(eventType)) {
-      return NextResponse.json({ ok: false, error: "INVALID_EVENT" }, { status: 400 });
+      return NextResponse.json({ ok: false, ignored: true, error: "INVALID_EVENT" });
     }
 
     const [headerStore, session] = await Promise.all([headers(), getServerSession(authOptions)]);
