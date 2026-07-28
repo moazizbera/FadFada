@@ -205,7 +205,7 @@ function GlobalFooter() {
   if (pathname === "/" || isChildWorkspace) return null;
 
   return (
-    <footer className="border-t border-white/10 bg-[#0E0D10]/80 px-5 py-8" dir={direction}>
+    <footer className="border-t border-white/10 bg-[#0E0D10]/80 px-4 py-8 sm:px-6 md:px-8" dir={direction}>
       <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-center gap-x-5 gap-y-3 text-center font-arsans text-sm text-bone/48">
         {links.map((link) => (
           <Link key={link.href} href={link.href} className="transition-colors hover:text-gold">

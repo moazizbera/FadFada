@@ -35,6 +35,265 @@ This README is written for three audiences:
 - **Analysts and Operators:** understand the admin dashboard, telemetry, events, conversion signals, avatar controls, and payment-source-of-truth rules.
 - **Developers:** understand the architecture, source ownership, API routes, Prisma models, runtime configuration, deployment flow, and safety constraints.
 
+## Role-Based Product Guide
+
+FadFada has three operational roles in production:
+
+- Parent workspace
+- Child workspace
+- Admin workspace
+
+Each role has different permissions, APIs, UI surfaces, and safety boundaries.
+
+### At-A-Glance Role Matrix
+
+| Role | Primary goal | Can chat | Can manage child profiles | Can assign homework | Can view child performance | Can access admin controls |
+|---|---|---|---|---|---|---|
+| Parent | Guide and follow up children safely while also using personal reflection | Yes | Yes | Yes | Yes | No |
+| Child | Safe, focused interaction with age-appropriate companions and activities | Yes (child-safe mode) | No | No | Own progress only | No |
+| Admin | Operate product configuration, telemetry, grants, and governance | Optional | No | No | Aggregated system reporting | Yes |
+
+### Access and Permission Boundaries
+
+- Parent and child operate under the same account session, but with different workspace modes.
+- Child mode is intentionally restricted from parent-only APIs.
+- Parent-only API routes enforce parent context using workspace checks.
+- Admin features are protected by role and are separated into admin routes/pages.
+
+Core guardrails:
+
+- Child mode cannot directly manage account profile and billing controls.
+- Child mode cannot create or edit child profiles.
+- Parent mode cannot be impersonated by child mode without explicit return flow.
+- Admin actions are not shown in public navigation for non-admin users.
+
+## Parent Role: Full Feature Catalog
+
+Parent is the family control workspace. It combines personal reflection plus children supervision and learning tools.
+
+### Parent Core Experiences
+
+- Personal reflection chat in Arabic or English.
+- Companion selection and world modes.
+- Voice input/output where browser support exists.
+- Saved moments, tiny plans, journey snapshots, and quests.
+- Profile identity and social links management.
+
+### Parent Child Management Features
+
+- Create child profile with:
+	- Nickname
+	- Birth year
+	- Avatar preference
+	- Daily time limit minutes
+- Enforced uniqueness of child nickname per parent account.
+- Child profile limit by tier:
+	- Free parent: lower child profile limit
+	- Plus/Business parent: higher child profile limit
+- Open child workspace from parent account without separate child credentials.
+- Return-from-child gate flow for safe parent re-entry.
+
+### Parent Homework and Learning Features
+
+- Homework transformer:
+	- Accepts image or text hint
+	- Produces child-friendly activities
+	- Sends assignments into selected child workspace
+- Homework follow-up dashboard:
+	- Child-level status
+	- Completion metrics
+	- Date-range filters (today, 7d, 30d, all)
+- Parent playbook:
+	- Situation-based parenting response plans
+	- Calm scripts and follow-up guidance
+
+### Parent Progress and Monitoring
+
+- Child pulse summaries
+- Weekly reports
+- Conversation snapshots
+- Recent child conversations preview
+
+### Parent Safety and Workspace Rules
+
+- Parent-only endpoints reject child workspace requests.
+- Parent APIs return clear error codes for:
+	- Unauthorized access
+	- Parent workspace required
+	- Child profile limits reached
+	- Duplicate child nickname
+	- Invalid child profile data
+
+### Parent APIs
+
+- Profile and account:
+	- /api/profile
+- Child profile management:
+	- /api/parent/child
+- Homework pipeline:
+	- /api/parent/homework
+	- /api/child/homework (child inbox read)
+	- /api/child/missions (completion tracking)
+	- /api/parent/homework/status
+- Parent operations:
+	- /api/parent/playbook
+	- /api/parent/pulse
+	- /api/parent/weekly-report
+	- /api/parent/return-code
+
+### Parent UI Surfaces
+
+- Main shell and account menu: [src/components/AppShell.tsx](src/components/AppShell.tsx)
+- Parent profile workspace: [src/app/profile/profile-client.tsx](src/app/profile/profile-client.tsx)
+- Core chat: [src/components/ChatWindow.tsx](src/components/ChatWindow.tsx)
+
+## Child Role: Full Feature Catalog
+
+Child mode is a constrained, child-safe workspace launched by the parent.
+
+### Child Core Experiences
+
+- Child-safe companions roster.
+- Child-focused conversation style and tone.
+- World modes suitable for guided interaction.
+- Story and expression support.
+
+### Child Homework Features
+
+- Homework inbox prioritized by unfinished-first ordering.
+- Activity cards with:
+	- Prompt
+	- Choices where applicable
+	- Hint support
+	- Completion status
+- Homework tab/action from header.
+- Switch between pending and completed homework entries.
+
+### Child Progress Features
+
+- Mission completion tracking.
+- Game points progression.
+- Daily limit enforced by child profile configuration.
+
+### Child Access Model
+
+- No separate child username/password.
+- Entry only through signed parent session.
+- Controlled return path to parent workspace.
+
+### Child Safety Rules
+
+- Child mode is blocked from parent-only account and management APIs.
+- Child mode does not expose billing, admin, or parent configuration controls.
+- Child mode preserves focused UI with limited operational surface.
+
+### Child APIs
+
+- Child workload and mission routes:
+	- /api/child/homework
+	- /api/child/missions
+- Reflection route (constrained by workspace context):
+	- /api/reflect
+
+### Child UI Surfaces
+
+- Core child experience: [src/components/ChatWindow.tsx](src/components/ChatWindow.tsx)
+- Child-specific shell actions: [src/components/AppShell.tsx](src/components/AppShell.tsx)
+
+## Admin Role: Full Feature Catalog
+
+Admin mode is the operational control plane for product governance, growth, and runtime behavior.
+
+### Admin Dashboard and Analytics
+
+- Visitor telemetry and region summaries.
+- Event analytics and conversion indicators.
+- PWA install signals.
+- Avatar ratings and interaction quality signals.
+- Chat session summary metrics.
+
+### Admin Runtime Configuration
+
+- Reflection and usage limits.
+- Persona and tier availability:
+	- Visitor
+	- Signed free
+	- Plus
+- Global enable/disable controls for selected capability groups.
+
+### Admin User Operations
+
+- Token gifts and grants.
+- Persona access grants per user.
+- Discount metadata and promotional operations.
+- Admin notification authoring.
+
+### Admin Governance and Audit
+
+- Encrypted audit snapshot export.
+- Operational visibility for events and configuration changes.
+- Controlled access via admin role and dedicated admin routes.
+
+### Admin APIs
+
+- Runtime and grant controls:
+	- /api/admin/configuration
+- Supporting operations:
+	- /api/notifications
+	- /api/chat-sessions
+	- /api/configuration
+
+### Admin UI Surfaces
+
+- Admin dashboard page: [src/app/admin/dashboard/page.tsx](src/app/admin/dashboard/page.tsx)
+- Admin dashboard client: [src/app/admin/dashboard/admin-dashboard-client.tsx](src/app/admin/dashboard/admin-dashboard-client.tsx)
+- Admin login: [src/app/admin/login/page.tsx](src/app/admin/login/page.tsx)
+
+## Cross-Role Workflows
+
+### Parent Creates Child Profile
+
+1. Parent opens profile child management panel.
+2. Parent enters child data.
+3. System validates input, limits, and duplicate nickname.
+4. Profile is created under parent ownership.
+
+### Parent Sends Homework to Child
+
+1. Parent selects child and provides worksheet image or hint.
+2. System transforms into child-friendly activities.
+3. Assignment is stored and appears in child homework inbox.
+4. Child completes activities and mission completion is tracked.
+
+### Parent Monitors Homework Progress
+
+1. Parent opens homework follow-up panel.
+2. Parent switches date range.
+3. System shows per-child and aggregate metrics.
+
+### Child Returns Control to Parent
+
+1. Child workspace triggers parent return flow.
+2. Parent return code flow is validated.
+3. Session switches back to parent workspace.
+
+## Role-Specific Errors and Expected Behavior
+
+Common expected API responses:
+
+- 401 UNAUTHORIZED:
+	- User is not signed in.
+- 403 PARENT_WORKSPACE_REQUIRED:
+	- Child workspace attempted parent-only endpoint.
+- 409 CHILD_PROFILE_LIMIT_REACHED:
+	- Parent reached plan limit for child profiles.
+- 409 CHILD_NICKNAME_ALREADY_EXISTS:
+	- Parent attempted duplicate child nickname.
+- 400 INVALID_BIRTH_YEAR:
+	- Input did not resolve to a valid child age range.
+
+These responses are expected guardrails, not platform instability.
+
 ## Core Features
 
 - Arabic/English bilingual interface with RTL/LTR support.

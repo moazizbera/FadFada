@@ -1,16 +1,26 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions, buildGeographicRegionFromHeaders, type FadFadaSessionUser } from "../../../lib/auth";
 import { createGeminiClient, getGeminiModel, getGeminiProvider, isGeminiConfigured } from "../../../lib/gemini";
 import { hasLifetimePlusAccess } from "../../../lib/lifetimeAccess";
 import { reflectLocally, type ReflectInput } from "../../../lib/localReflect";
 import { prisma } from "../../../lib/prisma";
+import { resolveWorkspaceIdentity } from "../../../lib/workspaceIdentity";
 import { worlds, type WorldId } from "../../../lib/worlds";
 
 type ReflectRequestBody = {
   userId?: string;
+  childProfileId?: string;
   messageText?: string;
   userDisplayName?: string | null;
+  workspaceContext?: {
+    mode?: "parent" | "child";
+    childId?: string;
+    childName?: string;
+    childBirthYear?: number;
+  };
   currentWorld?: WorldId;
   currentLanguage?: "ar" | "en";
   personaSystemPrompt?: string;
@@ -57,9 +67,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "INVALID_JSON", message: "Request body must be valid JSON." }, { status: 400 });
   }
 
-  const userId = body.userId?.trim();
+  const session = await getServerSession(authOptions);
+  const sessionUser = session?.user as (FadFadaSessionUser & { name?: string | null; email?: string | null }) | undefined;
+  const identity = resolveWorkspaceIdentity({
+    sessionUser,
+    requestDisplayName: body.userDisplayName,
+    requestWorkspaceContext: body.workspaceContext,
+    requestChildProfileId: body.childProfileId,
+  });
+
+  const userId = identity.authenticatedUserId || body.userId?.trim();
   const messageText = body.messageText?.trim();
-  const userDisplayName = normalizeUserDisplayName(body.userDisplayName);
+  const userDisplayName = identity.effectiveDisplayName;
   const currentWorld = normalizeWorld(body.currentWorld);
   const currentLanguage = inferRequestedLanguage(messageText, body.currentLanguage);
   const behaviorStyle = normalizeBehaviorStyle(body.behaviorStyle);
@@ -70,6 +89,30 @@ export async function POST(request: NextRequest) {
 
   if (!userId) {
     return NextResponse.json({ error: "USER_ID_REQUIRED", message: "userId is required." }, { status: 400 });
+  }
+
+  if (identity.leakGuards.length > 0) {
+    for (const leakGuard of identity.leakGuards) {
+      console.error("CHILD_CONTEXT_LEAK_GUARD", {
+        reason: leakGuard.reason,
+        ...leakGuard.details,
+      });
+
+      void prisma.interactionEvent.create({
+        data: {
+          userId: identity.authenticatedUserId,
+          eventType: "child_context_leak_guard",
+          metadataJson: JSON.stringify({
+            reason: leakGuard.reason,
+            mode: identity.mode,
+            ...leakGuard.details,
+          }).slice(0, 1200),
+          geographicRegion: buildGeographicRegionFromHeaders(request.headers),
+        },
+      }).catch((error) => {
+        console.error("CHILD_CONTEXT_LEAK_GUARD_EVENT_FAILED", { reason: leakGuard.reason, error });
+      });
+    }
   }
 
   if (!messageText) {
@@ -150,6 +193,14 @@ export async function POST(request: NextRequest) {
     aiStatus = "requesting_gemini";
     const ai = createGeminiClient(request.headers.get("x-vercel-oidc-token"));
     const world = worlds[effectiveWorld];
+    const workspaceIdentityInstruction = identity.isChildWorkspace
+      ? `You are speaking to a child named ${identity.childDisplayName || "friend"}${identity.childAge !== null ? `, age ${identity.childAge}` : ""}. Use simple, safe language suitable for children. Never address or infer parent identity in this child session.`
+      : userDisplayName
+        ? `You are speaking to an adult named ${userDisplayName}.`
+        : "You are speaking to an adult user.";
+    const childSafetyInstruction = identity.isChildWorkspace
+      ? "Child workspace safety: keep responses child-safe, avoid adult framing, avoid asking for private personal data, and redirect to a trusted adult if risk or harm appears."
+      : null;
     const languageInstruction =
       currentLanguage === "ar"
         ? "Respond only in Arabic with natural right-to-left phrasing unless the user explicitly requests translation. Do not include English greetings, labels, fillers, or transliterated English words."
@@ -164,6 +215,8 @@ export async function POST(request: NextRequest) {
       config: {
         systemInstruction: [
           "You are FadFada | فضفضة, a premium bilingual wellbeing companion and learning support agent.",
+          workspaceIdentityInstruction,
+          childSafetyInstruction,
           isProductFeedbackRequest
             ? "The user is asking about FadFada as a product, app, or support experience. Answer as a candid product advisor, not as a therapeutic mirror. Be direct, specific, and useful: name what is missing, what already works, and the next product improvements. If the user says 'miss' in this context, interpret it as 'missing from the product', not longing or nostalgia. Do not end by only asking how it feels."
             : null,

@@ -145,8 +145,9 @@ async function buildDashboardData() {
   const monthStart = new Date();
   monthStart.setUTCDate(1);
   monthStart.setUTCHours(0, 0, 0, 0);
+  const childContextLeakWindowStart = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  const [totalVisitors, registeredUsers, interactionCounts, visitorsByRegion, registrationsByRegionRaw, recentUsers, tierCounts, monthlyTransactions, visibleVisitorCommentCount, visiblePwaInstallCount, recentCommentEvents, nameOnlyVisitorEvents, pwaInstallEvents, avatarRatingEvents, adminNotifications, adminConfigEvents, adminGiftEvents, adminPersonaGrantEvents, adminPersonaGrantSetEvents, adminDiscountEvents, chatSessionEvents, childProfiles, childConversationEvents] = await Promise.all([
+  const [totalVisitors, registeredUsers, interactionCounts, visitorsByRegion, registrationsByRegionRaw, recentUsers, tierCounts, monthlyTransactions, visibleVisitorCommentCount, visiblePwaInstallCount, recentCommentEvents, nameOnlyVisitorEvents, pwaInstallEvents, avatarRatingEvents, adminNotifications, adminConfigEvents, adminGiftEvents, adminPersonaGrantEvents, adminPersonaGrantSetEvents, adminDiscountEvents, chatSessionEvents, childProfiles, childConversationEvents, childContextLeakEvents24h] = await Promise.all([
     prisma.visitorLog.count(),
     prisma.user.count({ where: registeredUserWhere }),
     prisma.interactionEvent.groupBy({
@@ -315,6 +316,19 @@ async function buildDashboardData() {
         createdAt: true,
       },
     }),
+    prisma.interactionEvent.findMany({
+      where: {
+        eventType: "child_context_leak_guard",
+        createdAt: { gte: childContextLeakWindowStart },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+      select: {
+        userId: true,
+        metadataJson: true,
+        createdAt: true,
+      },
+    }),
   ]);
 
   const monthlyRevenueByTier = monthlyTransactions.reduce<Record<string, { amount: number; currency: string }>>((accumulator, transaction) => {
@@ -349,7 +363,27 @@ async function buildDashboardData() {
     visitorComments: visibleVisitorCommentCount,
     nameOnlyVisitors: interactionCounts.find((entry) => entry.eventType === "visitor_name_register")?._count._all ?? 0,
     pwaInstalls: visiblePwaInstallCount,
+    childContextLeakGuards24h: childContextLeakEvents24h.length,
   };
+  const childContextLeakReasonCounts = Object.values(
+    childContextLeakEvents24h.reduce<Record<string, { reason: string; count: number }>>((accumulator, event) => {
+      const metadata = parseEventMetadata(event.metadataJson);
+      const reason = metadataString(metadata, "reason", "unknown");
+      const key = reason.toLowerCase();
+      accumulator[key] = accumulator[key] || { reason, count: 0 };
+      accumulator[key].count += 1;
+      return accumulator;
+    }, {})
+  ).sort((left, right) => right.count - left.count);
+  const childContextLeakRecent = childContextLeakEvents24h.slice(0, 20).map((event) => {
+    const metadata = parseEventMetadata(event.metadataJson);
+    return {
+      reason: metadataString(metadata, "reason", "unknown"),
+      mode: metadataString(metadata, "mode", "unknown"),
+      userId: event.userId || null,
+      createdAt: event.createdAt.toISOString(),
+    };
+  });
   const nameOnlyVisitors = nameOnlyVisitorEvents.map((event) => {
     const metadata = parseEventMetadata(event.metadataJson);
     return {
@@ -676,6 +710,11 @@ async function buildDashboardData() {
     discountOffers,
     chatSessions,
     parentChildSummaries,
+    childContextHealth: {
+      last24hCount: childContextLeakEvents24h.length,
+      reasons: childContextLeakReasonCounts,
+      recent: childContextLeakRecent,
+    },
     auditSnapshot,
     encryptedAuditSnapshot: encryptAuditSnapshot(auditSnapshot),
   };
@@ -707,7 +746,7 @@ export default async function AdminDashboardPage() {
     redirect("/admin/login");
   }
 
-  const { totalVisitors, registeredUsers, interactionTotals, visitorsByRegion, registrationsByRegion, recentUsers, distribution, nameOnlyVisitors, visitorComments, pwaInstalls, pwaDeviceBreakdown, avatarRatings, recentNotifications, configuration, giftTotalsByUser, personaGrantsByUser, discountOffers, chatSessions, parentChildSummaries, encryptedAuditSnapshot } = await buildDashboardData();
+  const { totalVisitors, registeredUsers, interactionTotals, visitorsByRegion, registrationsByRegion, recentUsers, distribution, nameOnlyVisitors, visitorComments, pwaInstalls, pwaDeviceBreakdown, avatarRatings, recentNotifications, configuration, giftTotalsByUser, personaGrantsByUser, discountOffers, chatSessions, parentChildSummaries, childContextHealth, encryptedAuditSnapshot } = await buildDashboardData();
   const auditHref = `data:application/json;base64,${Buffer.from(JSON.stringify(encryptedAuditSnapshot, null, 2)).toString("base64")}`;
   const dashboardData: AdminDashboardData = {
     configuration,
@@ -739,6 +778,7 @@ export default async function AdminDashboardPage() {
     discountOffers,
     chatSessions,
     parentChildSummaries,
+    childContextHealth,
     distribution,
     nameOnlyVisitors,
     visitorComments,

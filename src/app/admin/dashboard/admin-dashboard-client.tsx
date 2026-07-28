@@ -41,6 +41,7 @@ export type AdminDashboardData = {
     visitorComments: number;
     nameOnlyVisitors: number;
     pwaInstalls: number;
+    childContextLeakGuards24h: number;
   };
   visitorsByRegion: Array<{ location: string; count: number }>;
   registrationsByRegion: Array<{ location: string; count: number }>;
@@ -163,6 +164,11 @@ export type AdminDashboardData = {
     endsAt: string | null;
     createdAt: string;
   }>;
+  childContextHealth: {
+    last24hCount: number;
+    reasons: Array<{ reason: string; count: number }>;
+    recent: Array<{ reason: string; mode: string; userId: string | null; createdAt: string }>;
+  };
 };
 
 type Locale = "ar" | "en";
@@ -193,6 +199,7 @@ const copy = {
       visitorComments: "تعليقات الزوار",
       nameOnlyVisitors: "زوار باسم فقط",
       pwaInstalls: "تثبيتات التطبيق",
+      childContextLeakGuards24h: "تنبيهات تسرب السياق (24س)",
     },
     sections: {
       visitorsKicker: "سجل الزوار",
@@ -225,6 +232,9 @@ const copy = {
       notificationsKicker: "رسائل الإدارة",
       notificationsTitle: "إضافة تنبيه للمستخدمين",
       notificationsDescription: "انشر تحديثاً جميلاً داخل التطبيق حسب النوع والأولوية.",
+      contextSafetyKicker: "حماية وضع الطفل",
+      contextSafetyTitle: "تنبيهات عزل السياق",
+      contextSafetyDescription: "أي قيمة أعلى من صفر تعني أن الحماية اكتشفت محاولة خلط سياق الوالد/الطفل وتم احتواؤها تلقائياً.",
       auditKicker: "تصدير المراجعة",
       auditTitle: "تصدير لقطة مشفرة",
       auditDescription: "ملف مراجعة مشفر للزوار والتسجيلات وتوزيع الخطط.",
@@ -264,6 +274,7 @@ const copy = {
       visitorComments: "Visitor comments",
       nameOnlyVisitors: "Name-only visitors",
       pwaInstalls: "PWA installs",
+      childContextLeakGuards24h: "Context leak guards (24h)",
     },
     sections: {
       visitorsKicker: "Total visitors ledger",
@@ -296,6 +307,9 @@ const copy = {
       notificationsKicker: "Admin broadcasts",
       notificationsTitle: "Add user notification",
       notificationsDescription: "Publish a polished in-app update by type and priority.",
+      contextSafetyKicker: "Child mode safety",
+      contextSafetyTitle: "Context isolation guard alerts",
+      contextSafetyDescription: "Any non-zero value means protection caught a parent/child context-mix attempt and auto-contained it.",
       auditKicker: "Audit export",
       auditTitle: "Export encrypted snapshot",
       auditDescription: "Encrypted audit snapshot for visitors, registrations, and plan distribution.",
@@ -363,6 +377,7 @@ export function AdminDashboardClient({ data: rawData, auditHref }: AdminDashboar
     [
       { label: labels.metrics.visitorComments, value: formatNumber(data.interactionTotals.visitorComments, locale) },
       { label: labels.metrics.pwaInstalls, value: formatNumber(data.interactionTotals.pwaInstalls, locale) },
+      { label: labels.metrics.childContextLeakGuards24h, value: formatNumber(data.interactionTotals.childContextLeakGuards24h, locale) },
     ],
   ];
   const narrativeTimeline = buildNarrativeTimeline(
@@ -476,6 +491,7 @@ export function AdminDashboardClient({ data: rawData, auditHref }: AdminDashboar
             <LiveRoomTile label={labels.metrics.visitorComments} value={formatNumber(data.interactionTotals.visitorComments, locale)} accent="bg-dusk" />
             <LiveRoomTile label={labels.metrics.nameOnlyVisitors} value={formatNumber(data.interactionTotals.nameOnlyVisitors, locale)} accent="bg-amber-200" />
             <LiveRoomTile label={labels.metrics.pwaInstalls} value={formatNumber(data.interactionTotals.pwaInstalls, locale)} accent="bg-cyan-200" />
+            <LiveRoomTile label={labels.metrics.childContextLeakGuards24h} value={formatNumber(data.interactionTotals.childContextLeakGuards24h, locale)} accent={data.interactionTotals.childContextLeakGuards24h > 0 ? "bg-red-300" : "bg-emerald-300"} />
           </div>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             <LiveSignal label={language === "ar" ? "آخر عضو" : "Latest member"} value={cappedRecentUsers[0]?.name || cappedRecentUsers[0]?.email || labels.unnamedProfile} detail={cappedRecentUsers[0] ? `${formatTier(cappedRecentUsers[0].activeTier, language)} · ${formatDate(cappedRecentUsers[0].createdAt, locale)}` : labels.emptySignups} />
@@ -622,6 +638,38 @@ export function AdminDashboardClient({ data: rawData, auditHref }: AdminDashboar
 
         <DashboardListSection kicker={labels.sections.notificationsKicker} title={labels.sections.notificationsTitle} description={labels.sections.notificationsDescription}>
           <NotificationComposer language={language} locale={locale} notifications={data.recentNotifications} emptyLabel={labels.emptyNotifications} />
+        </DashboardListSection>
+
+        <DashboardListSection kicker={labels.sections.contextSafetyKicker} title={labels.sections.contextSafetyTitle} description={labels.sections.contextSafetyDescription}>
+          <div className="grid gap-3 md:grid-cols-2">
+            <article className="border border-white/10 bg-white/[0.025] p-4">
+              <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35">{language === "ar" ? "آخر 24 ساعة" : "Last 24 hours"}</p>
+              <p className={`mt-2 font-enserif text-4xl italic ${data.childContextHealth.last24hCount > 0 ? "text-red-200" : "text-emerald-200"}`} dir="ltr">{formatNumber(data.childContextHealth.last24hCount, locale)}</p>
+              <p className="mt-2 font-arsans text-xs text-bone/52">{data.childContextHealth.last24hCount > 0 ? (language === "ar" ? "تم احتواء محاولات خلط سياق. راجع الأسباب أدناه." : "Context-mix attempts were contained. Review reasons below.") : (language === "ar" ? "لا توجد تنبيهات تسرب سياق خلال آخر 24 ساعة." : "No context leak guard alerts in the last 24 hours.")}</p>
+            </article>
+            <article className="border border-white/10 bg-white/[0.025] p-4">
+              <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35">{language === "ar" ? "أكثر الأسباب" : "Top reasons"}</p>
+              <div className="mt-3 space-y-2">
+                {data.childContextHealth.reasons.length > 0 ? data.childContextHealth.reasons.slice(0, 5).map((reason) => (
+                  <div key={reason.reason} className="grid grid-cols-[1fr_auto] items-center gap-3 border-b border-white/10 pb-2">
+                    <span className="truncate font-mono text-[10px] uppercase tracking-[0.08em] text-bone/55" dir="ltr">{reason.reason}</span>
+                    <span className="font-mono text-xs text-gold" dir="ltr">{formatNumber(reason.count, locale)}</span>
+                  </div>
+                )) : <EmptyMetric label={language === "ar" ? "لا توجد أسباب مسجلة" : "No reasons recorded"} />}
+              </div>
+            </article>
+          </div>
+          <div className="mt-4 max-h-64 space-y-2 overflow-y-auto pr-2 [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
+            {data.childContextHealth.recent.length > 0 ? data.childContextHealth.recent.map((entry) => (
+              <article key={`${entry.createdAt}-${entry.reason}-${entry.userId || "anon"}`} className="grid grid-cols-[1fr_auto] items-center gap-3 border border-white/10 bg-black/15 p-3">
+                <span className="min-w-0">
+                  <span className="block truncate font-mono text-[10px] uppercase tracking-[0.08em] text-bone/62" dir="ltr">{entry.reason}</span>
+                  <span className="mt-1 block truncate font-arsans text-xs text-bone/45" dir="ltr">{entry.mode} · {entry.userId || "anonymous"}</span>
+                </span>
+                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-bone/38">{formatDate(entry.createdAt, locale)}</span>
+              </article>
+            )) : <EmptyMetric label={language === "ar" ? "لا توجد سجلات حديثة" : "No recent records"} />}
+          </div>
         </DashboardListSection>
           </>
         ) : null}
@@ -1454,6 +1502,7 @@ function sanitizeDashboardData(input: AdminDashboardData): AdminDashboardData {
       visitorComments: toCount(input.interactionTotals?.visitorComments),
       nameOnlyVisitors: toCount(input.interactionTotals?.nameOnlyVisitors),
       pwaInstalls: toCount(input.interactionTotals?.pwaInstalls),
+      childContextLeakGuards24h: toCount(input.interactionTotals?.childContextLeakGuards24h),
     },
     visitorsByRegion: (input.visitorsByRegion || []).map((entry) => ({
       location: entry.location || "unknown",
@@ -1489,6 +1538,19 @@ function sanitizeDashboardData(input: AdminDashboardData): AdminDashboardData {
       latestRating: toCount(entry.latestRating),
     })),
     recentNotifications: input.recentNotifications || [],
+    childContextHealth: {
+      last24hCount: toCount(input.childContextHealth?.last24hCount),
+      reasons: (input.childContextHealth?.reasons || []).map((entry) => ({
+        reason: entry.reason || "unknown",
+        count: toCount(entry.count),
+      })),
+      recent: (input.childContextHealth?.recent || []).map((entry) => ({
+        reason: entry.reason || "unknown",
+        mode: entry.mode || "unknown",
+        userId: entry.userId || null,
+        createdAt: entry.createdAt,
+      })),
+    },
   };
 }
 

@@ -836,7 +836,7 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
   }
 
   return (
-    <main className="min-h-screen bg-ink px-5 pb-16 pt-24 text-bone/90" dir={direction}>
+    <main className="min-h-screen bg-ink px-4 pb-16 pt-24 text-bone/90 sm:px-6 md:px-8" dir={direction}>
       <section className="mx-auto mb-6 max-w-5xl border border-white/10 bg-white/[0.025] p-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -860,7 +860,7 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
           ))}
         </nav>
       </section>
-      <section className="mx-auto grid max-w-5xl gap-8 md:grid-cols-[0.9fr_1.1fr]">
+      <section className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[0.9fr_1.1fr]">
         <aside id="account-details" className={`${activeProfileTab === "account-details" ? "" : "hidden"} scroll-mt-24 border border-white/10 bg-white/[0.03] p-5`}>
           <p className="ui-kicker">{isArabic ? "ملف الحساب" : "Account profile"}</p>
           <div className="mt-5 flex items-center gap-4">
@@ -1492,8 +1492,36 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
                   <p className="mt-1 font-arsans text-sm text-bone/80">{isArabic ? "لا يوجد يوزر أو باسورد للطفل حاليا. هذا مقصود للأمان؛ الوالد يسجل الدخول ثم يختار الطفل." : "No username or password for child mode by design; parent signs in and selects the child."}</p>
                 </div>
 
-                <div className="mt-4 overflow-x-auto rounded-xl border border-white/12">
-                  <table className="w-full min-w-[36rem] border-collapse text-sm" dir={direction}>
+                <div className="mt-4 space-y-2 md:hidden">
+                  {childProfiles.map((child) => (
+                    <article key={`${child.id}-card`} className="rounded-xl border border-white/12 bg-[#0F1216] p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-cyan-200/25 bg-cyan-200/10">
+                            <Image src={child.avatarPreference} alt={child.nickname} fill sizes="36px" className="object-cover" unoptimized />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate font-arsans text-sm font-semibold text-bone/88" dir="auto">{child.nickname}</p>
+                            <p className="font-arsans text-[11px] text-bone/45">{formatChildAgeBand(child.ageBand, language)} · {child.gamePoints} pts</p>
+                          </div>
+                        </div>
+                        <span className="font-arsans text-[11px] text-bone/65" dir="ltr">{child.dailyTimeLimitMinutes} {isArabic ? "د/يوم" : "min/day"}</span>
+                      </div>
+                      <p className="mt-2 font-arsans text-[11px] text-bone/62">{isArabic ? "الدخول من حساب الوالد فقط" : "Parent account only"}</p>
+                      <button
+                        type="button"
+                        onClick={() => void openChildWorkspace(child.id)}
+                        disabled={childStatus === "switching"}
+                        className="ui-action mt-3 w-full rounded-lg border border-cyan-200/35 px-3 py-2 text-xs text-cyan-100 hover:bg-cyan-200 hover:text-ink disabled:opacity-60"
+                      >
+                        {isArabic ? "فتح مساحة الطفل" : "Open child space"}
+                      </button>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="mt-4 hidden overflow-x-auto rounded-xl border border-white/12 md:block">
+                  <table className="w-full border-collapse text-xs sm:text-sm" dir={direction}>
                     <thead className="bg-white/[0.02]">
                       <tr>
                         <th className="border-b border-white/10 px-3 py-2 text-start font-arsans text-xs text-cyan-100/75">{isArabic ? "الطفل" : "Child"}</th>

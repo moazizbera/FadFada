@@ -185,7 +185,7 @@ export function TypewriterSync({ text, cadence = "steady_calm", language = "ar",
   return (
     <div className={`relative overflow-hidden ${className}`} dir={direction} lang={language}>
       {instant ? null : <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full opacity-80" aria-hidden="true" />}
-      <p className={`relative z-10 whitespace-pre-wrap font-arsans leading-[1.85] text-[#F7F3EC]/82 ${alignment} ${textSize}`} dir={direction}>
+      <p className={`relative z-10 whitespace-pre-wrap break-words font-arsans leading-[1.85] text-[#F7F3EC]/82 ${alignment} ${textSize}`} dir={direction}>
         {visibleText}
         <span
           className={`ml-1 inline-block h-[1.1em] w-px translate-y-1 bg-[#C9A86A] align-baseline transition-opacity ${isComplete ? "opacity-0" : "opacity-100"}`}

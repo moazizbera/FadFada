@@ -220,6 +220,13 @@ type ReflectResponse = {
   message?: string;
 };
 
+type WorkspaceContextPayload = {
+  mode: "parent" | "child";
+  childId?: string;
+  childName?: string;
+  childBirthYear?: number;
+};
+
 type CustomPersonaDraft = {
   name: string;
   description: string;
@@ -2180,9 +2187,26 @@ export function ChatWindow() {
   const activeWorld = worlds[world];
   const sessionUser = session?.user as ({ id?: string; activeTier?: string; tokenBalance?: number } & Record<string, unknown>) | undefined;
   const sessionReady = authStatus !== "loading";
-  const isChildWorkspace = sessionUser?.workspaceMode === "child";
-  const activeChildProfileId = isChildWorkspace && typeof sessionUser?.childProfileId === "string" ? sessionUser.childProfileId : "";
-  const activeChildNickname = isChildWorkspace && typeof sessionUser?.childNickname === "string" ? normalizeGreetingName(sessionUser.childNickname) : null;
+  const workspaceContext: WorkspaceContextPayload = useMemo(() => {
+    const workspaceMode = sessionUser?.workspaceMode === "child" ? "child" : "parent";
+    const childId = typeof sessionUser?.childProfileId === "string" ? sessionUser.childProfileId.trim() : "";
+    const childName = typeof sessionUser?.childNickname === "string" ? normalizeGreetingName(sessionUser.childNickname) : null;
+    const childBirthYear = typeof sessionUser?.childBirthYear === "number" ? sessionUser.childBirthYear : undefined;
+
+    if (workspaceMode !== "child" || !childId) {
+      return { mode: "parent" };
+    }
+
+    return {
+      mode: "child",
+      childId,
+      childName: childName || undefined,
+      childBirthYear,
+    };
+  }, [sessionUser?.childBirthYear, sessionUser?.childNickname, sessionUser?.childProfileId, sessionUser?.workspaceMode]);
+  const isChildWorkspace = workspaceContext.mode === "child";
+  const activeChildProfileId = workspaceContext.childId || "";
+  const activeChildNickname = workspaceContext.childName || null;
   const dailyChildMoment = useMemo(() => buildDailyChildMoment(language, activeChildProfileId, activeChildNickname, dailyMomentDateKey), [activeChildProfileId, activeChildNickname, language, dailyMomentDateKey]);
   const conversationScopeKey = activeChildProfileId ? `child:${activeChildProfileId}` : "parent";
   const scopedConversationStorageKey = `${conversationStorageKey}:${conversationScopeKey}`;
@@ -2274,7 +2298,22 @@ export function ChatWindow() {
   const greetingName = useMemo(() => normalizeGreetingName(session?.user?.name || session?.user?.email), [session?.user?.email, session?.user?.name]);
   const visitorDisplayName = useMemo(() => normalizeGreetingName(visitorName), [visitorName]);
   const effectiveUserName = greetingName ?? visitorDisplayName;
-  const accountName = session?.user?.name || session?.user?.email || effectiveUserName || (language === "ar" ? "حسابي" : "Account");
+  const activeProfile = useMemo(() => {
+    if (workspaceContext.mode === "child") {
+      return {
+        mode: "child" as const,
+        name: workspaceContext.childName || (language === "ar" ? "طفل" : "Child"),
+        childId: workspaceContext.childId,
+        childBirthYear: workspaceContext.childBirthYear,
+      };
+    }
+
+    return {
+      mode: "parent" as const,
+      name: effectiveUserName || (language === "ar" ? "حسابي" : "Account"),
+    };
+  }, [effectiveUserName, language, workspaceContext.childBirthYear, workspaceContext.childId, workspaceContext.childName, workspaceContext.mode]);
+  const accountName = activeProfile.name;
   const accountImage = session?.user?.image || null;
   const effectiveAccountTier = accountActiveTier ?? sessionUser?.activeTier ?? null;
   const accessState: AccessState = effectiveAccountTier === "PLUS" || effectiveAccountTier === "BUSINESS" ? "plus" : sessionUser?.id ? "signed" : "anonymous";
@@ -2297,6 +2336,13 @@ export function ChatWindow() {
   useEffect(() => {
     if (!avatarsEnabled) setPersonaOpen(false);
   }, [avatarsEnabled]);
+
+  useEffect(() => {
+    const openingMessage = buildCurrentOpeningChatMessage();
+    setMessages([openingMessage]);
+    setAnimatedAssistantMessageIds([]);
+    setWorld(openingMessage.world);
+  }, [conversationScopeKey]);
 
   useEffect(() => {
     if (childMomentSlideIndex >= childMomentSlides.length) {
@@ -3548,9 +3594,11 @@ export function ChatWindow() {
     const text = (overrideText ?? input).trim();
     if (!text || isThinking) return;
     const draftDisplayName = normalizeGreetingName(visitorNameDraft);
-    const requestUserDisplayName = effectiveUserName ?? draftDisplayName;
+    const requestUserDisplayName = activeProfile.mode === "child"
+      ? activeProfile.name
+      : effectiveUserName ?? draftDisplayName;
 
-    if (!requestUserDisplayName) {
+    if (activeProfile.mode !== "child" && !requestUserDisplayName) {
       setNameGateMessage(true);
       setVisitorNameStatus("idle");
       scrollToSection("chat");
@@ -3558,8 +3606,16 @@ export function ChatWindow() {
       return;
     }
 
-    if (!effectiveUserName && draftDisplayName) {
+    if (activeProfile.mode !== "child" && !effectiveUserName && draftDisplayName) {
       registerVisitorName(draftDisplayName);
+    }
+
+    if (activeProfile.mode === "child" && greetingName && requestUserDisplayName && greetingName === requestUserDisplayName) {
+      console.error("CHILD_CONTEXT_LEAK_GUARD", {
+        reason: "parent_name_detected_in_child_mode",
+        parentName: greetingName,
+        childId: activeProfile.childId,
+      });
     }
 
     pendingReplyFocusRef.current = true;
@@ -3626,7 +3682,13 @@ export function ChatWindow() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
-          childProfileId: isChildWorkspace && typeof sessionUser?.childProfileId === "string" ? sessionUser.childProfileId : undefined,
+          childProfileId: activeProfile.mode === "child" ? activeProfile.childId : undefined,
+          workspaceContext: {
+            mode: activeProfile.mode,
+            childId: activeProfile.mode === "child" ? activeProfile.childId : undefined,
+            childName: activeProfile.mode === "child" ? activeProfile.name : undefined,
+            childBirthYear: activeProfile.mode === "child" ? activeProfile.childBirthYear : undefined,
+          },
           messageText: text,
           personaId: requestPersona.id,
           currentWorld: requestWorld,
@@ -4461,7 +4523,7 @@ export function ChatWindow() {
 
   return (
     <main
-      className={`relative mx-auto flex min-h-screen max-w-5xl flex-col overflow-hidden px-4 pb-40 pt-20 transition-all duration-700 ease-in-out sm:pb-48 md:pb-40 ${personaEnvironment.ambientClassName} ${personaEnvironment.textClassName} ${personaEnvironment.typographyClassName}`}
+      className={`relative mx-auto flex min-h-screen max-w-5xl flex-col overflow-x-hidden px-4 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-20 transition-all duration-700 ease-in-out sm:px-6 sm:pb-[calc(11rem+env(safe-area-inset-bottom))] md:px-8 md:pb-[calc(10rem+env(safe-area-inset-bottom))] ${personaEnvironment.ambientClassName} ${personaEnvironment.textClassName} ${personaEnvironment.typographyClassName}`}
       style={{
         backgroundImage: activeWorld.gradient,
         "--persona-aura": personaAura,
@@ -4537,6 +4599,11 @@ export function ChatWindow() {
             ? language === "ar" ? `أهلاً ${activeChildNickname || "يا بطل"}` : `Hi ${activeChildNickname || "friend"}`
             : language === "ar" ? "فضفضة ليست شات عام" : "FadFada is not a generic chat"}
         </h1>
+        <p className="mt-2 rounded-full border border-white/16 bg-black/20 px-3 py-1 font-arsans text-[11px] text-[#F7F3EC]/78" dir={language === "ar" ? "rtl" : "ltr"}>
+          {isChildWorkspace
+            ? (language === "ar" ? `وضع الطفل · ${activeProfile.name}` : `Child mode · ${activeProfile.name}`)
+            : (language === "ar" ? `وضع الوالد · ${activeProfile.name}` : `Parent mode · ${activeProfile.name}`)}
+        </p>
         <p className="mt-2 max-w-md text-center font-arsans text-base font-medium leading-7 text-[#F7F3EC]/76">
           {isChildWorkspace
             ? language === "ar"
@@ -4800,7 +4867,7 @@ export function ChatWindow() {
 
       <section
         ref={chatRef}
-        className={`relative z-10 mx-auto mt-8 flex w-full max-w-[42rem] flex-1 flex-col gap-8 overflow-y-auto pb-20 text-right transition-opacity duration-500 ${paywallOpen ? "opacity-20" : "opacity-100"
+        className={`relative z-10 mx-auto mt-8 flex min-h-0 w-full max-w-3xl max-h-[calc(100dvh-14rem)] flex-1 flex-col gap-8 overflow-y-auto pb-[calc(13rem+env(safe-area-inset-bottom))] text-right transition-opacity duration-500 sm:pb-[calc(11rem+env(safe-area-inset-bottom))] md:max-h-none ${paywallOpen ? "opacity-20" : "opacity-100"
           }`}
       >
         {messages.map((message) => {
@@ -4830,7 +4897,7 @@ export function ChatWindow() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="mb-1 font-arsans text-[11px] text-[#C9A86A]/58">{messageDisplayName}</p>
-                  <p className={`font-arsans leading-[1.85] text-[#F7F3EC]/95 ${messageLanguage === "ar" ? "text-[15px]" : "text-base"}`}>{message.text}</p>
+                  <p className={`break-words font-arsans leading-[1.85] text-[#F7F3EC]/95 ${messageLanguage === "ar" ? "text-[15px]" : "text-base"}`}>{message.text}</p>
                   <span className="mt-3 block h-px w-7 bg-[#C9A86A]/70" />
                 </div>
               </div>
@@ -4992,7 +5059,7 @@ export function ChatWindow() {
         </HomeToolsDialog>
       ) : null}
 
-      <form onSubmit={submitMessage} className="fixed inset-x-3 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-30 mx-auto flex max-h-[46dvh] max-w-[42rem] flex-col gap-2 overflow-y-auto rounded-[1.1rem] border border-white/10 bg-[#111014]/92 p-2.5 shadow-[0_22px_70px_rgba(0,0,0,0.45)] backdrop-blur-2xl [scrollbar-width:thin] sm:max-h-none sm:rounded-[1.35rem] sm:p-3 md:bottom-6">
+      <form onSubmit={submitMessage} className="fixed inset-x-3 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-30 mx-auto flex max-h-[50dvh] flex-col gap-2 overflow-y-auto rounded-[1.1rem] border border-white/10 bg-[#111014]/92 p-2.5 shadow-[0_22px_70px_rgba(0,0,0,0.45)] backdrop-blur-2xl [scrollbar-width:thin] sm:inset-x-6 sm:max-h-[45dvh] sm:rounded-[1.35rem] sm:p-3 md:inset-x-8 lg:left-1/2 lg:right-auto lg:w-full lg:max-w-3xl lg:-translate-x-1/2">
         <BottomNav
           language={language}
           onHome={() => scrollToSection("home")}
@@ -5089,13 +5156,13 @@ export function ChatWindow() {
               : language === "ar" ? "مسودة بدون اتصال جاهزة للإرسال." : "Offline draft is ready to send."}
           </p>
         ) : null}
-        <div className="flex w-full items-end gap-2 sm:gap-3">
+        <div className="flex w-full items-end gap-2 overflow-hidden sm:gap-3">
         {!isChildWorkspace ? (
           <div className="flex shrink-0 items-center gap-1.5" dir="ltr" aria-label={language === "ar" ? "أدوات الإدخال السريعة" : "Quick input tools"}>
             <button
               type="button"
               onClick={openFeatureStudio}
-              className="grid h-10 w-10 place-items-center rounded-full border border-[#E6C36A]/14 bg-black/36 text-[#E6C36A]/82 shadow-[0_12px_30px_rgba(0,0,0,0.24)] transition-colors hover:border-[#E6C36A]/45 hover:bg-[#E6C36A]/12 hover:text-[#E6C36A] sm:h-11 sm:w-11"
+              className="hidden h-9 w-9 place-items-center rounded-full border border-[#E6C36A]/14 bg-black/36 text-[#E6C36A]/82 shadow-[0_12px_30px_rgba(0,0,0,0.24)] transition-colors hover:border-[#E6C36A]/45 hover:bg-[#E6C36A]/12 hover:text-[#E6C36A] min-[390px]:grid sm:h-11 sm:w-11"
               aria-label={language === "ar" ? "افتح استوديو الميزات" : "Open feature studio"}
               title={language === "ar" ? "استوديو" : "Studio"}
             >
@@ -5104,7 +5171,7 @@ export function ChatWindow() {
             <button
               type="button"
               onClick={openStoryboardGallery}
-              className="grid h-10 w-10 place-items-center rounded-full border border-[#E6C36A]/14 bg-black/36 text-[#E6C36A]/82 shadow-[0_12px_30px_rgba(0,0,0,0.24)] transition-colors hover:border-[#E6C36A]/45 hover:bg-[#E6C36A]/12 hover:text-[#E6C36A] sm:h-11 sm:w-11"
+              className="hidden h-9 w-9 place-items-center rounded-full border border-[#E6C36A]/14 bg-black/36 text-[#E6C36A]/82 shadow-[0_12px_30px_rgba(0,0,0,0.24)] transition-colors hover:border-[#E6C36A]/45 hover:bg-[#E6C36A]/12 hover:text-[#E6C36A] min-[390px]:grid sm:h-11 sm:w-11"
               aria-label={language === "ar" ? "افتح معرض لوحة المشاهد" : "Open storyboard image gallery"}
               title={language === "ar" ? "معرض الصور" : "Storyboard gallery"}
             >
@@ -5113,7 +5180,7 @@ export function ChatWindow() {
             <button
               type="button"
               onClick={toggleVoiceCapture}
-              className={`relative grid h-10 w-10 place-items-center rounded-full border bg-black/36 shadow-[0_12px_30px_rgba(0,0,0,0.24)] transition-colors sm:h-11 sm:w-11 ${isRecording ? "border-red-200/40 text-red-100 shadow-[0_0_0_6px_rgba(248,113,113,0.12)]" : "border-[#E6C36A]/14 text-[#E6C36A]/82 hover:border-[#E6C36A]/45 hover:bg-[#E6C36A]/12 hover:text-[#E6C36A]"}`}
+              className={`relative grid h-9 w-9 place-items-center rounded-full border bg-black/36 shadow-[0_12px_30px_rgba(0,0,0,0.24)] transition-colors min-[390px]:h-10 min-[390px]:w-10 sm:h-11 sm:w-11 ${isRecording ? "border-red-200/40 text-red-100 shadow-[0_0_0_6px_rgba(248,113,113,0.12)]" : "border-[#E6C36A]/14 text-[#E6C36A]/82 hover:border-[#E6C36A]/45 hover:bg-[#E6C36A]/12 hover:text-[#E6C36A]"}`}
               aria-pressed={isRecording}
               aria-label={isRecording ? (language === "ar" ? "إيقاف التسجيل الصوتي" : "Stop voice recording") : language === "ar" ? "تشغيل التسجيل الصوتي" : "Start voice recording"}
               title={isRecording ? (language === "ar" ? "إيقاف" : "Stop") : language === "ar" ? "صوت" : "Voice"}
@@ -5144,9 +5211,9 @@ export function ChatWindow() {
           rows={1}
           dir={language === "ar" ? "rtl" : "ltr"}
           placeholder={isChildWorkspace && activePersonaIsChild ? (language === "ar" ? "أو اكتب كلمة قصيرة..." : "Or type one short word...") : language === "ar" ? "فضفض هنا..." : "Write freely..."}
-          className={`${isChildWorkspace && activePersonaIsChild ? "min-h-8 text-sm leading-6 opacity-78 sm:min-h-9 sm:text-sm" : "min-h-10 text-base leading-[1.75] sm:min-h-12 sm:text-lg sm:leading-[1.9]"} flex-1 border-0 bg-transparent font-arsans text-[#F7F3EC]/95 outline-none placeholder:text-[#F7F3EC]/25 ${language === "ar" ? "text-right" : "text-left"}`}
+          className={`${isChildWorkspace && activePersonaIsChild ? "min-h-8 text-sm leading-6 opacity-78 sm:min-h-9 sm:text-sm" : "min-h-10 text-base leading-[1.75] sm:min-h-12 sm:text-lg sm:leading-[1.9]"} min-w-0 flex-1 resize-none border-0 bg-transparent font-arsans text-[#F7F3EC]/95 outline-none placeholder:text-[#F7F3EC]/25 ${language === "ar" ? "text-right" : "text-left"}`}
         />
-        <button type="submit" disabled={isThinking} className={`ui-action pb-2 text-sm text-[#C9A86A] transition-colors hover:text-[#F7F3EC] disabled:opacity-60 sm:pb-3 ${isThinking ? "animate-pulse" : ""}`}>
+        <button type="submit" disabled={isThinking} className={`ui-action min-h-10 shrink-0 pb-1 text-sm text-[#C9A86A] transition-colors hover:text-[#F7F3EC] disabled:opacity-60 sm:min-h-11 sm:pb-2 ${isThinking ? "animate-pulse" : ""}`}>
           {isThinking ? (language === "ar" ? "ينتظر" : "Waiting") : language === "ar" ? "إرسال" : "Send"}
         </button>
         </div>
