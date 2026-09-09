@@ -85,6 +85,39 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+nextjs-portal {
+  pointer-events: none !important;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+span,
+a,
+button,
+input,
+textarea,
+select {
+  overflow-wrap: anywhere;
+}
+
 html {
   min-height: 100%;
   background: var(--ink);
@@ -94,7 +127,6 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  overflow-x: hidden;
   background:
     linear-gradient(rgba(247, 243, 236, 0.025) 1px, transparent 1px),
     linear-gradient(90deg, rgba(247, 243, 236, 0.02) 1px, transparent 1px),
@@ -144,8 +176,39 @@ button:disabled {
   cursor: not-allowed;
 }
 
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid rgba(201, 168, 106, 0.5);
+  outline-offset: 2px;
+}
+
+@supports not selector(:focus-visible) {
+  button:focus,
+  a:focus,
+  input:focus,
+  textarea:focus,
+  select:focus,
+  [tabindex]:focus {
+    outline: 2px solid rgba(201, 168, 106, 0.5);
+    outline-offset: 2px;
+  }
+}
+
 textarea {
   resize: none;
+}
+
+.mobile-scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.mobile-scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 a {
@@ -344,6 +407,15 @@ a {
   }
 }
 
+@keyframes bounceDots {
+  0%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-6px);
+  }
+}
+
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
@@ -382,6 +454,10 @@ a {
 
 .animate-bounce-gentle {
   animation: bounce-gentle 1.5s ease-in-out infinite;
+}
+
+.animate-bounce-dots {
+  animation: bounceDots 1.4s ease-in-out infinite;
 }
 
 /* Child theme colors */
@@ -441,5 +517,6 @@ a {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }

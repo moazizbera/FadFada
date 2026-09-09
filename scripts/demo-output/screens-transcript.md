@@ -1,6 +1,6 @@
 # FadFada Demo Video Transcript by Screenshot
 
-Source screenshots: `scripts/demo-output/Screens/F_1.png` to `F_20.png`
+Source screenshots: `scripts/demo-output/Screens/F_1.png` to `F_20.png`, plus `F_21_Admin.png`, `F_22_Admin.png`, and the new child feature shots `F_23_Children_Dropdown.png` to `F_28_Child_Music.png`.
 
 Use this as a narration guide. Each shot includes a visual description, suggested voiceover, and optional on-screen/action cue.
 
@@ -198,7 +198,7 @@ Show the original worksheet image and the generated activity card together.
 ## F_13.png - Child Workspace Home
 
 **Visual description:**
-The app is now in child mode for Rana. The active child companion is Deema Drama. The screen says: "Hi Rana" and explains this is a safe child space for stories, puzzles, learning, and children companions only. Buttons include Start playing, Stories, and Choose your friend.
+The app is now in child mode for Ahmed. The active child companion is Faris Focus, a male homework and focus buddy. The screen says: "Hi Ahmed" and explains this is a safe child space for stories, puzzles, learning, and children companions only. Buttons include Start playing, Stories, and Choose your friend.
 
 **Voiceover:**
 "When the parent switches to a child profile, the app becomes the child's space. The AI greets the child by name, uses child-safe companions only, and removes adult tools from the experience."
@@ -207,7 +207,7 @@ The app is now in child mode for Rana. The active child companion is Deema Drama
 Child mode sends a different workspace context and server-enforced system prompt: child name, child age, child-safe language, and no parent identity leakage.
 
 **Action cue:**
-This is the key child identity shot. Pause long enough to show "Hi Rana" and the child-only actions.
+This is the key child identity shot. Pause long enough to show "Hi Ahmed" and the child-only actions.
 
 ---
 
@@ -298,7 +298,7 @@ Use this shot to reinforce that adult personas are not available in child mode.
 ## F_20.png - Parent Pulse Snapshot and Return Code
 
 **Visual description:**
-The parent profile shows a return code, child activity history, and a Parent pulse snapshot for Rana. It displays low risk, seven-day activity, world, trend, last activity, and a suggested tonight's ritual.
+The parent profile shows a return code, child activity history, and a Parent pulse snapshot for Ahmed. It displays low risk, seven-day activity, world, trend, last activity, and a suggested tonight's ritual.
 
 **Voiceover:**
 "Parents stay informed without invading the child's space. The parent dashboard shows activity signals, risk level, recent trends, and a suggested family ritual. Returning from child mode requires a parent return code."
@@ -307,7 +307,123 @@ The parent profile shows a return code, child activity history, and a Parent pul
 The product separates parent oversight from child privacy: parents see summaries and signals, while child conversations stay scoped to the child profile.
 
 **Action cue:**
-End on this shot to show safety, parent oversight, and role separation.
+Use this shot to show safety, parent oversight, and role separation before moving into admin proof.
+
+---
+
+## F_21_Admin.png - Admin Operations Dashboard
+
+**Visual description:**
+The admin dashboard opens in a mobile viewport. It shows the FadFada command center, dashboard navigation, auto-refresh status, an overview tab, and a product health score of 100 with the message: "Signals are strong and varied."
+
+**Voiceover:**
+"The admin layer gives operators a live command center. It tracks visitor intelligence, registration quality, user locations, and plan distribution in one mobile-ready workspace, with auto-refreshing product health signals."
+
+**Judge/API note:**
+This is the operational proof layer: role-gated admin access turns product events, telemetry, and configuration signals into an operator dashboard instead of leaving them hidden in logs.
+
+**Action cue:**
+Pause on the product health card and dashboard tabs to show that the product has an operator surface, not only an end-user chat UI.
+
+---
+
+## F_22_Admin.png - Avatar Star Ratings
+
+**Visual description:**
+The admin dashboard is on the Companion quality section. It shows avatar star ratings for companions such as Nora, Zizo 1, and Omar, including average stars, rating counts, latest rating values, dates, and locations.
+
+**Voiceover:**
+"Admins can also inspect companion quality. Avatar ratings summarize how users respond to each companion, giving the team a feedback loop for persona tuning, safety review, and product iteration."
+
+**Judge/API note:**
+Companion feedback is captured as structured telemetry, so the team can evaluate persona quality and prioritize improvements based on real usage signals.
+
+**Action cue:**
+End on the companion quality cards to close with measurable product operations and continuous improvement.
+
+---
+
+## F_23_Children_Dropdown.png - Parent Children Shortcut
+
+**Visual description:**
+The parent header Children shortcut is open. It shows Ahmed as a child space with the Faris Focus avatar, the companion name, and a View all profiles action.
+
+**Voiceover:**
+"A parent can jump into Ahmed's child space directly from the header. The shortcut shows the child profile, the selected male companion, and keeps child access inside the parent account."
+
+**Action cue:**
+Pause on Ahmed's profile row and the View all profiles button.
+
+---
+
+## F_24_Parent_Return_Gate.png - Parent Return Gate
+
+**Visual description:**
+Ahmed's child workspace is active, and the Parent return code modal is open. It asks for the four-digit code before returning to the parent profile.
+
+**Voiceover:**
+"When the app is in Ahmed's child mode, returning to the parent area requires a parent return code. This prevents the child from casually opening adult tools or account controls."
+
+**Judge/API note:**
+Role isolation is enforced in session state: parent and child workspace modes are explicit, and child mode cannot call parent-only APIs.
+
+**Action cue:**
+Show the code input and explain it as a safety boundary, not a password for the child.
+
+---
+
+## F_25_Child_New_Chat.png - Ahmed New Chat Reset
+
+**Visual description:**
+The child workspace starts a new chat for Ahmed. The assistant opening says: "Hi Ahmed. This is your safe space for stories, learning, and calm play." The active companion remains Faris Focus instead of an adult persona.
+
+**Voiceover:**
+"Starting a new chat keeps Ahmed inside child mode. The greeting, companion roster, and opening prompt remain child-safe, so adult Omar or parent context never appears in the child's reset flow."
+
+**Judge/API note:**
+This validates the child context isolation fix: new sessions rebuild the opening message from the current child workspace, not from a stale parent event handler.
+
+**Action cue:**
+Highlight the "Hi Ahmed" opening and Faris Focus avatar.
+
+---
+
+## F_26_Child_Daily_Moments.png - Ahmed Daily Child Moments
+
+**Visual description:**
+Ahmed's child home shows a Today card with a rotating Learn, Feel, or Connect activity, plus the homework summary card below it.
+
+**Voiceover:**
+"Ahmed also gets daily moments: tiny learn, feel, and connection prompts that start safe Gemini-guided activities without overwhelming the screen."
+
+**Action cue:**
+Show the Today card, arrows, and homework status together.
+
+---
+
+## F_27_Child_Draw.png - Ahmed Drawing Board
+
+**Visual description:**
+The child drawing board is open. Ahmed can draw on a canvas, choose colors and brush sizes, clear the canvas, save the drawing, or ask the companion to comment on it.
+
+**Voiceover:**
+"For younger users, the child space is not only typing. Ahmed can draw, choose colors, save a picture, and ask his companion to respond with a simple encouraging comment."
+
+**Action cue:**
+Show the canvas, color palette, brush controls, and comment action.
+
+---
+
+## F_28_Child_Music.png - Ahmed Color Piano
+
+**Visual description:**
+The Color Piano activity is open. Ahmed can tap colorful notes labeled Do, Re, Mi, Fa, Sol, La, Si, and Do.
+
+**Voiceover:**
+"Ahmed can also play with sound through Color Piano. It gives the child a safe, simple creative activity using large colorful note buttons."
+
+**Action cue:**
+End the child feature update on the colorful piano keys.
 
 ---
 
@@ -323,13 +439,15 @@ The app also turns AI replies into real product artifacts. A Gemini response can
 
 For parents, FadFada becomes a family workspace. A parent creates child profiles, sets limits, and uploads homework. This is where we use Gemini multimodal understanding: the system reads a worksheet image, detects the subject and task, then returns structured JSON with a child intro, activities, hints, choices, answers, and visual metadata.
 
-The parent sends that transformed homework into the child's workspace. When the app switches to child mode, identity changes completely. The child is greeted by name, only child-safe companions appear, adult tools disappear, and Gemini receives a different server-side prompt: speak to this child, at this age, using simple safe language.
+The parent sends that transformed homework into Ahmed's workspace. When the app switches to child mode, identity changes completely. Ahmed is greeted by name, only child-safe companions appear, adult tools disappear, and Gemini receives a different server-side prompt: speak to this child, at this age, using simple safe language.
+
+The newer child flows make this clearer: the parent can open Ahmed from the Children shortcut, child mode requires a return code to leave, new chat keeps Faris Focus and Ahmed's child-safe greeting, and Ahmed can use daily moments, drawing, and Color Piano without entering the adult workspace.
 
 The worksheet becomes an interactive learning game with voice, choices, progress, stories, quizzes, and guided decisions. The child experience feels personal, but it stays separate from the parent account.
 
 For judges, the technical point is simple: FadFada uses Gemini as a product engine, not only a chatbot. It combines text reasoning, multimodal homework understanding, structured JSON outputs, media and storyboard routing, and role-based safety prompts.
 
-Parents still get oversight through summaries, risk signals, activity history, and return codes. But child conversations stay scoped to the child profile. The result is an AI app that knows exactly who it is speaking to: parent or child, without mixing their identities."
+Parents still get oversight through summaries, risk signals, activity history, and return codes. Admins get an operations dashboard with product health and companion quality ratings, so the team can measure what is working and improve the experience. The result is an AI app that knows exactly who it is speaking to: parent, child, or operator, without mixing their identities."
 
 # Exact 3-Minute Screenshot Timing Plan
 
@@ -340,17 +458,19 @@ Use this to cut a 4:15 video down to 3:00. Keep the visual pace fast: about 7-10
 | 0:00-0:22 | F_1-F_3 | Main chat, persona prompts, Gemini text reasoning |
 | 0:22-0:48 | F_4-F_7 | Daily Pulse, shortcuts, artifacts from AI replies |
 | 0:48-1:30 | F_8-F_12 | Parent workspace, child profiles, Gemini multimodal homework transformation |
-| 1:30-2:28 | F_13-F_19 | Child identity, child-safe prompt, homework game, stories, companions |
-| 2:28-3:00 | F_20 | Parent oversight, safety, role isolation, final judge message |
+| 1:30-2:15 | F_13-F_19 | Ahmed child identity, child-safe prompt, homework game, stories, companions |
+| 2:15-2:40 | F_20, F_23-F_28 | Parent oversight, return gate, Ahmed new chat, daily moments, drawing, Color Piano |
+| 2:40-3:00 | F_21_Admin-F_22_Admin | Admin product health, companion quality ratings, final judge message |
 
 # What To Cut From The 4:15 Version
 
 - Do not read every per-screenshot description aloud.
 - Keep F_5-F_7 as a fast montage; one sentence covers all three.
-- Keep F_15-F_19 as a fast child-experience montage; do not explain each story card.
+- Keep F_15-F_19 and F_23-F_28 as a fast child-experience montage; do not explain each story card or every child activity control.
+- Keep F_21_Admin-F_22_Admin as a fast operational proof close; do not read every metric.
 - Remove pauses longer than 1 second between sections.
 - Keep only one strong Gemini sentence in each block: text reasoning, multimodal image understanding, structured JSON, child-safe prompt isolation.
 
 # One-Sentence Judge Hook
 
-"FadFada is a role-aware family AI app that uses Gemini text, multimodal understanding, structured outputs, and child-safe prompt isolation to turn parent tasks and child learning into one connected but safely separated experience."
+"FadFada is a role-aware family AI app that uses Gemini text, multimodal understanding, structured outputs, child-safe prompt isolation, and admin telemetry to turn parent tasks, child learning, and product operations into one connected but safely separated experience."

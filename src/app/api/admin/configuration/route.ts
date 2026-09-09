@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
   if (body.action === "create_discount") {
     const code = cleanDiscountCode(body.code);
     const label = cleanText(body.label, 120) || code;
-    const percentOff = Math.max(1, Math.min(90, Math.round(Number(body.percentOff) || 0)));
+    const percentOff = Math.max(1, Math.min(100, Math.round(Number(body.percentOff) || 0)));
     const maxRedemptions = body.maxRedemptions == null ? null : Math.max(1, Math.min(10000, Math.round(Number(body.maxRedemptions) || 1)));
     const expiresAt = cleanDate(body.expiresAt);
 
@@ -214,7 +214,7 @@ function cleanText(value: unknown, maxLength: number) {
 }
 
 function cleanDiscountCode(value: unknown) {
-  return cleanText(value, 32).toUpperCase().replace(/[^A-Z0-9_-]/g, "");
+  return cleanText(value, 32).toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
 function cleanDate(value: unknown) {

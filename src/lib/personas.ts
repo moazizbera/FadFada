@@ -310,7 +310,7 @@ export const NEW_CHILDREN_ROSTER = [
 const CHILDREN_PERSONA_METADATA: Record<(typeof NEW_CHILDREN_ROSTER)[number]["id"], { roleAr: string; family: PersonaFamily; glowColorHex: string; voiceConfig: PersonaVoiceConfig; fallbackWorldIds: string[] }> = {
   rami_riddles: { roleAr: "رفيق ألغاز وتفكير جانبي للأطفال", family: "build", glowColorHex: "#7DD3FC", voiceConfig: { locale: "ar-EG", rate: 0.98, pitch: 1.05 }, fallbackWorldIds: ["build", "calm"] },
   deema_drama: { roleAr: "مرشدة تمثيل وحكايات آمنة للأطفال", family: "listen", glowColorHex: "#F9A8D4", voiceConfig: { locale: "ar-EG-SalmaNeural", rate: 0.92, pitch: 1.08 }, fallbackWorldIds: ["calm", "learning"] },
-  faris_focus: { roleAr: "رفيق واجبات هادئ للأطفال", family: "listen", glowColorHex: "#A7F3D0", voiceConfig: { locale: "ar-SA-ZariyahNeural", rate: 0.88, pitch: 1.02 }, fallbackWorldIds: ["learning", "build"] },
+  faris_focus: { roleAr: "رفيق واجبات هادئ للأطفال", family: "listen", glowColorHex: "#A7F3D0", voiceConfig: { locale: "ar-SA-HamedNeural", rate: 0.88, pitch: 1.02 }, fallbackWorldIds: ["learning", "build"] },
   nour_nature: { roleAr: "دليل العالم الأخضر للأطفال", family: "build", glowColorHex: "#86EFAC", voiceConfig: { locale: "ar-SA", rate: 0.94, pitch: 1.04 }, fallbackWorldIds: ["story", "calm"] },
   tariq_tales: { roleAr: "حكواتي تراث وفلكلور للأطفال", family: "listen", glowColorHex: "#FDBA74", voiceConfig: { locale: "ar-SA", rate: 0.9, pitch: 0.98 }, fallbackWorldIds: ["learning", "calm"] },
   amina_manners: { roleAr: "مدربة قيم ولطف للأطفال", family: "listen", glowColorHex: "#FBCFE8", voiceConfig: { locale: "ar-SA-ZariyahNeural", rate: 0.88, pitch: 1.06 }, fallbackWorldIds: ["story", "learning"] },

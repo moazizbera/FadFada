@@ -1,0 +1,5561 @@
+{
+  "zain_kg_explorer": [
+    {
+      "text": "مرحباً! كيف حالك اليوم؟",
+      "hash": "gvmw8d",
+      "output": "/precache/zain_kg_explorer/gvmw8d.mp4"
+    },
+    {
+      "text": "Hello! How are you today?",
+      "hash": "d9qzmr",
+      "output": "/precache/zain_kg_explorer/d9qzmr.mp4"
+    },
+    {
+      "text": "أهلاً وسهلاً بك!",
+      "hash": "u4atkn",
+      "output": "/precache/zain_kg_explorer/u4atkn.mp4"
+    },
+    {
+      "text": "أهلاً بك!",
+      "hash": "2j03lb",
+      "output": "/precache/zain_kg_explorer/2j03lb.mp4"
+    },
+    {
+      "text": "صباح الخير!",
+      "hash": "hzoxf9",
+      "output": "/precache/zain_kg_explorer/hzoxf9.mp4"
+    },
+    {
+      "text": "Hello!",
+      "hash": "k76gjq",
+      "output": "/precache/zain_kg_explorer/k76gjq.mp4"
+    },
+    {
+      "text": "أنت بطل! استمر في المحاولة!",
+      "hash": "ner41n",
+      "output": "/precache/zain_kg_explorer/ner41n.mp4"
+    },
+    {
+      "text": "You're amazing! Keep trying!",
+      "hash": "rd8rvv",
+      "output": "/precache/zain_kg_explorer/rd8rvv.mp4"
+    },
+    {
+      "text": "واو! أحسنت!",
+      "hash": "13s7pr",
+      "output": "/precache/zain_kg_explorer/13s7pr.mp4"
+    },
+    {
+      "text": "عمل رائع!",
+      "hash": "5cc7sv",
+      "output": "/precache/zain_kg_explorer/5cc7sv.mp4"
+    },
+    {
+      "text": "مذهل! استمر!",
+      "hash": "xg7hxb",
+      "output": "/precache/zain_kg_explorer/xg7hxb.mp4"
+    },
+    {
+      "text": "Great job!",
+      "hash": "p001zg",
+      "output": "/precache/zain_kg_explorer/p001zg.mp4"
+    },
+    {
+      "text": "أحسنت!",
+      "hash": "ei4nhj",
+      "output": "/precache/zain_kg_explorer/ei4nhj.mp4"
+    },
+    {
+      "text": "ممتاز!",
+      "hash": "7yt6qb",
+      "output": "/precache/zain_kg_explorer/7yt6qb.mp4"
+    },
+    {
+      "text": "رائع!",
+      "hash": "y9qj7h",
+      "output": "/precache/zain_kg_explorer/y9qj7h.mp4"
+    },
+    {
+      "text": "برافو!",
+      "hash": "b72a41",
+      "output": "/precache/zain_kg_explorer/b72a41.mp4"
+    },
+    {
+      "text": "واو!",
+      "hash": "zhou8t",
+      "output": "/precache/zain_kg_explorer/zhou8t.mp4"
+    },
+    {
+      "text": "Awesome!",
+      "hash": "emhmbb",
+      "output": "/precache/zain_kg_explorer/emhmbb.mp4"
+    },
+    {
+      "text": "لا بأس! حاول مرة أخرى!",
+      "hash": "29wucm",
+      "output": "/precache/zain_kg_explorer/29wucm.mp4"
+    },
+    {
+      "text": "لا تستسلم!",
+      "hash": "97b7is",
+      "output": "/precache/zain_kg_explorer/97b7is.mp4"
+    },
+    {
+      "text": "أنت تستطيع!",
+      "hash": "pf7nc6",
+      "output": "/precache/zain_kg_explorer/pf7nc6.mp4"
+    },
+    {
+      "text": "حاول مرة أخرى!",
+      "hash": "9596pc",
+      "output": "/precache/zain_kg_explorer/9596pc.mp4"
+    },
+    {
+      "text": "It's okay, try again!",
+      "hash": "ii005g",
+      "output": "/precache/zain_kg_explorer/ii005g.mp4"
+    },
+    {
+      "text": "You can do it!",
+      "hash": "849vzv",
+      "output": "/precache/zain_kg_explorer/849vzv.mp4"
+    },
+    {
+      "text": "نعم!",
+      "hash": "zhnpu2",
+      "output": "/precache/zain_kg_explorer/zhnpu2.mp4"
+    },
+    {
+      "text": "صحيح!",
+      "hash": "ycpnrz",
+      "output": "/precache/zain_kg_explorer/ycpnrz.mp4"
+    },
+    {
+      "text": "تمام!",
+      "hash": "y5fqsh",
+      "output": "/precache/zain_kg_explorer/y5fqsh.mp4"
+    },
+    {
+      "text": "بالضبط!",
+      "hash": "k8a1ua",
+      "output": "/precache/zain_kg_explorer/k8a1ua.mp4"
+    },
+    {
+      "text": "فكرة رائعة!",
+      "hash": "q010kk",
+      "output": "/precache/zain_kg_explorer/q010kk.mp4"
+    },
+    {
+      "text": "That's right!",
+      "hash": "kchasv",
+      "output": "/precache/zain_kg_explorer/kchasv.mp4"
+    },
+    {
+      "text": "هل تريد أن نلعب معاً؟",
+      "hash": "90yqd5",
+      "output": "/precache/zain_kg_explorer/90yqd5.mp4"
+    },
+    {
+      "text": "Shall we play together?",
+      "hash": "21ygj0",
+      "output": "/precache/zain_kg_explorer/21ygj0.mp4"
+    },
+    {
+      "text": "ما رأيك في تجربة شيء جديد؟",
+      "hash": "5mgo49",
+      "output": "/precache/zain_kg_explorer/5mgo49.mp4"
+    },
+    {
+      "text": "هل تريد أن نرسم؟",
+      "hash": "59h1c5",
+      "output": "/precache/zain_kg_explorer/59h1c5.mp4"
+    },
+    {
+      "text": "ما رأيك؟",
+      "hash": "2t8hip",
+      "output": "/precache/zain_kg_explorer/2t8hip.mp4"
+    },
+    {
+      "text": "What do you think?",
+      "hash": "2sfc0q",
+      "output": "/precache/zain_kg_explorer/2sfc0q.mp4"
+    },
+    {
+      "text": "هل تعلم؟ تعلم الأشياء الجديدة ممتع!",
+      "hash": "5jv05t",
+      "output": "/precache/zain_kg_explorer/5jv05t.mp4"
+    },
+    {
+      "text": "Did you know? Learning is fun!",
+      "hash": "xrpaav",
+      "output": "/precache/zain_kg_explorer/xrpaav.mp4"
+    },
+    {
+      "text": "لنكتشف شيئاً جديداً معاً!",
+      "hash": "i5za2m",
+      "output": "/precache/zain_kg_explorer/i5za2m.mp4"
+    },
+    {
+      "text": "هل تعلم؟",
+      "hash": "s5dd7p",
+      "output": "/precache/zain_kg_explorer/s5dd7p.mp4"
+    },
+    {
+      "text": "التعلم ممتع!",
+      "hash": "xi4lp2",
+      "output": "/precache/zain_kg_explorer/xi4lp2.mp4"
+    },
+    {
+      "text": "Let's discover something new!",
+      "hash": "g8v1oc",
+      "output": "/precache/zain_kg_explorer/g8v1oc.mp4"
+    },
+    {
+      "text": "لحظة!",
+      "hash": "ynaihk",
+      "output": "/precache/zain_kg_explorer/ynaihk.mp4"
+    },
+    {
+      "text": "دعني أفكر!",
+      "hash": "3pebw6",
+      "output": "/precache/zain_kg_explorer/3pebw6.mp4"
+    },
+    {
+      "text": "هممم...",
+      "hash": "m0tp8l",
+      "output": "/precache/zain_kg_explorer/m0tp8l.mp4"
+    },
+    {
+      "text": "One moment!",
+      "hash": "8ej00o",
+      "output": "/precache/zain_kg_explorer/8ej00o.mp4"
+    },
+    {
+      "text": "Let me think!",
+      "hash": "hhsz8l",
+      "output": "/precache/zain_kg_explorer/hhsz8l.mp4"
+    },
+    {
+      "text": "لا تقلق!",
+      "hash": "865o4j",
+      "output": "/precache/zain_kg_explorer/865o4j.mp4"
+    },
+    {
+      "text": "أفهم شعورك!",
+      "hash": "t4tr6p",
+      "output": "/precache/zain_kg_explorer/t4tr6p.mp4"
+    },
+    {
+      "text": "كل شيء سيكون بخير!",
+      "hash": "6q48ln",
+      "output": "/precache/zain_kg_explorer/6q48ln.mp4"
+    },
+    {
+      "text": "أنا معك!",
+      "hash": "re6kq1",
+      "output": "/precache/zain_kg_explorer/re6kq1.mp4"
+    },
+    {
+      "text": "Don't worry!",
+      "hash": "vue3yd",
+      "output": "/precache/zain_kg_explorer/vue3yd.mp4"
+    },
+    {
+      "text": "I'm here with you!",
+      "hash": "us2y9s",
+      "output": "/precache/zain_kg_explorer/us2y9s.mp4"
+    },
+    {
+      "text": "إلى اللقاء! أراك قريباً!",
+      "hash": "g1bad5",
+      "output": "/precache/zain_kg_explorer/g1bad5.mp4"
+    },
+    {
+      "text": "Goodbye! See you soon!",
+      "hash": "akex7b",
+      "output": "/precache/zain_kg_explorer/akex7b.mp4"
+    },
+    {
+      "text": "كان وقتاً جميلاً معك!",
+      "hash": "az2xpq",
+      "output": "/precache/zain_kg_explorer/az2xpq.mp4"
+    },
+    {
+      "text": "أراك قريباً!",
+      "hash": "ajbxk5",
+      "output": "/precache/zain_kg_explorer/ajbxk5.mp4"
+    },
+    {
+      "text": "إلى اللقاء!",
+      "hash": "1amjw1",
+      "output": "/precache/zain_kg_explorer/1amjw1.mp4"
+    },
+    {
+      "text": "See you soon!",
+      "hash": "sqahpd",
+      "output": "/precache/zain_kg_explorer/sqahpd.mp4"
+    },
+    {
+      "text": "هيا نلعب!",
+      "hash": "okh3d5",
+      "output": "/precache/zain_kg_explorer/okh3d5.mp4"
+    },
+    {
+      "text": "هيا نرسم!",
+      "hash": "ok2c7h",
+      "output": "/precache/zain_kg_explorer/ok2c7h.mp4"
+    },
+    {
+      "text": "هيا نغني!",
+      "hash": "ok9pv2",
+      "output": "/precache/zain_kg_explorer/ok9pv2.mp4"
+    },
+    {
+      "text": "هيا نكتشف!",
+      "hash": "tefwcm",
+      "output": "/precache/zain_kg_explorer/tefwcm.mp4"
+    },
+    {
+      "text": "Let's play!",
+      "hash": "fc1xfp",
+      "output": "/precache/zain_kg_explorer/fc1xfp.mp4"
+    },
+    {
+      "text": "Let's draw!",
+      "hash": "fkebv1",
+      "output": "/precache/zain_kg_explorer/fkebv1.mp4"
+    }
+  ],
+  "rami_riddles": [
+    {
+      "text": "مرحباً! كيف حالك اليوم؟",
+      "hash": "gvmw8d",
+      "output": "/precache/rami_riddles/gvmw8d.mp4"
+    },
+    {
+      "text": "Hello! How are you today?",
+      "hash": "d9qzmr",
+      "output": "/precache/rami_riddles/d9qzmr.mp4"
+    },
+    {
+      "text": "أهلاً وسهلاً بك!",
+      "hash": "u4atkn",
+      "output": "/precache/rami_riddles/u4atkn.mp4"
+    },
+    {
+      "text": "أهلاً بك!",
+      "hash": "2j03lb",
+      "output": "/precache/rami_riddles/2j03lb.mp4"
+    },
+    {
+      "text": "صباح الخير!",
+      "hash": "hzoxf9",
+      "output": "/precache/rami_riddles/hzoxf9.mp4"
+    },
+    {
+      "text": "Hello!",
+      "hash": "k76gjq",
+      "output": "/precache/rami_riddles/k76gjq.mp4"
+    },
+    {
+      "text": "أنت بطل! استمر في المحاولة!",
+      "hash": "ner41n",
+      "output": "/precache/rami_riddles/ner41n.mp4"
+    },
+    {
+      "text": "You're amazing! Keep trying!",
+      "hash": "rd8rvv",
+      "output": "/precache/rami_riddles/rd8rvv.mp4"
+    },
+    {
+      "text": "واو! أحسنت!",
+      "hash": "13s7pr",
+      "output": "/precache/rami_riddles/13s7pr.mp4"
+    },
+    {
+      "text": "عمل رائع!",
+      "hash": "5cc7sv",
+      "output": "/precache/rami_riddles/5cc7sv.mp4"
+    },
+    {
+      "text": "مذهل! استمر!",
+      "hash": "xg7hxb",
+      "output": "/precache/rami_riddles/xg7hxb.mp4"
+    },
+    {
+      "text": "Great job!",
+      "hash": "p001zg",
+      "output": "/precache/rami_riddles/p001zg.mp4"
+    },
+    {
+      "text": "أحسنت!",
+      "hash": "ei4nhj",
+      "output": "/precache/rami_riddles/ei4nhj.mp4"
+    },
+    {
+      "text": "ممتاز!",
+      "hash": "7yt6qb",
+      "output": "/precache/rami_riddles/7yt6qb.mp4"
+    },
+    {
+      "text": "رائع!",
+      "hash": "y9qj7h",
+      "output": "/precache/rami_riddles/y9qj7h.mp4"
+    },
+    {
+      "text": "برافو!",
+      "hash": "b72a41",
+      "output": "/precache/rami_riddles/b72a41.mp4"
+    },
+    {
+      "text": "واو!",
+      "hash": "zhou8t",
+      "output": "/precache/rami_riddles/zhou8t.mp4"
+    },
+    {
+      "text": "Awesome!",
+      "hash": "emhmbb",
+      "output": "/precache/rami_riddles/emhmbb.mp4"
+    },
+    {
+      "text": "لا بأس! حاول مرة أخرى!",
+      "hash": "29wucm",
+      "output": "/precache/rami_riddles/29wucm.mp4"
+    },
+    {
+      "text": "لا تستسلم!",
+      "hash": "97b7is",
+      "output": "/precache/rami_riddles/97b7is.mp4"
+    },
+    {
+      "text": "أنت تستطيع!",
+      "hash": "pf7nc6",
+      "output": "/precache/rami_riddles/pf7nc6.mp4"
+    },
+    {
+      "text": "حاول مرة أخرى!",
+      "hash": "9596pc",
+      "output": "/precache/rami_riddles/9596pc.mp4"
+    },
+    {
+      "text": "It's okay, try again!",
+      "hash": "ii005g",
+      "output": "/precache/rami_riddles/ii005g.mp4"
+    },
+    {
+      "text": "You can do it!",
+      "hash": "849vzv",
+      "output": "/precache/rami_riddles/849vzv.mp4"
+    },
+    {
+      "text": "نعم!",
+      "hash": "zhnpu2",
+      "output": "/precache/rami_riddles/zhnpu2.mp4"
+    },
+    {
+      "text": "صحيح!",
+      "hash": "ycpnrz",
+      "output": "/precache/rami_riddles/ycpnrz.mp4"
+    },
+    {
+      "text": "تمام!",
+      "hash": "y5fqsh",
+      "output": "/precache/rami_riddles/y5fqsh.mp4"
+    },
+    {
+      "text": "بالضبط!",
+      "hash": "k8a1ua",
+      "output": "/precache/rami_riddles/k8a1ua.mp4"
+    },
+    {
+      "text": "فكرة رائعة!",
+      "hash": "q010kk",
+      "output": "/precache/rami_riddles/q010kk.mp4"
+    },
+    {
+      "text": "That's right!",
+      "hash": "kchasv",
+      "output": "/precache/rami_riddles/kchasv.mp4"
+    },
+    {
+      "text": "هل تريد أن نلعب معاً؟",
+      "hash": "90yqd5",
+      "output": "/precache/rami_riddles/90yqd5.mp4"
+    },
+    {
+      "text": "Shall we play together?",
+      "hash": "21ygj0",
+      "output": "/precache/rami_riddles/21ygj0.mp4"
+    },
+    {
+      "text": "ما رأيك في تجربة شيء جديد؟",
+      "hash": "5mgo49",
+      "output": "/precache/rami_riddles/5mgo49.mp4"
+    },
+    {
+      "text": "هل تريد أن نرسم؟",
+      "hash": "59h1c5",
+      "output": "/precache/rami_riddles/59h1c5.mp4"
+    },
+    {
+      "text": "ما رأيك؟",
+      "hash": "2t8hip",
+      "output": "/precache/rami_riddles/2t8hip.mp4"
+    },
+    {
+      "text": "What do you think?",
+      "hash": "2sfc0q",
+      "output": "/precache/rami_riddles/2sfc0q.mp4"
+    },
+    {
+      "text": "هل تعلم؟ تعلم الأشياء الجديدة ممتع!",
+      "hash": "5jv05t",
+      "output": "/precache/rami_riddles/5jv05t.mp4"
+    },
+    {
+      "text": "Did you know? Learning is fun!",
+      "hash": "xrpaav",
+      "output": "/precache/rami_riddles/xrpaav.mp4"
+    },
+    {
+      "text": "لنكتشف شيئاً جديداً معاً!",
+      "hash": "i5za2m",
+      "output": "/precache/rami_riddles/i5za2m.mp4"
+    },
+    {
+      "text": "هل تعلم؟",
+      "hash": "s5dd7p",
+      "output": "/precache/rami_riddles/s5dd7p.mp4"
+    },
+    {
+      "text": "التعلم ممتع!",
+      "hash": "xi4lp2",
+      "output": "/precache/rami_riddles/xi4lp2.mp4"
+    },
+    {
+      "text": "Let's discover something new!",
+      "hash": "g8v1oc",
+      "output": "/precache/rami_riddles/g8v1oc.mp4"
+    },
+    {
+      "text": "لحظة!",
+      "hash": "ynaihk",
+      "output": "/precache/rami_riddles/ynaihk.mp4"
+    },
+    {
+      "text": "دعني أفكر!",
+      "hash": "3pebw6",
+      "output": "/precache/rami_riddles/3pebw6.mp4"
+    },
+    {
+      "text": "هممم...",
+      "hash": "m0tp8l",
+      "output": "/precache/rami_riddles/m0tp8l.mp4"
+    },
+    {
+      "text": "One moment!",
+      "hash": "8ej00o",
+      "output": "/precache/rami_riddles/8ej00o.mp4"
+    },
+    {
+      "text": "Let me think!",
+      "hash": "hhsz8l",
+      "output": "/precache/rami_riddles/hhsz8l.mp4"
+    },
+    {
+      "text": "لا تقلق!",
+      "hash": "865o4j",
+      "output": "/precache/rami_riddles/865o4j.mp4"
+    },
+    {
+      "text": "أفهم شعورك!",
+      "hash": "t4tr6p",
+      "output": "/precache/rami_riddles/t4tr6p.mp4"
+    },
+    {
+      "text": "كل شيء سيكون بخير!",
+      "hash": "6q48ln",
+      "output": "/precache/rami_riddles/6q48ln.mp4"
+    },
+    {
+      "text": "أنا معك!",
+      "hash": "re6kq1",
+      "output": "/precache/rami_riddles/re6kq1.mp4"
+    },
+    {
+      "text": "Don't worry!",
+      "hash": "vue3yd",
+      "output": "/precache/rami_riddles/vue3yd.mp4"
+    },
+    {
+      "text": "I'm here with you!",
+      "hash": "us2y9s",
+      "output": "/precache/rami_riddles/us2y9s.mp4"
+    },
+    {
+      "text": "إلى اللقاء! أراك قريباً!",
+      "hash": "g1bad5",
+      "output": "/precache/rami_riddles/g1bad5.mp4"
+    },
+    {
+      "text": "Goodbye! See you soon!",
+      "hash": "akex7b",
+      "output": "/precache/rami_riddles/akex7b.mp4"
+    },
+    {
+      "text": "كان وقتاً جميلاً معك!",
+      "hash": "az2xpq",
+      "output": "/precache/rami_riddles/az2xpq.mp4"
+    },
+    {
+      "text": "أراك قريباً!",
+      "hash": "ajbxk5",
+      "output": "/precache/rami_riddles/ajbxk5.mp4"
+    },
+    {
+      "text": "إلى اللقاء!",
+      "hash": "1amjw1",
+      "output": "/precache/rami_riddles/1amjw1.mp4"
+    },
+    {
+      "text": "See you soon!",
+      "hash": "sqahpd",
+      "output": "/precache/rami_riddles/sqahpd.mp4"
+    },
+    {
+      "text": "هيا نلعب!",
+      "hash": "okh3d5",
+      "output": "/precache/rami_riddles/okh3d5.mp4"
+    },
+    {
+      "text": "هيا نرسم!",
+      "hash": "ok2c7h",
+      "output": "/precache/rami_riddles/ok2c7h.mp4"
+    },
+    {
+      "text": "هيا نغني!",
+      "hash": "ok9pv2",
+      "output": "/precache/rami_riddles/ok9pv2.mp4"
+    },
+    {
+      "text": "هيا نكتشف!",
+      "hash": "tefwcm",
+      "output": "/precache/rami_riddles/tefwcm.mp4"
+    },
+    {
+      "text": "Let's play!",
+      "hash": "fc1xfp",
+      "output": "/precache/rami_riddles/fc1xfp.mp4"
+    },
+    {
+      "text": "Let's draw!",
+      "hash": "fkebv1",
+      "output": "/precache/rami_riddles/fkebv1.mp4"
+    }
+  ],
+  "faris_focus": [
+    {
+      "text": "مرحباً! كيف حالك اليوم؟",
+      "hash": "gvmw8d",
+      "output": "/precache/faris_focus/gvmw8d.mp4"
+    },
+    {
+      "text": "Hello! How are you today?",
+      "hash": "d9qzmr",
+      "output": "/precache/faris_focus/d9qzmr.mp4"
+    },
+    {
+      "text": "أهلاً وسهلاً بك!",
+      "hash": "u4atkn",
+      "output": "/precache/faris_focus/u4atkn.mp4"
+    },
+    {
+      "text": "أهلاً بك!",
+      "hash": "2j03lb",
+      "output": "/precache/faris_focus/2j03lb.mp4"
+    },
+    {
+      "text": "صباح الخير!",
+      "hash": "hzoxf9",
+      "output": "/precache/faris_focus/hzoxf9.mp4"
+    },
+    {
+      "text": "Hello!",
+      "hash": "k76gjq",
+      "output": "/precache/faris_focus/k76gjq.mp4"
+    },
+    {
+      "text": "أنت بطل! استمر في المحاولة!",
+      "hash": "ner41n",
+      "output": "/precache/faris_focus/ner41n.mp4"
+    },
+    {
+      "text": "You're amazing! Keep trying!",
+      "hash": "rd8rvv",
+      "output": "/precache/faris_focus/rd8rvv.mp4"
+    },
+    {
+      "text": "واو! أحسنت!",
+      "hash": "13s7pr",
+      "output": "/precache/faris_focus/13s7pr.mp4"
+    },
+    {
+      "text": "عمل رائع!",
+      "hash": "5cc7sv",
+      "output": "/precache/faris_focus/5cc7sv.mp4"
+    },
+    {
+      "text": "مذهل! استمر!",
+      "hash": "xg7hxb",
+      "output": "/precache/faris_focus/xg7hxb.mp4"
+    },
+    {
+      "text": "Great job!",
+      "hash": "p001zg",
+      "output": "/precache/faris_focus/p001zg.mp4"
+    },
+    {
+      "text": "أحسنت!",
+      "hash": "ei4nhj",
+      "output": "/precache/faris_focus/ei4nhj.mp4"
+    },
+    {
+      "text": "ممتاز!",
+      "hash": "7yt6qb",
+      "output": "/precache/faris_focus/7yt6qb.mp4"
+    },
+    {
+      "text": "رائع!",
+      "hash": "y9qj7h",
+      "output": "/precache/faris_focus/y9qj7h.mp4"
+    },
+    {
+      "text": "برافو!",
+      "hash": "b72a41",
+      "output": "/precache/faris_focus/b72a41.mp4"
+    },
+    {
+      "text": "واو!",
+      "hash": "zhou8t",
+      "output": "/precache/faris_focus/zhou8t.mp4"
+    },
+    {
+      "text": "Awesome!",
+      "hash": "emhmbb",
+      "output": "/precache/faris_focus/emhmbb.mp4"
+    },
+    {
+      "text": "لا بأس! حاول مرة أخرى!",
+      "hash": "29wucm",
+      "output": "/precache/faris_focus/29wucm.mp4"
+    },
+    {
+      "text": "لا تستسلم!",
+      "hash": "97b7is",
+      "output": "/precache/faris_focus/97b7is.mp4"
+    },
+    {
+      "text": "أنت تستطيع!",
+      "hash": "pf7nc6",
+      "output": "/precache/faris_focus/pf7nc6.mp4"
+    },
+    {
+      "text": "حاول مرة أخرى!",
+      "hash": "9596pc",
+      "output": "/precache/faris_focus/9596pc.mp4"
+    },
+    {
+      "text": "It's okay, try again!",
+      "hash": "ii005g",
+      "output": "/precache/faris_focus/ii005g.mp4"
+    },
+    {
+      "text": "You can do it!",
+      "hash": "849vzv",
+      "output": "/precache/faris_focus/849vzv.mp4"
+    },
+    {
+      "text": "نعم!",
+      "hash": "zhnpu2",
+      "output": "/precache/faris_focus/zhnpu2.mp4"
+    },
+    {
+      "text": "صحيح!",
+      "hash": "ycpnrz",
+      "output": "/precache/faris_focus/ycpnrz.mp4"
+    },
+    {
+      "text": "تمام!",
+      "hash": "y5fqsh",
+      "output": "/precache/faris_focus/y5fqsh.mp4"
+    },
+    {
+      "text": "بالضبط!",
+      "hash": "k8a1ua",
+      "output": "/precache/faris_focus/k8a1ua.mp4"
+    },
+    {
+      "text": "فكرة رائعة!",
+      "hash": "q010kk",
+      "output": "/precache/faris_focus/q010kk.mp4"
+    },
+    {
+      "text": "That's right!",
+      "hash": "kchasv",
+      "output": "/precache/faris_focus/kchasv.mp4"
+    },
+    {
+      "text": "هل تريد أن نلعب معاً؟",
+      "hash": "90yqd5",
+      "output": "/precache/faris_focus/90yqd5.mp4"
+    },
+    {
+      "text": "Shall we play together?",
+      "hash": "21ygj0",
+      "output": "/precache/faris_focus/21ygj0.mp4"
+    },
+    {
+      "text": "ما رأيك في تجربة شيء جديد؟",
+      "hash": "5mgo49",
+      "output": "/precache/faris_focus/5mgo49.mp4"
+    },
+    {
+      "text": "هل تريد أن نرسم؟",
+      "hash": "59h1c5",
+      "output": "/precache/faris_focus/59h1c5.mp4"
+    },
+    {
+      "text": "ما رأيك؟",
+      "hash": "2t8hip",
+      "output": "/precache/faris_focus/2t8hip.mp4"
+    },
+    {
+      "text": "What do you think?",
+      "hash": "2sfc0q",
+      "output": "/precache/faris_focus/2sfc0q.mp4"
+    },
+    {
+      "text": "هل تعلم؟ تعلم الأشياء الجديدة ممتع!",
+      "hash": "5jv05t",
+      "output": "/precache/faris_focus/5jv05t.mp4"
+    },
+    {
+      "text": "Did you know? Learning is fun!",
+      "hash": "xrpaav",
+      "output": "/precache/faris_focus/xrpaav.mp4"
+    },
+    {
+      "text": "لنكتشف شيئاً جديداً معاً!",
+      "hash": "i5za2m",
+      "output": "/precache/faris_focus/i5za2m.mp4"
+    },
+    {
+      "text": "هل تعلم؟",
+      "hash": "s5dd7p",
+      "output": "/precache/faris_focus/s5dd7p.mp4"
+    },
+    {
+      "text": "التعلم ممتع!",
+      "hash": "xi4lp2",
+      "output": "/precache/faris_focus/xi4lp2.mp4"
+    },
+    {
+      "text": "Let's discover something new!",
+      "hash": "g8v1oc",
+      "output": "/precache/faris_focus/g8v1oc.mp4"
+    },
+    {
+      "text": "لحظة!",
+      "hash": "ynaihk",
+      "output": "/precache/faris_focus/ynaihk.mp4"
+    },
+    {
+      "text": "دعني أفكر!",
+      "hash": "3pebw6",
+      "output": "/precache/faris_focus/3pebw6.mp4"
+    },
+    {
+      "text": "هممم...",
+      "hash": "m0tp8l",
+      "output": "/precache/faris_focus/m0tp8l.mp4"
+    },
+    {
+      "text": "One moment!",
+      "hash": "8ej00o",
+      "output": "/precache/faris_focus/8ej00o.mp4"
+    },
+    {
+      "text": "Let me think!",
+      "hash": "hhsz8l",
+      "output": "/precache/faris_focus/hhsz8l.mp4"
+    },
+    {
+      "text": "لا تقلق!",
+      "hash": "865o4j",
+      "output": "/precache/faris_focus/865o4j.mp4"
+    },
+    {
+      "text": "أفهم شعورك!",
+      "hash": "t4tr6p",
+      "output": "/precache/faris_focus/t4tr6p.mp4"
+    },
+    {
+      "text": "كل شيء سيكون بخير!",
+      "hash": "6q48ln",
+      "output": "/precache/faris_focus/6q48ln.mp4"
+    },
+    {
+      "text": "أنا معك!",
+      "hash": "re6kq1",
+      "output": "/precache/faris_focus/re6kq1.mp4"
+    },
+    {
+      "text": "Don't worry!",
+      "hash": "vue3yd",
+      "output": "/precache/faris_focus/vue3yd.mp4"
+    },
+    {
+      "text": "I'm here with you!",
+      "hash": "us2y9s",
+      "output": "/precache/faris_focus/us2y9s.mp4"
+    },
+    {
+      "text": "إلى اللقاء! أراك قريباً!",
+      "hash": "g1bad5",
+      "output": "/precache/faris_focus/g1bad5.mp4"
+    },
+    {
+      "text": "Goodbye! See you soon!",
+      "hash": "akex7b",
+      "output": "/precache/faris_focus/akex7b.mp4"
+    },
+    {
+      "text": "كان وقتاً جميلاً معك!",
+      "hash": "az2xpq",
+      "output": "/precache/faris_focus/az2xpq.mp4"
+    },
+    {
+      "text": "أراك قريباً!",
+      "hash": "ajbxk5",
+      "output": "/precache/faris_focus/ajbxk5.mp4"
+    },
+    {
+      "text": "إلى اللقاء!",
+      "hash": "1amjw1",
+      "output": "/precache/faris_focus/1amjw1.mp4"
+    },
+    {
+      "text": "See you soon!",
+      "hash": "sqahpd",
+      "output": "/precache/faris_focus/sqahpd.mp4"
+    },
+    {
+      "text": "هيا نلعب!",
+      "hash": "okh3d5",
+      "output": "/precache/faris_focus/okh3d5.mp4"
+    },
+    {
+      "text": "هيا نرسم!",
+      "hash": "ok2c7h",
+      "output": "/precache/faris_focus/ok2c7h.mp4"
+    },
+    {
+      "text": "هيا نغني!",
+      "hash": "ok9pv2",
+      "output": "/precache/faris_focus/ok9pv2.mp4"
+    },
+    {
+      "text": "هيا نكتشف!",
+      "hash": "tefwcm",
+      "output": "/precache/faris_focus/tefwcm.mp4"
+    },
+    {
+      "text": "Let's play!",
+      "hash": "fc1xfp",
+      "output": "/precache/faris_focus/fc1xfp.mp4"
+    },
+    {
+      "text": "Let's draw!",
+      "hash": "fkebv1",
+      "output": "/precache/faris_focus/fkebv1.mp4"
+    }
+  ],
+  "tariq_tales": [
+    {
+      "text": "مرحباً! كيف حالك اليوم؟",
+      "hash": "gvmw8d",
+      "output": "/precache/tariq_tales/gvmw8d.mp4"
+    },
+    {
+      "text": "Hello! How are you today?",
+      "hash": "d9qzmr",
+      "output": "/precache/tariq_tales/d9qzmr.mp4"
+    },
+    {
+      "text": "أهلاً وسهلاً بك!",
+      "hash": "u4atkn",
+      "output": "/precache/tariq_tales/u4atkn.mp4"
+    },
+    {
+      "text": "أهلاً بك!",
+      "hash": "2j03lb",
+      "output": "/precache/tariq_tales/2j03lb.mp4"
+    },
+    {
+      "text": "صباح الخير!",
+      "hash": "hzoxf9",
+      "output": "/precache/tariq_tales/hzoxf9.mp4"
+    },
+    {
+      "text": "Hello!",
+      "hash": "k76gjq",
+      "output": "/precache/tariq_tales/k76gjq.mp4"
+    },
+    {
+      "text": "أنت بطل! استمر في المحاولة!",
+      "hash": "ner41n",
+      "output": "/precache/tariq_tales/ner41n.mp4"
+    },
+    {
+      "text": "You're amazing! Keep trying!",
+      "hash": "rd8rvv",
+      "output": "/precache/tariq_tales/rd8rvv.mp4"
+    },
+    {
+      "text": "واو! أحسنت!",
+      "hash": "13s7pr",
+      "output": "/precache/tariq_tales/13s7pr.mp4"
+    },
+    {
+      "text": "عمل رائع!",
+      "hash": "5cc7sv",
+      "output": "/precache/tariq_tales/5cc7sv.mp4"
+    },
+    {
+      "text": "مذهل! استمر!",
+      "hash": "xg7hxb",
+      "output": "/precache/tariq_tales/xg7hxb.mp4"
+    },
+    {
+      "text": "Great job!",
+      "hash": "p001zg",
+      "output": "/precache/tariq_tales/p001zg.mp4"
+    },
+    {
+      "text": "أحسنت!",
+      "hash": "ei4nhj",
+      "output": "/precache/tariq_tales/ei4nhj.mp4"
+    },
+    {
+      "text": "ممتاز!",
+      "hash": "7yt6qb",
+      "output": "/precache/tariq_tales/7yt6qb.mp4"
+    },
+    {
+      "text": "رائع!",
+      "hash": "y9qj7h",
+      "output": "/precache/tariq_tales/y9qj7h.mp4"
+    },
+    {
+      "text": "برافو!",
+      "hash": "b72a41",
+      "output": "/precache/tariq_tales/b72a41.mp4"
+    },
+    {
+      "text": "واو!",
+      "hash": "zhou8t",
+      "output": "/precache/tariq_tales/zhou8t.mp4"
+    },
+    {
+      "text": "Awesome!",
+      "hash": "emhmbb",
+      "output": "/precache/tariq_tales/emhmbb.mp4"
+    },
+    {
+      "text": "لا بأس! حاول مرة أخرى!",
+      "hash": "29wucm",
+      "output": "/precache/tariq_tales/29wucm.mp4"
+    },
+    {
+      "text": "لا تستسلم!",
+      "hash": "97b7is",
+      "output": "/precache/tariq_tales/97b7is.mp4"
+    },
+    {
+      "text": "أنت تستطيع!",
+      "hash": "pf7nc6",
+      "output": "/precache/tariq_tales/pf7nc6.mp4"
+    },
+    {
+      "text": "حاول مرة أخرى!",
+      "hash": "9596pc",
+      "output": "/precache/tariq_tales/9596pc.mp4"
+    },
+    {
+      "text": "It's okay, try again!",
+      "hash": "ii005g",
+      "output": "/precache/tariq_tales/ii005g.mp4"
+    },
+    {
+      "text": "You can do it!",
+      "hash": "849vzv",
+      "output": "/precache/tariq_tales/849vzv.mp4"
+    },
+    {
+      "text": "نعم!",
+      "hash": "zhnpu2",
+      "output": "/precache/tariq_tales/zhnpu2.mp4"
+    },
+    {
+      "text": "صحيح!",
+      "hash": "ycpnrz",
+      "output": "/precache/tariq_tales/ycpnrz.mp4"
+    },
+    {
+      "text": "تمام!",
+      "hash": "y5fqsh",
+      "output": "/precache/tariq_tales/y5fqsh.mp4"
+    },
+    {
+      "text": "بالضبط!",
+      "hash": "k8a1ua",
+      "output": "/precache/tariq_tales/k8a1ua.mp4"
+    },
+    {
+      "text": "فكرة رائعة!",
+      "hash": "q010kk",
+      "output": "/precache/tariq_tales/q010kk.mp4"
+    },
+    {
+      "text": "That's right!",
+      "hash": "kchasv",
+      "output": "/precache/tariq_tales/kchasv.mp4"
+    },
+    {
+      "text": "هل تريد أن نلعب معاً؟",
+      "hash": "90yqd5",
+      "output": "/precache/tariq_tales/90yqd5.mp4"
+    },
+    {
+      "text": "Shall we play together?",
+      "hash": "21ygj0",
+      "output": "/precache/tariq_tales/21ygj0.mp4"
+    },
+    {
+      "text": "ما رأيك في تجربة شيء جديد؟",
+      "hash": "5mgo49",
+      "output": "/precache/tariq_tales/5mgo49.mp4"
+    },
+    {
+      "text": "هل تريد أن نرسم؟",
+      "hash": "59h1c5",
+      "output": "/precache/tariq_tales/59h1c5.mp4"
+    },
+    {
+      "text": "ما رأيك؟",
+      "hash": "2t8hip",
+      "output": "/precache/tariq_tales/2t8hip.mp4"
+    },
+    {
+      "text": "What do you think?",
+      "hash": "2sfc0q",
+      "output": "/precache/tariq_tales/2sfc0q.mp4"
+    },
+    {
+      "text": "هل تعلم؟ تعلم الأشياء الجديدة ممتع!",
+      "hash": "5jv05t",
+      "output": "/precache/tariq_tales/5jv05t.mp4"
+    },
+    {
+      "text": "Did you know? Learning is fun!",
+      "hash": "xrpaav",
+      "output": "/precache/tariq_tales/xrpaav.mp4"
+    },
+    {
+      "text": "لنكتشف شيئاً جديداً معاً!",
+      "hash": "i5za2m",
+      "output": "/precache/tariq_tales/i5za2m.mp4"
+    },
+    {
+      "text": "هل تعلم؟",
+      "hash": "s5dd7p",
+      "output": "/precache/tariq_tales/s5dd7p.mp4"
+    },
+    {
+      "text": "التعلم ممتع!",
+      "hash": "xi4lp2",
+      "output": "/precache/tariq_tales/xi4lp2.mp4"
+    },
+    {
+      "text": "Let's discover something new!",
+      "hash": "g8v1oc",
+      "output": "/precache/tariq_tales/g8v1oc.mp4"
+    },
+    {
+      "text": "لحظة!",
+      "hash": "ynaihk",
+      "output": "/precache/tariq_tales/ynaihk.mp4"
+    },
+    {
+      "text": "دعني أفكر!",
+      "hash": "3pebw6",
+      "output": "/precache/tariq_tales/3pebw6.mp4"
+    },
+    {
+      "text": "هممم...",
+      "hash": "m0tp8l",
+      "output": "/precache/tariq_tales/m0tp8l.mp4"
+    },
+    {
+      "text": "One moment!",
+      "hash": "8ej00o",
+      "output": "/precache/tariq_tales/8ej00o.mp4"
+    },
+    {
+      "text": "Let me think!",
+      "hash": "hhsz8l",
+      "output": "/precache/tariq_tales/hhsz8l.mp4"
+    },
+    {
+      "text": "لا تقلق!",
+      "hash": "865o4j",
+      "output": "/precache/tariq_tales/865o4j.mp4"
+    },
+    {
+      "text": "أفهم شعورك!",
+      "hash": "t4tr6p",
+      "output": "/precache/tariq_tales/t4tr6p.mp4"
+    },
+    {
+      "text": "كل شيء سيكون بخير!",
+      "hash": "6q48ln",
+      "output": "/precache/tariq_tales/6q48ln.mp4"
+    },
+    {
+      "text": "أنا معك!",
+      "hash": "re6kq1",
+      "output": "/precache/tariq_tales/re6kq1.mp4"
+    },
+    {
+      "text": "Don't worry!",
+      "hash": "vue3yd",
+      "output": "/precache/tariq_tales/vue3yd.mp4"
+    },
+    {
+      "text": "I'm here with you!",
+      "hash": "us2y9s",
+      "output": "/precache/tariq_tales/us2y9s.mp4"
+    },
+    {
+      "text": "إلى اللقاء! أراك قريباً!",
+      "hash": "g1bad5",
+      "output": "/precache/tariq_tales/g1bad5.mp4"
+    },
+    {
+      "text": "Goodbye! See you soon!",
+      "hash": "akex7b",
+      "output": "/precache/tariq_tales/akex7b.mp4"
+    },
+    {
+      "text": "كان وقتاً جميلاً معك!",
+      "hash": "az2xpq",
+      "output": "/precache/tariq_tales/az2xpq.mp4"
+    },
+    {
+      "text": "أراك قريباً!",
+      "hash": "ajbxk5",
+      "output": "/precache/tariq_tales/ajbxk5.mp4"
+    },
+    {
+      "text": "إلى اللقاء!",
+      "hash": "1amjw1",
+      "output": "/precache/tariq_tales/1amjw1.mp4"
+    },
+    {
+      "text": "See you soon!",
+      "hash": "sqahpd",
+      "output": "/precache/tariq_tales/sqahpd.mp4"
+    },
+    {
+      "text": "هيا نلعب!",
+      "hash": "okh3d5",
+      "output": "/precache/tariq_tales/okh3d5.mp4"
+    },
+    {
+      "text": "هيا نرسم!",
+      "hash": "ok2c7h",
+      "output": "/precache/tariq_tales/ok2c7h.mp4"
+    },
+    {
+      "text": "هيا نغني!",
+      "hash": "ok9pv2",
+      "output": "/precache/tariq_tales/ok9pv2.mp4"
+    },
+    {
+      "text": "هيا نكتشف!",
+      "hash": "tefwcm",
+      "output": "/precache/tariq_tales/tefwcm.mp4"
+    },
+    {
+      "text": "Let's play!",
+      "hash": "fc1xfp",
+      "output": "/precache/tariq_tales/fc1xfp.mp4"
+    },
+    {
+      "text": "Let's draw!",
+      "hash": "fkebv1",
+      "output": "/precache/tariq_tales/fkebv1.mp4"
+    }
+  ],
+  "sami_space": [
+    {
+      "text": "مرحباً! كيف حالك اليوم؟",
+      "hash": "gvmw8d",
+      "output": "/precache/sami_space/gvmw8d.mp4"
+    },
+    {
+      "text": "Hello! How are you today?",
+      "hash": "d9qzmr",
+      "output": "/precache/sami_space/d9qzmr.mp4"
+    },
+    {
+      "text": "أهلاً وسهلاً بك!",
+      "hash": "u4atkn",
+      "output": "/precache/sami_space/u4atkn.mp4"
+    },
+    {
+      "text": "أهلاً بك!",
+      "hash": "2j03lb",
+      "output": "/precache/sami_space/2j03lb.mp4"
+    },
+    {
+      "text": "صباح الخير!",
+      "hash": "hzoxf9",
+      "output": "/precache/sami_space/hzoxf9.mp4"
+    },
+    {
+      "text": "Hello!",
+      "hash": "k76gjq",
+      "output": "/precache/sami_space/k76gjq.mp4"
+    },
+    {
+      "text": "أنت بطل! استمر في المحاولة!",
+      "hash": "ner41n",
+      "output": "/precache/sami_space/ner41n.mp4"
+    },
+    {
+      "text": "You're amazing! Keep trying!",
+      "hash": "rd8rvv",
+      "output": "/precache/sami_space/rd8rvv.mp4"
+    },
+    {
+      "text": "واو! أحسنت!",
+      "hash": "13s7pr",
+      "output": "/precache/sami_space/13s7pr.mp4"
+    },
+    {
+      "text": "عمل رائع!",
+      "hash": "5cc7sv",
+      "output": "/precache/sami_space/5cc7sv.mp4"
+    },
+    {
+      "text": "مذهل! استمر!",
+      "hash": "xg7hxb",
+      "output": "/precache/sami_space/xg7hxb.mp4"
+    },
+    {
+      "text": "Great job!",
+      "hash": "p001zg",
+      "output": "/precache/sami_space/p001zg.mp4"
+    },
+    {
+      "text": "أحسنت!",
+      "hash": "ei4nhj",
+      "output": "/precache/sami_space/ei4nhj.mp4"
+    },
+    {
+      "text": "ممتاز!",
+      "hash": "7yt6qb",
+      "output": "/precache/sami_space/7yt6qb.mp4"
+    },
+    {
+      "text": "رائع!",
+      "hash": "y9qj7h",
+      "output": "/precache/sami_space/y9qj7h.mp4"
+    },
+    {
+      "text": "برافو!",
+      "hash": "b72a41",
+      "output": "/precache/sami_space/b72a41.mp4"
+    },
+    {
+      "text": "واو!",
+      "hash": "zhou8t",
+      "output": "/precache/sami_space/zhou8t.mp4"
+    },
+    {
+      "text": "Awesome!",
+      "hash": "emhmbb",
+      "output": "/precache/sami_space/emhmbb.mp4"
+    },
+    {
+      "text": "لا بأس! حاول مرة أخرى!",
+      "hash": "29wucm",
+      "output": "/precache/sami_space/29wucm.mp4"
+    },
+    {
+      "text": "لا تستسلم!",
+      "hash": "97b7is",
+      "output": "/precache/sami_space/97b7is.mp4"
+    },
+    {
+      "text": "أنت تستطيع!",
+      "hash": "pf7nc6",
+      "output": "/precache/sami_space/pf7nc6.mp4"
+    },
+    {
+      "text": "حاول مرة أخرى!",
+      "hash": "9596pc",
+      "output": "/precache/sami_space/9596pc.mp4"
+    },
+    {
+      "text": "It's okay, try again!",
+      "hash": "ii005g",
+      "output": "/precache/sami_space/ii005g.mp4"
+    },
+    {
+      "text": "You can do it!",
+      "hash": "849vzv",
+      "output": "/precache/sami_space/849vzv.mp4"
+    },
+    {
+      "text": "نعم!",
+      "hash": "zhnpu2",
+      "output": "/precache/sami_space/zhnpu2.mp4"
+    },
+    {
+      "text": "صحيح!",
+      "hash": "ycpnrz",
+      "output": "/precache/sami_space/ycpnrz.mp4"
+    },
+    {
+      "text": "تمام!",
+      "hash": "y5fqsh",
+      "output": "/precache/sami_space/y5fqsh.mp4"
+    },
+    {
+      "text": "بالضبط!",
+      "hash": "k8a1ua",
+      "output": "/precache/sami_space/k8a1ua.mp4"
+    },
+    {
+      "text": "فكرة رائعة!",
+      "hash": "q010kk",
+      "output": "/precache/sami_space/q010kk.mp4"
+    },
+    {
+      "text": "That's right!",
+      "hash": "kchasv",
+      "output": "/precache/sami_space/kchasv.mp4"
+    },
+    {
+      "text": "هل تريد أن نلعب معاً؟",
+      "hash": "90yqd5",
+      "output": "/precache/sami_space/90yqd5.mp4"
+    },
+    {
+      "text": "Shall we play together?",
+      "hash": "21ygj0",
+      "output": "/precache/sami_space/21ygj0.mp4"
+    },
+    {
+      "text": "ما رأيك في تجربة شيء جديد؟",
+      "hash": "5mgo49",
+      "output": "/precache/sami_space/5mgo49.mp4"
+    },
+    {
+      "text": "هل تريد أن نرسم؟",
+      "hash": "59h1c5",
+      "output": "/precache/sami_space/59h1c5.mp4"
+    },
+    {
+      "text": "ما رأيك؟",
+      "hash": "2t8hip",
+      "output": "/precache/sami_space/2t8hip.mp4"
+    },
+    {
+      "text": "What do you think?",
+      "hash": "2sfc0q",
+      "output": "/precache/sami_space/2sfc0q.mp4"
+    },
+    {
+      "text": "هل تعلم؟ تعلم الأشياء الجديدة ممتع!",
+      "hash": "5jv05t",
+      "output": "/precache/sami_space/5jv05t.mp4"
+    },
+    {
+      "text": "Did you know? Learning is fun!",
+      "hash": "xrpaav",
+      "output": "/precache/sami_space/xrpaav.mp4"
+    },
+    {
+      "text": "لنكتشف شيئاً جديداً معاً!",
+      "hash": "i5za2m",
+      "output": "/precache/sami_space/i5za2m.mp4"
+    },
+    {
+      "text": "هل تعلم؟",
+      "hash": "s5dd7p",
+      "output": "/precache/sami_space/s5dd7p.mp4"
+    },
+    {
+      "text": "التعلم ممتع!",
+      "hash": "xi4lp2",
+      "output": "/precache/sami_space/xi4lp2.mp4"
+    },
+    {
+      "text": "Let's discover something new!",
+      "hash": "g8v1oc",
+      "output": "/precache/sami_space/g8v1oc.mp4"
+    },
+    {
+      "text": "لحظة!",
+      "hash": "ynaihk",
+      "output": "/precache/sami_space/ynaihk.mp4"
+    },
+    {
+      "text": "دعني أفكر!",
+      "hash": "3pebw6",
+      "output": "/precache/sami_space/3pebw6.mp4"
+    },
+    {
+      "text": "هممم...",
+      "hash": "m0tp8l",
+      "output": "/precache/sami_space/m0tp8l.mp4"
+    },
+    {
+      "text": "One moment!",
+      "hash": "8ej00o",
+      "output": "/precache/sami_space/8ej00o.mp4"
+    },
+    {
+      "text": "Let me think!",
+      "hash": "hhsz8l",
+      "output": "/precache/sami_space/hhsz8l.mp4"
+    },
+    {
+      "text": "لا تقلق!",
+      "hash": "865o4j",
+      "output": "/precache/sami_space/865o4j.mp4"
+    },
+    {
+      "text": "أفهم شعورك!",
+      "hash": "t4tr6p",
+      "output": "/precache/sami_space/t4tr6p.mp4"
+    },
+    {
+      "text": "كل شيء سيكون بخير!",
+      "hash": "6q48ln",
+      "output": "/precache/sami_space/6q48ln.mp4"
+    },
+    {
+      "text": "أنا معك!",
+      "hash": "re6kq1",
+      "output": "/precache/sami_space/re6kq1.mp4"
+    },
+    {
+      "text": "Don't worry!",
+      "hash": "vue3yd",
+      "output": "/precache/sami_space/vue3yd.mp4"
+    },
+    {
+      "text": "I'm here with you!",
+      "hash": "us2y9s",
+      "output": "/precache/sami_space/us2y9s.mp4"
+    },
+    {
+      "text": "إلى اللقاء! أراك قريباً!",
+      "hash": "g1bad5",
+      "output": "/precache/sami_space/g1bad5.mp4"
+    },
+    {
+      "text": "Goodbye! See you soon!",
+      "hash": "akex7b",
+      "output": "/precache/sami_space/akex7b.mp4"
+    },
+    {
+      "text": "كان وقتاً جميلاً معك!",
+      "hash": "az2xpq",
+      "output": "/precache/sami_space/az2xpq.mp4"
+    },
+    {
+      "text": "أراك قريباً!",
+      "hash": "ajbxk5",
+      "output": "/precache/sami_space/ajbxk5.mp4"
+    },
+    {
+      "text": "إلى اللقاء!",
+      "hash": "1amjw1",
+      "output": "/precache/sami_space/1amjw1.mp4"
+    },
+    {
+      "text": "See you soon!",
+      "hash": "sqahpd",
+      "output": "/precache/sami_space/sqahpd.mp4"
+    },
+    {
+      "text": "هيا نلعب!",
+      "hash": "okh3d5",
+      "output": "/precache/sami_space/okh3d5.mp4"
+    },
+    {
+      "text": "هيا نرسم!",
+      "hash": "ok2c7h",
+      "output": "/precache/sami_space/ok2c7h.mp4"
+    },
+    {
+      "text": "هيا نغني!",
+      "hash": "ok9pv2",
+      "output": "/precache/sami_space/ok9pv2.mp4"
+    },
+    {
+      "text": "هيا نكتشف!",
+      "hash": "tefwcm",
+      "output": "/precache/sami_space/tefwcm.mp4"
+    },
+    {
+      "text": "Let's play!",
+      "hash": "fc1xfp",
+      "output": "/precache/sami_space/fc1xfp.mp4"
+    },
+    {
+      "text": "Let's draw!",
+      "hash": "fkebv1",
+      "output": "/precache/sami_space/fkebv1.mp4"
+    }
+  ],
+  "bassel_builder": [
+    {
+      "text": "مرحباً! كيف حالك اليوم؟",
+      "hash": "gvmw8d",
+      "output": "/precache/bassel_builder/gvmw8d.mp4"
+    },
+    {
+      "text": "Hello! How are you today?",
+      "hash": "d9qzmr",
+      "output": "/precache/bassel_builder/d9qzmr.mp4"
+    },
+    {
+      "text": "أهلاً وسهلاً بك!",
+      "hash": "u4atkn",
+      "output": "/precache/bassel_builder/u4atkn.mp4"
+    },
+    {
+      "text": "أهلاً بك!",
+      "hash": "2j03lb",
+      "output": "/precache/bassel_builder/2j03lb.mp4"
+    },
+    {
+      "text": "صباح الخير!",
+      "hash": "hzoxf9",
+      "output": "/precache/bassel_builder/hzoxf9.mp4"
+    },
+    {
+      "text": "Hello!",
+      "hash": "k76gjq",
+      "output": "/precache/bassel_builder/k76gjq.mp4"
+    },
+    {
+      "text": "أنت بطل! استمر في المحاولة!",
+      "hash": "ner41n",
+      "output": "/precache/bassel_builder/ner41n.mp4"
+    },
+    {
+      "text": "You're amazing! Keep trying!",
+      "hash": "rd8rvv",
+      "output": "/precache/bassel_builder/rd8rvv.mp4"
+    },
+    {
+      "text": "واو! أحسنت!",
+      "hash": "13s7pr",
+      "output": "/precache/bassel_builder/13s7pr.mp4"
+    },
+    {
+      "text": "عمل رائع!",
+      "hash": "5cc7sv",
+      "output": "/precache/bassel_builder/5cc7sv.mp4"
+    },
+    {
+      "text": "مذهل! استمر!",
+      "hash": "xg7hxb",
+      "output": "/precache/bassel_builder/xg7hxb.mp4"
+    },
+    {
+      "text": "Great job!",
+      "hash": "p001zg",
+      "output": "/precache/bassel_builder/p001zg.mp4"
+    },
+    {
+      "text": "أحسنت!",
+      "hash": "ei4nhj",
+      "output": "/precache/bassel_builder/ei4nhj.mp4"
+    },
+    {
+      "text": "ممتاز!",
+      "hash": "7yt6qb",
+      "output": "/precache/bassel_builder/7yt6qb.mp4"
+    },
+    {
+      "text": "رائع!",
+      "hash": "y9qj7h",
+      "output": "/precache/bassel_builder/y9qj7h.mp4"
+    },
+    {
+      "text": "برافو!",
+      "hash": "b72a41",
+      "output": "/precache/bassel_builder/b72a41.mp4"
+    },
+    {
+      "text": "واو!",
+      "hash": "zhou8t",
+      "output": "/precache/bassel_builder/zhou8t.mp4"
+    },
+    {
+      "text": "Awesome!",
+      "hash": "emhmbb",
+      "output": "/precache/bassel_builder/emhmbb.mp4"
+    },
+    {
+      "text": "لا بأس! حاول مرة أخرى!",
+      "hash": "29wucm",
+      "output": "/precache/bassel_builder/29wucm.mp4"
+    },
+    {
+      "text": "لا تستسلم!",
+      "hash": "97b7is",
+      "output": "/precache/bassel_builder/97b7is.mp4"
+    },
+    {
+      "text": "أنت تستطيع!",
+      "hash": "pf7nc6",
+      "output": "/precache/bassel_builder/pf7nc6.mp4"
+    },
+    {
+      "text": "حاول مرة أخرى!",
+      "hash": "9596pc",
+      "output": "/precache/bassel_builder/9596pc.mp4"
+    },
+    {
+      "text": "It's okay, try again!",
+      "hash": "ii005g",
+      "output": "/precache/bassel_builder/ii005g.mp4"
+    },
+    {
+      "text": "You can do it!",
+      "hash": "849vzv",
+      "output": "/precache/bassel_builder/849vzv.mp4"
+    },
+    {
+      "text": "نعم!",
+      "hash": "zhnpu2",
+      "output": "/precache/bassel_builder/zhnpu2.mp4"
+    },
+    {
+      "text": "صحيح!",
+      "hash": "ycpnrz",
+      "output": "/precache/bassel_builder/ycpnrz.mp4"
+    },
+    {
+      "text": "تمام!",
+      "hash": "y5fqsh",
+      "output": "/precache/bassel_builder/y5fqsh.mp4"
+    },
+    {
+      "text": "بالضبط!",
+      "hash": "k8a1ua",
+      "output": "/precache/bassel_builder/k8a1ua.mp4"
+    },
+    {
+      "text": "فكرة رائعة!",
+      "hash": "q010kk",
+      "output": "/precache/bassel_builder/q010kk.mp4"
+    },
+    {
+      "text": "That's right!",
+      "hash": "kchasv",
+      "output": "/precache/bassel_builder/kchasv.mp4"
+    },
+    {
+      "text": "هل تريد أن نلعب معاً؟",
+      "hash": "90yqd5",
+      "output": "/precache/bassel_builder/90yqd5.mp4"
+    },
+    {
+      "text": "Shall we play together?",
+      "hash": "21ygj0",
+      "output": "/precache/bassel_builder/21ygj0.mp4"
+    },
+    {
+      "text": "ما رأيك في تجربة شيء جديد؟",
+      "hash": "5mgo49",
+      "output": "/precache/bassel_builder/5mgo49.mp4"
+    },
+    {
+      "text": "هل تريد أن نرسم؟",
+      "hash": "59h1c5",
+      "output": "/precache/bassel_builder/59h1c5.mp4"
+    },
+    {
+      "text": "ما رأيك؟",
+      "hash": "2t8hip",
+      "output": "/precache/bassel_builder/2t8hip.mp4"
+    },
+    {
+      "text": "What do you think?",
+      "hash": "2sfc0q",
+      "output": "/precache/bassel_builder/2sfc0q.mp4"
+    },
+    {
+      "text": "هل تعلم؟ تعلم الأشياء الجديدة ممتع!",
+      "hash": "5jv05t",
+      "output": "/precache/bassel_builder/5jv05t.mp4"
+    },
+    {
+      "text": "Did you know? Learning is fun!",
+      "hash": "xrpaav",
+      "output": "/precache/bassel_builder/xrpaav.mp4"
+    },
+    {
+      "text": "لنكتشف شيئاً جديداً معاً!",
+      "hash": "i5za2m",
+      "output": "/precache/bassel_builder/i5za2m.mp4"
+    },
+    {
+      "text": "هل تعلم؟",
+      "hash": "s5dd7p",
+      "output": "/precache/bassel_builder/s5dd7p.mp4"
+    },
+    {
+      "text": "التعلم ممتع!",
+      "hash": "xi4lp2",
+      "output": "/precache/bassel_builder/xi4lp2.mp4"
+    },
+    {
+      "text": "Let's discover something new!",
+      "hash": "g8v1oc",
+      "output": "/precache/bassel_builder/g8v1oc.mp4"
+    },
+    {
+      "text": "لحظة!",
+      "hash": "ynaihk",
+      "output": "/precache/bassel_builder/ynaihk.mp4"
+    },
+    {
+      "text": "دعني أفكر!",
+      "hash": "3pebw6",
+      "output": "/precache/bassel_builder/3pebw6.mp4"
+    },
+    {
+      "text": "هممم...",
+      "hash": "m0tp8l",
+      "output": "/precache/bassel_builder/m0tp8l.mp4"
+    },
+    {
+      "text": "One moment!",
+      "hash": "8ej00o",
+      "output": "/precache/bassel_builder/8ej00o.mp4"
+    },
+    {
+      "text": "Let me think!",
+      "hash": "hhsz8l",
+      "output": "/precache/bassel_builder/hhsz8l.mp4"
+    },
+    {
+      "text": "لا تقلق!",
+      "hash": "865o4j",
+      "output": "/precache/bassel_builder/865o4j.mp4"
+    },
+    {
+      "text": "أفهم شعورك!",
+      "hash": "t4tr6p",
+      "output": "/precache/bassel_builder/t4tr6p.mp4"
+    },
+    {
+      "text": "كل شيء سيكون بخير!",
+      "hash": "6q48ln",
+      "output": "/precache/bassel_builder/6q48ln.mp4"
+    },
+    {
+      "text": "أنا معك!",
+      "hash": "re6kq1",
+      "output": "/precache/bassel_builder/re6kq1.mp4"
+    },
+    {
+      "text": "Don't worry!",
+      "hash": "vue3yd",
+      "output": "/precache/bassel_builder/vue3yd.mp4"
+    },
+    {
+      "text": "I'm here with you!",
+      "hash": "us2y9s",
+      "output": "/precache/bassel_builder/us2y9s.mp4"
+    },
+    {
+      "text": "إلى اللقاء! أراك قريباً!",
+      "hash": "g1bad5",
+      "output": "/precache/bassel_builder/g1bad5.mp4"
+    },
+    {
+      "text": "Goodbye! See you soon!",
+      "hash": "akex7b",
+      "output": "/precache/bassel_builder/akex7b.mp4"
+    },
+    {
+      "text": "كان وقتاً جميلاً معك!",
+      "hash": "az2xpq",
+      "output": "/precache/bassel_builder/az2xpq.mp4"
+    },
+    {
+      "text": "أراك قريباً!",
+      "hash": "ajbxk5",
+      "output": "/precache/bassel_builder/ajbxk5.mp4"
+    },
+    {
+      "text": "إلى اللقاء!",
+      "hash": "1amjw1",
+      "output": "/precache/bassel_builder/1amjw1.mp4"
+    },
+    {
+      "text": "See you soon!",
+      "hash": "sqahpd",
+      "output": "/precache/bassel_builder/sqahpd.mp4"
+    },
+    {
+      "text": "هيا نلعب!",
+      "hash": "okh3d5",
+      "output": "/precache/bassel_builder/okh3d5.mp4"
+    },
+    {
+      "text": "هيا نرسم!",
+      "hash": "ok2c7h",
+      "output": "/precache/bassel_builder/ok2c7h.mp4"
+    },
+    {
+      "text": "هيا نغني!",
+      "hash": "ok9pv2",
+      "output": "/precache/bassel_builder/ok9pv2.mp4"
+    },
+    {
+      "text": "هيا نكتشف!",
+      "hash": "tefwcm",
+      "output": "/precache/bassel_builder/tefwcm.mp4"
+    },
+    {
+      "text": "Let's play!",
+      "hash": "fc1xfp",
+      "output": "/precache/bassel_builder/fc1xfp.mp4"
+    },
+    {
+      "text": "Let's draw!",
+      "hash": "fkebv1",
+      "output": "/precache/bassel_builder/fkebv1.mp4"
+    }
+  ],
+  "yousef_why": [
+    {
+      "text": "مرحباً! كيف حالك اليوم؟",
+      "hash": "gvmw8d",
+      "output": "/precache/yousef_why/gvmw8d.mp4"
+    },
+    {
+      "text": "Hello! How are you today?",
+      "hash": "d9qzmr",
+      "output": "/precache/yousef_why/d9qzmr.mp4"
+    },
+    {
+      "text": "أهلاً وسهلاً بك!",
+      "hash": "u4atkn",
+      "output": "/precache/yousef_why/u4atkn.mp4"
+    },
+    {
+      "text": "أهلاً بك!",
+      "hash": "2j03lb",
+      "output": "/precache/yousef_why/2j03lb.mp4"
+    },
+    {
+      "text": "صباح الخير!",
+      "hash": "hzoxf9",
+      "output": "/precache/yousef_why/hzoxf9.mp4"
+    },
+    {
+      "text": "Hello!",
+      "hash": "k76gjq",
+      "output": "/precache/yousef_why/k76gjq.mp4"
+    },
+    {
+      "text": "أنت بطل! استمر في المحاولة!",
+      "hash": "ner41n",
+      "output": "/precache/yousef_why/ner41n.mp4"
+    },
+    {
+      "text": "You're amazing! Keep trying!",
+      "hash": "rd8rvv",
+      "output": "/precache/yousef_why/rd8rvv.mp4"
+    },
+    {
+      "text": "واو! أحسنت!",
+      "hash": "13s7pr",
+      "output": "/precache/yousef_why/13s7pr.mp4"
+    },
+    {
+      "text": "عمل رائع!",
+      "hash": "5cc7sv",
+      "output": "/precache/yousef_why/5cc7sv.mp4"
+    },
+    {
+      "text": "مذهل! استمر!",
+      "hash": "xg7hxb",
+      "output": "/precache/yousef_why/xg7hxb.mp4"
+    },
+    {
+      "text": "Great job!",
+      "hash": "p001zg",
+      "output": "/precache/yousef_why/p001zg.mp4"
+    },
+    {
+      "text": "أحسنت!",
+      "hash": "ei4nhj",
+      "output": "/precache/yousef_why/ei4nhj.mp4"
+    },
+    {
+      "text": "ممتاز!",
+      "hash": "7yt6qb",
+      "output": "/precache/yousef_why/7yt6qb.mp4"
+    },
+    {
+      "text": "رائع!",
+      "hash": "y9qj7h",
+      "output": "/precache/yousef_why/y9qj7h.mp4"
+    },
+    {
+      "text": "برافو!",
+      "hash": "b72a41",
+      "output": "/precache/yousef_why/b72a41.mp4"
+    },
+    {
+      "text": "واو!",
+      "hash": "zhou8t",
+      "output": "/precache/yousef_why/zhou8t.mp4"
+    },
+    {
+      "text": "Awesome!",
+      "hash": "emhmbb",
+      "output": "/precache/yousef_why/emhmbb.mp4"
+    },
+    {
+      "text": "لا بأس! حاول مرة أخرى!",
+      "hash": "29wucm",
+      "output": "/precache/yousef_why/29wucm.mp4"
+    },
+    {
+      "text": "لا تستسلم!",
+      "hash": "97b7is",
+      "output": "/precache/yousef_why/97b7is.mp4"
+    },
+    {
+      "text": "أنت تستطيع!",
+      "hash": "pf7nc6",
+      "output": "/precache/yousef_why/pf7nc6.mp4"
+    },
+    {
+      "text": "حاول مرة أخرى!",
+      "hash": "9596pc",
+      "output": "/precache/yousef_why/9596pc.mp4"
+    },
+    {
+      "text": "It's okay, try again!",
+      "hash": "ii005g",
+      "output": "/precache/yousef_why/ii005g.mp4"
+    },
+    {
+      "text": "You can do it!",
+      "hash": "849vzv",
+      "output": "/precache/yousef_why/849vzv.mp4"
+    },
+    {
+      "text": "نعم!",
+      "hash": "zhnpu2",
+      "output": "/precache/yousef_why/zhnpu2.mp4"
+    },
+    {
+      "text": "صحيح!",
+      "hash": "ycpnrz",
+      "output": "/precache/yousef_why/ycpnrz.mp4"
+    },
+    {
+      "text": "تمام!",
+      "hash": "y5fqsh",
+      "output": "/precache/yousef_why/y5fqsh.mp4"
+    },
+    {
+      "text": "بالضبط!",
+      "hash": "k8a1ua",
+      "output": "/precache/yousef_why/k8a1ua.mp4"
+    },
+    {
+      "text": "فكرة رائعة!",
+      "hash": "q010kk",
+      "output": "/precache/yousef_why/q010kk.mp4"
+    },
+    {
+      "text": "That's right!",
+      "hash": "kchasv",
+      "output": "/precache/yousef_why/kchasv.mp4"
+    },
+    {
+      "text": "هل تريد أن نلعب معاً؟",
+      "hash": "90yqd5",
+      "output": "/precache/yousef_why/90yqd5.mp4"
+    },
+    {
+      "text": "Shall we play together?",
+      "hash": "21ygj0",
+      "output": "/precache/yousef_why/21ygj0.mp4"
+    },
+    {
+      "text": "ما رأيك في تجربة شيء جديد؟",
+      "hash": "5mgo49",
+      "output": "/precache/yousef_why/5mgo49.mp4"
+    },
+    {
+      "text": "هل تريد أن نرسم؟",
+      "hash": "59h1c5",
+      "output": "/precache/yousef_why/59h1c5.mp4"
+    },
+    {
+      "text": "ما رأيك؟",
+      "hash": "2t8hip",
+      "output": "/precache/yousef_why/2t8hip.mp4"
+    },
+    {
+      "text": "What do you think?",
+      "hash": "2sfc0q",
+      "output": "/precache/yousef_why/2sfc0q.mp4"
+    },
+    {
+      "text": "هل تعلم؟ تعلم الأشياء الجديدة ممتع!",
+      "hash": "5jv05t",
+      "output": "/precache/yousef_why/5jv05t.mp4"
+    },
+    {
+      "text": "Did you know? Learning is fun!",
+      "hash": "xrpaav",
+      "output": "/precache/yousef_why/xrpaav.mp4"
+    },
+    {
+      "text": "لنكتشف شيئاً جديداً معاً!",
+      "hash": "i5za2m",
+      "output": "/precache/yousef_why/i5za2m.mp4"
+    },
+    {
+      "text": "هل تعلم؟",
+      "hash": "s5dd7p",
+      "output": "/precache/yousef_why/s5dd7p.mp4"
+    },
+    {
+      "text": "التعلم ممتع!",
+      "hash": "xi4lp2",
+      "output": "/precache/yousef_why/xi4lp2.mp4"
+    },
+    {
+      "text": "Let's discover something new!",
+      "hash": "g8v1oc",
+      "output": "/precache/yousef_why/g8v1oc.mp4"
+    },
+    {
+      "text": "لحظة!",
+      "hash": "ynaihk",
+      "output": "/precache/yousef_why/ynaihk.mp4"
+    },
+    {
+      "text": "دعني أفكر!",
+      "hash": "3pebw6",
+      "output": "/precache/yousef_why/3pebw6.mp4"
+    },
+    {
+      "text": "هممم...",
+      "hash": "m0tp8l",
+      "output": "/precache/yousef_why/m0tp8l.mp4"
+    },
+    {
+      "text": "One moment!",
+      "hash": "8ej00o",
+      "output": "/precache/yousef_why/8ej00o.mp4"
+    },
+    {
+      "text": "Let me think!",
+      "hash": "hhsz8l",
+      "output": "/precache/yousef_why/hhsz8l.mp4"
+    },
+    {
+      "text": "لا تقلق!",
+      "hash": "865o4j",
+      "output": "/precache/yousef_why/865o4j.mp4"
+    },
+    {
+      "text": "أفهم شعورك!",
+      "hash": "t4tr6p",
+      "output": "/precache/yousef_why/t4tr6p.mp4"
+    },
+    {
+      "text": "كل شيء سيكون بخير!",
+      "hash": "6q48ln",
+      "output": "/precache/yousef_why/6q48ln.mp4"
+    },
+    {
+      "text": "أنا معك!",
+      "hash": "re6kq1",
+      "output": "/precache/yousef_why/re6kq1.mp4"
+    },
+    {
+      "text": "Don't worry!",
+      "hash": "vue3yd",
+      "output": "/precache/yousef_why/vue3yd.mp4"
+    },
+    {
+      "text": "I'm here with you!",
+      "hash": "us2y9s",
+      "output": "/precache/yousef_why/us2y9s.mp4"
+    },
+    {
+      "text": "إلى اللقاء! أراك قريباً!",
+      "hash": "g1bad5",
+      "output": "/precache/yousef_why/g1bad5.mp4"
+    },
+    {
+      "text": "Goodbye! See you soon!",
+      "hash": "akex7b",
+      "output": "/precache/yousef_why/akex7b.mp4"
+    },
+    {
+      "text": "كان وقتاً جميلاً معك!",
+      "hash": "az2xpq",
+      "output": "/precache/yousef_why/az2xpq.mp4"
+    },
+    {
+      "text": "أراك قريباً!",
+      "hash": "ajbxk5",
+      "output": "/precache/yousef_why/ajbxk5.mp4"
+    },
+    {
+      "text": "إلى اللقاء!",
+      "hash": "1amjw1",
+      "output": "/precache/yousef_why/1amjw1.mp4"
+    },
+    {
+      "text": "See you soon!",
+      "hash": "sqahpd",
+      "output": "/precache/yousef_why/sqahpd.mp4"
+    },
+    {
+      "text": "هيا نلعب!",
+      "hash": "okh3d5",
+      "output": "/precache/yousef_why/okh3d5.mp4"
+    },
+    {
+      "text": "هيا نرسم!",
+      "hash": "ok2c7h",
+      "output": "/precache/yousef_why/ok2c7h.mp4"
+    },
+    {
+      "text": "هيا نغني!",
+      "hash": "ok9pv2",
+      "output": "/precache/yousef_why/ok9pv2.mp4"
+    },
+    {
+      "text": "هيا نكتشف!",
+      "hash": "tefwcm",
+      "output": "/precache/yousef_why/tefwcm.mp4"
+    },
+    {
+      "text": "Let's play!",
+      "hash": "fc1xfp",
+      "output": "/precache/yousef_why/fc1xfp.mp4"
+    },
+    {
+      "text": "Let's draw!",
+      "hash": "fkebv1",
+      "output": "/precache/yousef_why/fkebv1.mp4"
+    }
+  ],
+  "kareem_kick": [
+    {
+      "text": "مرحباً! كيف حالك اليوم؟",
+      "hash": "gvmw8d",
+      "output": "/precache/kareem_kick/gvmw8d.mp4"
+    },
+    {
+      "text": "Hello! How are you today?",
+      "hash": "d9qzmr",
+      "output": "/precache/kareem_kick/d9qzmr.mp4"
+    },
+    {
+      "text": "أهلاً وسهلاً بك!",
+      "hash": "u4atkn",
+      "output": "/precache/kareem_kick/u4atkn.mp4"
+    },
+    {
+      "text": "أهلاً بك!",
+      "hash": "2j03lb",
+      "output": "/precache/kareem_kick/2j03lb.mp4"
+    },
+    {
+      "text": "صباح الخير!",
+      "hash": "hzoxf9",
+      "output": "/precache/kareem_kick/hzoxf9.mp4"
+    },
+    {
+      "text": "Hello!",
+      "hash": "k76gjq",
+      "output": "/precache/kareem_kick/k76gjq.mp4"
+    },
+    {
+      "text": "أنت بطل! استمر في المحاولة!",
+      "hash": "ner41n",
+      "output": "/precache/kareem_kick/ner41n.mp4"
+    },
+    {
+      "text": "You're amazing! Keep trying!",
+      "hash": "rd8rvv",
+      "output": "/precache/kareem_kick/rd8rvv.mp4"
+    },
+    {
+      "text": "واو! أحسنت!",
+      "hash": "13s7pr",
+      "output": "/precache/kareem_kick/13s7pr.mp4"
+    },
+    {
+      "text": "عمل رائع!",
+      "hash": "5cc7sv",
+      "output": "/precache/kareem_kick/5cc7sv.mp4"
+    },
+    {
+      "text": "مذهل! استمر!",
+      "hash": "xg7hxb",
+      "output": "/precache/kareem_kick/xg7hxb.mp4"
+    },
+    {
+      "text": "Great job!",
+      "hash": "p001zg",
+      "output": "/precache/kareem_kick/p001zg.mp4"
+    },
+    {
+      "text": "أحسنت!",
+      "hash": "ei4nhj",
+      "output": "/precache/kareem_kick/ei4nhj.mp4"
+    },
+    {
+      "text": "ممتاز!",
+      "hash": "7yt6qb",
+      "output": "/precache/kareem_kick/7yt6qb.mp4"
+    },
+    {
+      "text": "رائع!",
+      "hash": "y9qj7h",
+      "output": "/precache/kareem_kick/y9qj7h.mp4"
+    },
+    {
+      "text": "برافو!",
+      "hash": "b72a41",
+      "output": "/precache/kareem_kick/b72a41.mp4"
+    },
+    {
+      "text": "واو!",
+      "hash": "zhou8t",
+      "output": "/precache/kareem_kick/zhou8t.mp4"
+    },
+    {
+      "text": "Awesome!",
+      "hash": "emhmbb",
+      "output": "/precache/kareem_kick/emhmbb.mp4"
+    },
+    {
+      "text": "لا بأس! حاول مرة أخرى!",
+      "hash": "29wucm",
+      "output": "/precache/kareem_kick/29wucm.mp4"
+    },
+    {
+      "text": "لا تستسلم!",
+      "hash": "97b7is",
+      "output": "/precache/kareem_kick/97b7is.mp4"
+    },
+    {
+      "text": "أنت تستطيع!",
+      "hash": "pf7nc6",
+      "output": "/precache/kareem_kick/pf7nc6.mp4"
+    },
+    {
+      "text": "حاول مرة أخرى!",
+      "hash": "9596pc",
+      "output": "/precache/kareem_kick/9596pc.mp4"
+    },
+    {
+      "text": "It's okay, try again!",
+      "hash": "ii005g",
+      "output": "/precache/kareem_kick/ii005g.mp4"
+    },
+    {
+      "text": "You can do it!",
+      "hash": "849vzv",
+      "output": "/precache/kareem_kick/849vzv.mp4"
+    },
+    {
+      "text": "نعم!",
+      "hash": "zhnpu2",
+      "output": "/precache/kareem_kick/zhnpu2.mp4"
+    },
+    {
+      "text": "صحيح!",
+      "hash": "ycpnrz",
+      "output": "/precache/kareem_kick/ycpnrz.mp4"
+    },
+    {
+      "text": "تمام!",
+      "hash": "y5fqsh",
+      "output": "/precache/kareem_kick/y5fqsh.mp4"
+    },
+    {
+      "text": "بالضبط!",
+      "hash": "k8a1ua",
+      "output": "/precache/kareem_kick/k8a1ua.mp4"
+    },
+    {
+      "text": "فكرة رائعة!",
+      "hash": "q010kk",
+      "output": "/precache/kareem_kick/q010kk.mp4"
+    },
+    {
+      "text": "That's right!",
+      "hash": "kchasv",
+      "output": "/precache/kareem_kick/kchasv.mp4"
+    },
+    {
+      "text": "هل تريد أن نلعب معاً؟",
+      "hash": "90yqd5",
+      "output": "/precache/kareem_kick/90yqd5.mp4"
+    },
+    {
+      "text": "Shall we play together?",
+      "hash": "21ygj0",
+      "output": "/precache/kareem_kick/21ygj0.mp4"
+    },
+    {
+      "text": "ما رأيك في تجربة شيء جديد؟",
+      "hash": "5mgo49",
+      "output": "/precache/kareem_kick/5mgo49.mp4"
+    },
+    {
+      "text": "هل تريد أن نرسم؟",
+      "hash": "59h1c5",
+      "output": "/precache/kareem_kick/59h1c5.mp4"
+    },
+    {
+      "text": "ما رأيك؟",
+      "hash": "2t8hip",
+      "output": "/precache/kareem_kick/2t8hip.mp4"
+    },
+    {
+      "text": "What do you think?",
+      "hash": "2sfc0q",
+      "output": "/precache/kareem_kick/2sfc0q.mp4"
+    },
+    {
+      "text": "هل تعلم؟ تعلم الأشياء الجديدة ممتع!",
+      "hash": "5jv05t",
+      "output": "/precache/kareem_kick/5jv05t.mp4"
+    },
+    {
+      "text": "Did you know? Learning is fun!",
+      "hash": "xrpaav",
+      "output": "/precache/kareem_kick/xrpaav.mp4"
+    },
+    {
+      "text": "لنكتشف شيئاً جديداً معاً!",
+      "hash": "i5za2m",
+      "output": "/precache/kareem_kick/i5za2m.mp4"
+    },
+    {
+      "text": "هل تعلم؟",
+      "hash": "s5dd7p",
+      "output": "/precache/kareem_kick/s5dd7p.mp4"
+    },
+    {
+      "text": "التعلم ممتع!",
+      "hash": "xi4lp2",
+      "output": "/precache/kareem_kick/xi4lp2.mp4"
+    },
+    {
+      "text": "Let's discover something new!",
+      "hash": "g8v1oc",
+      "output": "/precache/kareem_kick/g8v1oc.mp4"
+    },
+    {
+      "text": "لحظة!",
+      "hash": "ynaihk",
+      "output": "/precache/kareem_kick/ynaihk.mp4"
+    },
+    {
+      "text": "دعني أفكر!",
+      "hash": "3pebw6",
+      "output": "/precache/kareem_kick/3pebw6.mp4"
+    },
+    {
+      "text": "هممم...",
+      "hash": "m0tp8l",
+      "output": "/precache/kareem_kick/m0tp8l.mp4"
+    },
+    {
+      "text": "One moment!",
+      "hash": "8ej00o",
+      "output": "/precache/kareem_kick/8ej00o.mp4"
+    },
+    {
+      "text": "Let me think!",
+      "hash": "hhsz8l",
+      "output": "/precache/kareem_kick/hhsz8l.mp4"
+    },
+    {
+      "text": "لا تقلق!",
+      "hash": "865o4j",
+      "output": "/precache/kareem_kick/865o4j.mp4"
+    },
+    {
+      "text": "أفهم شعورك!",
+      "hash": "t4tr6p",
+      "output": "/precache/kareem_kick/t4tr6p.mp4"
+    },
+    {
+      "text": "كل شيء سيكون بخير!",
+      "hash": "6q48ln",
+      "output": "/precache/kareem_kick/6q48ln.mp4"
+    },
+    {
+      "text": "أنا معك!",
+      "hash": "re6kq1",
+      "output": "/precache/kareem_kick/re6kq1.mp4"
+    },
+    {
+      "text": "Don't worry!",
+      "hash": "vue3yd",
+      "output": "/precache/kareem_kick/vue3yd.mp4"
+    },
+    {
+      "text": "I'm here with you!",
+      "hash": "us2y9s",
+      "output": "/precache/kareem_kick/us2y9s.mp4"
+    },
+    {
+      "text": "إلى اللقاء! أراك قريباً!",
+      "hash": "g1bad5",
+      "output": "/precache/kareem_kick/g1bad5.mp4"
+    },
+    {
+      "text": "Goodbye! See you soon!",
+      "hash": "akex7b",
+      "output": "/precache/kareem_kick/akex7b.mp4"
+    },
+    {
+      "text": "كان وقتاً جميلاً معك!",
+      "hash": "az2xpq",
+      "output": "/precache/kareem_kick/az2xpq.mp4"
+    },
+    {
+      "text": "أراك قريباً!",
+      "hash": "ajbxk5",
+      "output": "/precache/kareem_kick/ajbxk5.mp4"
+    },
+    {
+      "text": "إلى اللقاء!",
+      "hash": "1amjw1",
+      "output": "/precache/kareem_kick/1amjw1.mp4"
+    },
+    {
+      "text": "See you soon!",
+      "hash": "sqahpd",
+      "output": "/precache/kareem_kick/sqahpd.mp4"
+    },
+    {
+      "text": "هيا نلعب!",
+      "hash": "okh3d5",
+      "output": "/precache/kareem_kick/okh3d5.mp4"
+    },
+    {
+      "text": "هيا نرسم!",
+      "hash": "ok2c7h",
+      "output": "/precache/kareem_kick/ok2c7h.mp4"
+    },
+    {
+      "text": "هيا نغني!",
+      "hash": "ok9pv2",
+      "output": "/precache/kareem_kick/ok9pv2.mp4"
+    },
+    {
+      "text": "هيا نكتشف!",
+      "hash": "tefwcm",
+      "output": "/precache/kareem_kick/tefwcm.mp4"
+    },
+    {
+      "text": "Let's play!",
+      "hash": "fc1xfp",
+      "output": "/precache/kareem_kick/fc1xfp.mp4"
+    },
+    {
+      "text": "Let's draw!",
+      "hash": "fkebv1",
+      "output": "/precache/kareem_kick/fkebv1.mp4"
+    }
+  ],
+  "zack_zoo": [
+    {
+      "text": "مرحباً! كيف حالك اليوم؟",
+      "hash": "gvmw8d",
+      "output": "/precache/zack_zoo/gvmw8d.mp4"
+    },
+    {
+      "text": "Hello! How are you today?",
+      "hash": "d9qzmr",
+      "output": "/precache/zack_zoo/d9qzmr.mp4"
+    },
+    {
+      "text": "أهلاً وسهلاً بك!",
+      "hash": "u4atkn",
+      "output": "/precache/zack_zoo/u4atkn.mp4"
+    },
+    {
+      "text": "أهلاً بك!",
+      "hash": "2j03lb",
+      "output": "/precache/zack_zoo/2j03lb.mp4"
+    },
+    {
+      "text": "صباح الخير!",
+      "hash": "hzoxf9",
+      "output": "/precache/zack_zoo/hzoxf9.mp4"
+    },
+    {
+      "text": "Hello!",
+      "hash": "k76gjq",
+      "output": "/precache/zack_zoo/k76gjq.mp4"
+    },
+    {
+      "text": "أنت بطل! استمر في المحاولة!",
+      "hash": "ner41n",
+      "output": "/precache/zack_zoo/ner41n.mp4"
+    },
+    {
+      "text": "You're amazing! Keep trying!",
+      "hash": "rd8rvv",
+      "output": "/precache/zack_zoo/rd8rvv.mp4"
+    },
+    {
+      "text": "واو! أحسنت!",
+      "hash": "13s7pr",
+      "output": "/precache/zack_zoo/13s7pr.mp4"
+    },
+    {
+      "text": "عمل رائع!",
+      "hash": "5cc7sv",
+      "output": "/precache/zack_zoo/5cc7sv.mp4"
+    },
+    {
+      "text": "مذهل! استمر!",
+      "hash": "xg7hxb",
+      "output": "/precache/zack_zoo/xg7hxb.mp4"
+    },
+    {
+      "text": "Great job!",
+      "hash": "p001zg",
+      "output": "/precache/zack_zoo/p001zg.mp4"
+    },
+    {
+      "text": "أحسنت!",
+      "hash": "ei4nhj",
+      "output": "/precache/zack_zoo/ei4nhj.mp4"
+    },
+    {
+      "text": "ممتاز!",
+      "hash": "7yt6qb",
+      "output": "/precache/zack_zoo/7yt6qb.mp4"
+    },
+    {
+      "text": "رائع!",
+      "hash": "y9qj7h",
+      "output": "/precache/zack_zoo/y9qj7h.mp4"
+    },
+    {
+      "text": "برافو!",
+      "hash": "b72a41",
+      "output": "/precache/zack_zoo/b72a41.mp4"
+    },
+    {
+      "text": "واو!",
+      "hash": "zhou8t",
+      "output": "/precache/zack_zoo/zhou8t.mp4"
+    },
+    {
+      "text": "Awesome!",
+      "hash": "emhmbb",
+      "output": "/precache/zack_zoo/emhmbb.mp4"
+    },
+    {
+      "text": "لا بأس! حاول مرة أخرى!",
+      "hash": "29wucm",
+      "output": "/precache/zack_zoo/29wucm.mp4"
+    },
+    {
+      "text": "لا تستسلم!",
+      "hash": "97b7is",
+      "output": "/precache/zack_zoo/97b7is.mp4"
+    },
+    {
+      "text": "أنت تستطيع!",
+      "hash": "pf7nc6",
+      "output": "/precache/zack_zoo/pf7nc6.mp4"
+    },
+    {
+      "text": "حاول مرة أخرى!",
+      "hash": "9596pc",
+      "output": "/precache/zack_zoo/9596pc.mp4"
+    },
+    {
+      "text": "It's okay, try again!",
+      "hash": "ii005g",
+      "output": "/precache/zack_zoo/ii005g.mp4"
+    },
+    {
+      "text": "You can do it!",
+      "hash": "849vzv",
+      "output": "/precache/zack_zoo/849vzv.mp4"
+    },
+    {
+      "text": "نعم!",
+      "hash": "zhnpu2",
+      "output": "/precache/zack_zoo/zhnpu2.mp4"
+    },
+    {
+      "text": "صحيح!",
+      "hash": "ycpnrz",
+      "output": "/precache/zack_zoo/ycpnrz.mp4"
+    },
+    {
+      "text": "تمام!",
+      "hash": "y5fqsh",
+      "output": "/precache/zack_zoo/y5fqsh.mp4"
+    },
+    {
+      "text": "بالضبط!",
+      "hash": "k8a1ua",
+      "output": "/precache/zack_zoo/k8a1ua.mp4"
+    },
+    {
+      "text": "فكرة رائعة!",
+      "hash": "q010kk",
+      "output": "/precache/zack_zoo/q010kk.mp4"
+    },
+    {
+      "text": "That's right!",
+      "hash": "kchasv",
+      "output": "/precache/zack_zoo/kchasv.mp4"
+    },
+    {
+      "text": "هل تريد أن نلعب معاً؟",
+      "hash": "90yqd5",
+      "output": "/precache/zack_zoo/90yqd5.mp4"
+    },
+    {
+      "text": "Shall we play together?",
+      "hash": "21ygj0",
+      "output": "/precache/zack_zoo/21ygj0.mp4"
+    },
+    {
+      "text": "ما رأيك في تجربة شيء جديد؟",
+      "hash": "5mgo49",
+      "output": "/precache/zack_zoo/5mgo49.mp4"
+    },
+    {
+      "text": "هل تريد أن نرسم؟",
+      "hash": "59h1c5",
+      "output": "/precache/zack_zoo/59h1c5.mp4"
+    },
+    {
+      "text": "ما رأيك؟",
+      "hash": "2t8hip",
+      "output": "/precache/zack_zoo/2t8hip.mp4"
+    },
+    {
+      "text": "What do you think?",
+      "hash": "2sfc0q",
+      "output": "/precache/zack_zoo/2sfc0q.mp4"
+    },
+    {
+      "text": "هل تعلم؟ تعلم الأشياء الجديدة ممتع!",
+      "hash": "5jv05t",
+      "output": "/precache/zack_zoo/5jv05t.mp4"
+    },
+    {
+      "text": "Did you know? Learning is fun!",
+      "hash": "xrpaav",
+      "output": "/precache/zack_zoo/xrpaav.mp4"
+    },
+    {
+      "text": "لنكتشف شيئاً جديداً معاً!",
+      "hash": "i5za2m",
+      "output": "/precache/zack_zoo/i5za2m.mp4"
+    },
+    {
+      "text": "هل تعلم؟",
+      "hash": "s5dd7p",
+      "output": "/precache/zack_zoo/s5dd7p.mp4"
+    },
+    {
+      "text": "التعلم ممتع!",
+      "hash": "xi4lp2",
+      "output": "/precache/zack_zoo/xi4lp2.mp4"
+    },
+    {
+      "text": "Let's discover something new!",
+      "hash": "g8v1oc",
+      "output": "/precache/zack_zoo/g8v1oc.mp4"
+    },
+    {
+      "text": "لحظة!",
+      "hash": "ynaihk",
+      "output": "/precache/zack_zoo/ynaihk.mp4"
+    },
+    {
+      "text": "دعني أفكر!",
+      "hash": "3pebw6",
+      "output": "/precache/zack_zoo/3pebw6.mp4"
+    },
+    {
+      "text": "هممم...",
+      "hash": "m0tp8l",
+      "output": "/precache/zack_zoo/m0tp8l.mp4"
+    },
+    {
+      "text": "One moment!",
+      "hash": "8ej00o",
+      "output": "/precache/zack_zoo/8ej00o.mp4"
+    },
+    {
+      "text": "Let me think!",
+      "hash": "hhsz8l",
+      "output": "/precache/zack_zoo/hhsz8l.mp4"
+    },
+    {
+      "text": "لا تقلق!",
+      "hash": "865o4j",
+      "output": "/precache/zack_zoo/865o4j.mp4"
+    },
+    {
+      "text": "أفهم شعورك!",
+      "hash": "t4tr6p",
+      "output": "/precache/zack_zoo/t4tr6p.mp4"
+    },
+    {
+      "text": "كل شيء سيكون بخير!",
+      "hash": "6q48ln",
+      "output": "/precache/zack_zoo/6q48ln.mp4"
+    },
+    {
+      "text": "أنا معك!",
+      "hash": "re6kq1",
+      "output": "/precache/zack_zoo/re6kq1.mp4"
+    },
+    {
+      "text": "Don't worry!",
+      "hash": "vue3yd",
+      "output": "/precache/zack_zoo/vue3yd.mp4"
+    },
+    {
+      "text": "I'm here with you!",
+      "hash": "us2y9s",
+      "output": "/precache/zack_zoo/us2y9s.mp4"
+    },
+    {
+      "text": "إلى اللقاء! أراك قريباً!",
+      "hash": "g1bad5",
+      "output": "/precache/zack_zoo/g1bad5.mp4"
+    },
+    {
+      "text": "Goodbye! See you soon!",
+      "hash": "akex7b",
+      "output": "/precache/zack_zoo/akex7b.mp4"
+    },
+    {
+      "text": "كان وقتاً جميلاً معك!",
+      "hash": "az2xpq",
+      "output": "/precache/zack_zoo/az2xpq.mp4"
+    },
+    {
+      "text": "أراك قريباً!",
+      "hash": "ajbxk5",
+      "output": "/precache/zack_zoo/ajbxk5.mp4"
+    },
+    {
+      "text": "إلى اللقاء!",
+      "hash": "1amjw1",
+      "output": "/precache/zack_zoo/1amjw1.mp4"
+    },
+    {
+      "text": "See you soon!",
+      "hash": "sqahpd",
+      "output": "/precache/zack_zoo/sqahpd.mp4"
+    },
+    {
+      "text": "هيا نلعب!",
+      "hash": "okh3d5",
+      "output": "/precache/zack_zoo/okh3d5.mp4"
+    },
+    {
+      "text": "هيا نرسم!",
+      "hash": "ok2c7h",
+      "output": "/precache/zack_zoo/ok2c7h.mp4"
+    },
+    {
+      "text": "هيا نغني!",
+      "hash": "ok9pv2",
+      "output": "/precache/zack_zoo/ok9pv2.mp4"
+    },
+    {
+      "text": "هيا نكتشف!",
+      "hash": "tefwcm",
+      "output": "/precache/zack_zoo/tefwcm.mp4"
+    },
+    {
+      "text": "Let's play!",
+      "hash": "fc1xfp",
+      "output": "/precache/zack_zoo/fc1xfp.mp4"
+    },
+    {
+      "text": "Let's draw!",
+      "hash": "fkebv1",
+      "output": "/precache/zack_zoo/fkebv1.mp4"
+    }
+  ],
+  "deema_drama": [
+    {
+      "text": "مرحباً! كيف حالك اليوم؟",
+      "hash": "gvmw8d",
+      "output": "/precache/deema_drama/gvmw8d.mp4"
+    },
+    {
+      "text": "Hello! How are you today?",
+      "hash": "d9qzmr",
+      "output": "/precache/deema_drama/d9qzmr.mp4"
+    },
+    {
+      "text": "أهلاً وسهلاً بك!",
+      "hash": "u4atkn",
+      "output": "/precache/deema_drama/u4atkn.mp4"
+    },
+    {
+      "text": "أهلاً بك!",
+      "hash": "2j03lb",
+      "output": "/precache/deema_drama/2j03lb.mp4"
+    },
+    {
+      "text": "صباح الخير!",
+      "hash": "hzoxf9",
+      "output": "/precache/deema_drama/hzoxf9.mp4"
+    },
+    {
+      "text": "Hello!",
+      "hash": "k76gjq",
+      "output": "/precache/deema_drama/k76gjq.mp4"
+    },
+    {
+      "text": "أنت بطل! استمر في المحاولة!",
+      "hash": "ner41n",
+      "output": "/precache/deema_drama/ner41n.mp4"
+    },
+    {
+      "text": "You're amazing! Keep trying!",
+      "hash": "rd8rvv",
+      "output": "/precache/deema_drama/rd8rvv.mp4"
+    },
+    {
+      "text": "واو! أحسنت!",
+      "hash": "13s7pr",
+      "output": "/precache/deema_drama/13s7pr.mp4"
+    },
+    {
+      "text": "عمل رائع!",
+      "hash": "5cc7sv",
+      "output": "/precache/deema_drama/5cc7sv.mp4"
+    },
+    {
+      "text": "مذهل! استمر!",
+      "hash": "xg7hxb",
+      "output": "/precache/deema_drama/xg7hxb.mp4"
+    },
+    {
+      "text": "Great job!",
+      "hash": "p001zg",
+      "output": "/precache/deema_drama/p001zg.mp4"
+    },
+    {
+      "text": "أحسنت!",
+      "hash": "ei4nhj",
+      "output": "/precache/deema_drama/ei4nhj.mp4"
+    },
+    {
+      "text": "ممتاز!",
+      "hash": "7yt6qb",
+      "output": "/precache/deema_drama/7yt6qb.mp4"
+    },
+    {
+      "text": "رائع!",
+      "hash": "y9qj7h",
+      "output": "/precache/deema_drama/y9qj7h.mp4"
+    },
+    {
+      "text": "برافو!",
+      "hash": "b72a41",
+      "output": "/precache/deema_drama/b72a41.mp4"
+    },
+    {
+      "text": "واو!",
+      "hash": "zhou8t",
+      "output": "/precache/deema_drama/zhou8t.mp4"
+    },
+    {
+      "text": "Awesome!",
+      "hash": "emhmbb",
+      "output": "/precache/deema_drama/emhmbb.mp4"
+    },
+    {
+      "text": "لا بأس! حاول مرة أخرى!",
+      "hash": "29wucm",
+      "output": "/precache/deema_drama/29wucm.mp4"
+    },
+    {
+      "text": "لا تستسلم!",
+      "hash": "97b7is",
+      "output": "/precache/deema_drama/97b7is.mp4"
+    },
+    {
+      "text": "أنت تستطيع!",
+      "hash": "pf7nc6",
+      "output": "/precache/deema_drama/pf7nc6.mp4"
+    },
+    {
+      "text": "حاول مرة أخرى!",
+      "hash": "9596pc",
+      "output": "/precache/deema_drama/9596pc.mp4"
+    },
+    {
+      "text": "It's okay, try again!",
+      "hash": "ii005g",
+      "output": "/precache/deema_drama/ii005g.mp4"
+    },
+    {
+      "text": "You can do it!",
+      "hash": "849vzv",
+      "output": "/precache/deema_drama/849vzv.mp4"
+    },
+    {
+      "text": "نعم!",
+      "hash": "zhnpu2",
+      "output": "/precache/deema_drama/zhnpu2.mp4"
+    },
+    {
+      "text": "صحيح!",
+      "hash": "ycpnrz",
+      "output": "/precache/deema_drama/ycpnrz.mp4"
+    },
+    {
+      "text": "تمام!",
+      "hash": "y5fqsh",
+      "output": "/precache/deema_drama/y5fqsh.mp4"
+    },
+    {
+      "text": "بالضبط!",
+      "hash": "k8a1ua",
+      "output": "/precache/deema_drama/k8a1ua.mp4"
+    },
+    {
+      "text": "فكرة رائعة!",
+      "hash": "q010kk",
+      "output": "/precache/deema_drama/q010kk.mp4"
+    },
+    {
+      "text": "That's right!",
+      "hash": "kchasv",
+      "output": "/precache/deema_drama/kchasv.mp4"
+    },
+    {
+      "text": "هل تريد أن نلعب معاً؟",
+      "hash": "90yqd5",
+      "output": "/precache/deema_drama/90yqd5.mp4"
+    },
+    {
+      "text": "Shall we play together?",
+      "hash": "21ygj0",
+      "output": "/precache/deema_drama/21ygj0.mp4"
+    },
+    {
+      "text": "ما رأيك في تجربة شيء جديد؟",
+      "hash": "5mgo49",
+      "output": "/precache/deema_drama/5mgo49.mp4"
+    },
+    {
+      "text": "هل تريد أن نرسم؟",
+      "hash": "59h1c5",
+      "output": "/precache/deema_drama/59h1c5.mp4"
+    },
+    {
+      "text": "ما رأيك؟",
+      "hash": "2t8hip",
+      "output": "/precache/deema_drama/2t8hip.mp4"
+    },
+    {
+      "text": "What do you think?",
+      "hash": "2sfc0q",
+      "output": "/precache/deema_drama/2sfc0q.mp4"
+    },
+    {
+      "text": "هل تعلم؟ تعلم الأشياء الجديدة ممتع!",
+      "hash": "5jv05t",
+      "output": "/precache/deema_drama/5jv05t.mp4"
+    },
+    {
+      "text": "Did you know? Learning is fun!",
+      "hash": "xrpaav",
+      "output": "/precache/deema_drama/xrpaav.mp4"
+    },
+    {
+      "text": "لنكتشف شيئاً جديداً معاً!",
+      "hash": "i5za2m",
+      "output": "/precache/deema_drama/i5za2m.mp4"
+    },
+    {
+      "text": "هل تعلم؟",
+      "hash": "s5dd7p",
+      "output": "/precache/deema_drama/s5dd7p.mp4"
+    },
+    {
+      "text": "التعلم ممتع!",
+      "hash": "xi4lp2",
+      "output": "/precache/deema_drama/xi4lp2.mp4"
+    },
+    {
+      "text": "Let's discover something new!",
+      "hash": "g8v1oc",
+      "output": "/precache/deema_drama/g8v1oc.mp4"
+    },
+    {
+      "text": "لحظة!",
+      "hash": "ynaihk",
+      "output": "/precache/deema_drama/ynaihk.mp4"
+    },
+    {
+      "text": "دعني أفكر!",
+      "hash": "3pebw6",
+      "output": "/precache/deema_drama/3pebw6.mp4"
+    },
+    {
+      "text": "هممم...",
+      "hash": "m0tp8l",
+      "output": "/precache/deema_drama/m0tp8l.mp4"
+    },
+    {
+      "text": "One moment!",
+      "hash": "8ej00o",
+      "output": "/precache/deema_drama/8ej00o.mp4"
+    },
+    {
+      "text": "Let me think!",
+      "hash": "hhsz8l",
+      "output": "/precache/deema_drama/hhsz8l.mp4"
+    },
+    {
+      "text": "لا تقلق!",
+      "hash": "865o4j",
+      "output": "/precache/deema_drama/865o4j.mp4"
+    },
+    {
+      "text": "أفهم شعورك!",
+      "hash": "t4tr6p",
+      "output": "/precache/deema_drama/t4tr6p.mp4"
+    },
+    {
+      "text": "كل شيء سيكون بخير!",
+      "hash": "6q48ln",
+      "output": "/precache/deema_drama/6q48ln.mp4"
+    },
+    {
+      "text": "أنا معك!",
+      "hash": "re6kq1",
+      "output": "/precache/deema_drama/re6kq1.mp4"
+    },
+    {
+      "text": "Don't worry!",
+      "hash": "vue3yd",
+      "output": "/precache/deema_drama/vue3yd.mp4"
+    },
+    {
+      "text": "I'm here with you!",
+      "hash": "us2y9s",
+      "output": "/precache/deema_drama/us2y9s.mp4"
+    },
+    {
+      "text": "إلى اللقاء! أراك قريباً!",
+      "hash": "g1bad5",
+      "output": "/precache/deema_drama/g1bad5.mp4"
+    },
+    {
+      "text": "Goodbye! See you soon!",
+      "hash": "akex7b",
+      "output": "/precache/deema_drama/akex7b.mp4"
+    },
+    {
+      "text": "كان وقتاً جميلاً معك!",
+      "hash": "az2xpq",
+      "output": "/precache/deema_drama/az2xpq.mp4"
+    },
+    {
+      "text": "أراك قريباً!",
+      "hash": "ajbxk5",
+      "output": "/precache/deema_drama/ajbxk5.mp4"
+    },
+    {
+      "text": "إلى اللقاء!",
+      "hash": "1amjw1",
+      "output": "/precache/deema_drama/1amjw1.mp4"
+    },
+    {
+      "text": "See you soon!",
+      "hash": "sqahpd",
+      "output": "/precache/deema_drama/sqahpd.mp4"
+    },
+    {
+      "text": "هيا نلعب!",
+      "hash": "okh3d5",
+      "output": "/precache/deema_drama/okh3d5.mp4"
+    },
+    {
+      "text": "هيا نرسم!",
+      "hash": "ok2c7h",
+      "output": "/precache/deema_drama/ok2c7h.mp4"
+    },
+    {
+      "text": "هيا نغني!",
+      "hash": "ok9pv2",
+      "output": "/precache/deema_drama/ok9pv2.mp4"
+    },
+    {
+      "text": "هيا نكتشف!",
+      "hash": "tefwcm",
+      "output": "/precache/deema_drama/tefwcm.mp4"
+    },
+    {
+      "text": "Let's play!",
+      "hash": "fc1xfp",
+      "output": "/precache/deema_drama/fc1xfp.mp4"
+    },
+    {
+      "text": "Let's draw!",
+      "hash": "fkebv1",
+      "output": "/precache/deema_drama/fkebv1.mp4"
+    }
+  ],
+  "nour_nature": [
+    {
+      "text": "مرحباً! كيف حالك اليوم؟",
+      "hash": "gvmw8d",
+      "output": "/precache/nour_nature/gvmw8d.mp4"
+    },
+    {
+      "text": "Hello! How are you today?",
+      "hash": "d9qzmr",
+      "output": "/precache/nour_nature/d9qzmr.mp4"
+    },
+    {
+      "text": "أهلاً وسهلاً بك!",
+      "hash": "u4atkn",
+      "output": "/precache/nour_nature/u4atkn.mp4"
+    },
+    {
+      "text": "أهلاً بك!",
+      "hash": "2j03lb",
+      "output": "/precache/nour_nature/2j03lb.mp4"
+    },
+    {
+      "text": "صباح الخير!",
+      "hash": "hzoxf9",
+      "output": "/precache/nour_nature/hzoxf9.mp4"
+    },
+    {
+      "text": "Hello!",
+      "hash": "k76gjq",
+      "output": "/precache/nour_nature/k76gjq.mp4"
+    },
+    {
+      "text": "أنت بطل! استمر في المحاولة!",
+      "hash": "ner41n",
+      "output": "/precache/nour_nature/ner41n.mp4"
+    },
+    {
+      "text": "You're amazing! Keep trying!",
+      "hash": "rd8rvv",
+      "output": "/precache/nour_nature/rd8rvv.mp4"
+    },
+    {
+      "text": "واو! أحسنت!",
+      "hash": "13s7pr",
+      "output": "/precache/nour_nature/13s7pr.mp4"
+    },
+    {
+      "text": "عمل رائع!",
+      "hash": "5cc7sv",
+      "output": "/precache/nour_nature/5cc7sv.mp4"
+    },
+    {
+      "text": "مذهل! استمر!",
+      "hash": "xg7hxb",
+      "output": "/precache/nour_nature/xg7hxb.mp4"
+    },
+    {
+      "text": "Great job!",
+      "hash": "p001zg",
+      "output": "/precache/nour_nature/p001zg.mp4"
+    },
+    {
+      "text": "أحسنت!",
+      "hash": "ei4nhj",
+      "output": "/precache/nour_nature/ei4nhj.mp4"
+    },
+    {
+      "text": "ممتاز!",
+      "hash": "7yt6qb",
+      "output": "/precache/nour_nature/7yt6qb.mp4"
+    },
+    {
+      "text": "رائع!",
+      "hash": "y9qj7h",
+      "output": "/precache/nour_nature/y9qj7h.mp4"
+    },
+    {
+      "text": "برافو!",
+      "hash": "b72a41",
+      "output": "/precache/nour_nature/b72a41.mp4"
+    },
+    {
+      "text": "واو!",
+      "hash": "zhou8t",
+      "output": "/precache/nour_nature/zhou8t.mp4"
+    },
+    {
+      "text": "Awesome!",
+      "hash": "emhmbb",
+      "output": "/precache/nour_nature/emhmbb.mp4"
+    },
+    {
+      "text": "لا بأس! حاول مرة أخرى!",
+      "hash": "29wucm",
+      "output": "/precache/nour_nature/29wucm.mp4"
+    },
+    {
+      "text": "لا تستسلم!",
+      "hash": "97b7is",
+      "output": "/precache/nour_nature/97b7is.mp4"
+    },
+    {
+      "text": "أنت تستطيع!",
+      "hash": "pf7nc6",
+      "output": "/precache/nour_nature/pf7nc6.mp4"
+    },
+    {
+      "text": "حاول مرة أخرى!",
+      "hash": "9596pc",
+      "output": "/precache/nour_nature/9596pc.mp4"
+    },
+    {
+      "text": "It's okay, try again!",
+      "hash": "ii005g",
+      "output": "/precache/nour_nature/ii005g.mp4"
+    },
+    {
+      "text": "You can do it!",
+      "hash": "849vzv",
+      "output": "/precache/nour_nature/849vzv.mp4"
+    },
+    {
+      "text": "نعم!",
+      "hash": "zhnpu2",
+      "output": "/precache/nour_nature/zhnpu2.mp4"
+    },
+    {
+      "text": "صحيح!",
+      "hash": "ycpnrz",
+      "output": "/precache/nour_nature/ycpnrz.mp4"
+    },
+    {
+      "text": "تمام!",
+      "hash": "y5fqsh",
+      "output": "/precache/nour_nature/y5fqsh.mp4"
+    },
+    {
+      "text": "بالضبط!",
+      "hash": "k8a1ua",
+      "output": "/precache/nour_nature/k8a1ua.mp4"
+    },
+    {
+      "text": "فكرة رائعة!",
+      "hash": "q010kk",
+      "output": "/precache/nour_nature/q010kk.mp4"
+    },
+    {
+      "text": "That's right!",
+      "hash": "kchasv",
+      "output": "/precache/nour_nature/kchasv.mp4"
+    },
+    {
+      "text": "هل تريد أن نلعب معاً؟",
+      "hash": "90yqd5",
+      "output": "/precache/nour_nature/90yqd5.mp4"
+    },
+    {
+      "text": "Shall we play together?",
+      "hash": "21ygj0",
+      "output": "/precache/nour_nature/21ygj0.mp4"
+    },
+    {
+      "text": "ما رأيك في تجربة شيء جديد؟",
+      "hash": "5mgo49",
+      "output": "/precache/nour_nature/5mgo49.mp4"
+    },
+    {
+      "text": "هل تريد أن نرسم؟",
+      "hash": "59h1c5",
+      "output": "/precache/nour_nature/59h1c5.mp4"
+    },
+    {
+      "text": "ما رأيك؟",
+      "hash": "2t8hip",
+      "output": "/precache/nour_nature/2t8hip.mp4"
+    },
+    {
+      "text": "What do you think?",
+      "hash": "2sfc0q",
+      "output": "/precache/nour_nature/2sfc0q.mp4"
+    },
+    {
+      "text": "هل تعلم؟ تعلم الأشياء الجديدة ممتع!",
+      "hash": "5jv05t",
+      "output": "/precache/nour_nature/5jv05t.mp4"
+    },
+    {
+      "text": "Did you know? Learning is fun!",
+      "hash": "xrpaav",
+      "output": "/precache/nour_nature/xrpaav.mp4"
+    },
+    {
+      "text": "لنكتشف شيئاً جديداً معاً!",
+      "hash": "i5za2m",
+      "output": "/precache/nour_nature/i5za2m.mp4"
+    },
+    {
+      "text": "هل تعلم؟",
+      "hash": "s5dd7p",
+      "output": "/precache/nour_nature/s5dd7p.mp4"
+    },
+    {
+      "text": "التعلم ممتع!",
+      "hash": "xi4lp2",
+      "output": "/precache/nour_nature/xi4lp2.mp4"
+    },
+    {
+      "text": "Let's discover something new!",
+      "hash": "g8v1oc",
+      "output": "/precache/nour_nature/g8v1oc.mp4"
+    },
+    {
+      "text": "لحظة!",
+      "hash": "ynaihk",
+      "output": "/precache/nour_nature/ynaihk.mp4"
+    },
+    {
+      "text": "دعني أفكر!",
+      "hash": "3pebw6",
+      "output": "/precache/nour_nature/3pebw6.mp4"
+    },
+    {
+      "text": "هممم...",
+      "hash": "m0tp8l",
+      "output": "/precache/nour_nature/m0tp8l.mp4"
+    },
+    {
+      "text": "One moment!",
+      "hash": "8ej00o",
+      "output": "/precache/nour_nature/8ej00o.mp4"
+    },
+    {
+      "text": "Let me think!",
+      "hash": "hhsz8l",
+      "output": "/precache/nour_nature/hhsz8l.mp4"
+    },
+    {
+      "text": "لا تقلق!",
+      "hash": "865o4j",
+      "output": "/precache/nour_nature/865o4j.mp4"
+    },
+    {
+      "text": "أفهم شعورك!",
+      "hash": "t4tr6p",
+      "output": "/precache/nour_nature/t4tr6p.mp4"
+    },
+    {
+      "text": "كل شيء سيكون بخير!",
+      "hash": "6q48ln",
+      "output": "/precache/nour_nature/6q48ln.mp4"
+    },
+    {
+      "text": "أنا معك!",
+      "hash": "re6kq1",
+      "output": "/precache/nour_nature/re6kq1.mp4"
+    },
+    {
+      "text": "Don't worry!",
+      "hash": "vue3yd",
+      "output": "/precache/nour_nature/vue3yd.mp4"
+    },
+    {
+      "text": "I'm here with you!",
+      "hash": "us2y9s",
+      "output": "/precache/nour_nature/us2y9s.mp4"
+    },
+    {
+      "text": "إلى اللقاء! أراك قريباً!",
+      "hash": "g1bad5",
+      "output": "/precache/nour_nature/g1bad5.mp4"
+    },
+    {
+      "text": "Goodbye! See you soon!",
+      "hash": "akex7b",
+      "output": "/precache/nour_nature/akex7b.mp4"
+    },
+    {
+      "text": "كان وقتاً جميلاً معك!",
+      "hash": "az2xpq",
+      "output": "/precache/nour_nature/az2xpq.mp4"
+    },
+    {
+      "text": "أراك قريباً!",
+      "hash": "ajbxk5",
+      "output": "/precache/nour_nature/ajbxk5.mp4"
+    },
+    {
+      "text": "إلى اللقاء!",
+      "hash": "1amjw1",
+      "output": "/precache/nour_nature/1amjw1.mp4"
+    },
+    {
+      "text": "See you soon!",
+      "hash": "sqahpd",
+      "output": "/precache/nour_nature/sqahpd.mp4"
+    },
+    {
+      "text": "هيا نلعب!",
+      "hash": "okh3d5",
+      "output": "/precache/nour_nature/okh3d5.mp4"
+    },
+    {
+      "text": "هيا نرسم!",
+      "hash": "ok2c7h",
+      "output": "/precache/nour_nature/ok2c7h.mp4"
+    },
+    {
+      "text": "هيا نغني!",
+      "hash": "ok9pv2",
+      "output": "/precache/nour_nature/ok9pv2.mp4"
+    },
+    {
+      "text": "هيا نكتشف!",
+      "hash": "tefwcm",
+      "output": "/precache/nour_nature/tefwcm.mp4"
+    },
+    {
+      "text": "Let's play!",
+      "hash": "fc1xfp",
+      "output": "/precache/nour_nature/fc1xfp.mp4"
+    },
+    {
+      "text": "Let's draw!",
+      "hash": "fkebv1",
+      "output": "/precache/nour_nature/fkebv1.mp4"
+    }
+  ],
+  "amina_manners": [
+    {
+      "text": "مرحباً! كيف حالك اليوم؟",
+      "hash": "gvmw8d",
+      "output": "/precache/amina_manners/gvmw8d.mp4"
+    },
+    {
+      "text": "Hello! How are you today?",
+      "hash": "d9qzmr",
+      "output": "/precache/amina_manners/d9qzmr.mp4"
+    },
+    {
+      "text": "أهلاً وسهلاً بك!",
+      "hash": "u4atkn",
+      "output": "/precache/amina_manners/u4atkn.mp4"
+    },
+    {
+      "text": "أهلاً بك!",
+      "hash": "2j03lb",
+      "output": "/precache/amina_manners/2j03lb.mp4"
+    },
+    {
+      "text": "صباح الخير!",
+      "hash": "hzoxf9",
+      "output": "/precache/amina_manners/hzoxf9.mp4"
+    },
+    {
+      "text": "Hello!",
+      "hash": "k76gjq",
+      "output": "/precache/amina_manners/k76gjq.mp4"
+    },
+    {
+      "text": "أنت بطل! استمر في المحاولة!",
+      "hash": "ner41n",
+      "output": "/precache/amina_manners/ner41n.mp4"
+    },
+    {
+      "text": "You're amazing! Keep trying!",
+      "hash": "rd8rvv",
+      "output": "/precache/amina_manners/rd8rvv.mp4"
+    },
+    {
+      "text": "واو! أحسنت!",
+      "hash": "13s7pr",
+      "output": "/precache/amina_manners/13s7pr.mp4"
+    },
+    {
+      "text": "عمل رائع!",
+      "hash": "5cc7sv",
+      "output": "/precache/amina_manners/5cc7sv.mp4"
+    },
+    {
+      "text": "مذهل! استمر!",
+      "hash": "xg7hxb",
+      "output": "/precache/amina_manners/xg7hxb.mp4"
+    },
+    {
+      "text": "Great job!",
+      "hash": "p001zg",
+      "output": "/precache/amina_manners/p001zg.mp4"
+    },
+    {
+      "text": "أحسنت!",
+      "hash": "ei4nhj",
+      "output": "/precache/amina_manners/ei4nhj.mp4"
+    },
+    {
+      "text": "ممتاز!",
+      "hash": "7yt6qb",
+      "output": "/precache/amina_manners/7yt6qb.mp4"
+    },
+    {
+      "text": "رائع!",
+      "hash": "y9qj7h",
+      "output": "/precache/amina_manners/y9qj7h.mp4"
+    },
+    {
+      "text": "برافو!",
+      "hash": "b72a41",
+      "output": "/precache/amina_manners/b72a41.mp4"
+    },
+    {
+      "text": "واو!",
+      "hash": "zhou8t",
+      "output": "/precache/amina_manners/zhou8t.mp4"
+    },
+    {
+      "text": "Awesome!",
+      "hash": "emhmbb",
+      "output": "/precache/amina_manners/emhmbb.mp4"
+    },
+    {
+      "text": "لا بأس! حاول مرة أخرى!",
+      "hash": "29wucm",
+      "output": "/precache/amina_manners/29wucm.mp4"
+    },
+    {
+      "text": "لا تستسلم!",
+      "hash": "97b7is",
+      "output": "/precache/amina_manners/97b7is.mp4"
+    },
+    {
+      "text": "أنت تستطيع!",
+      "hash": "pf7nc6",
+      "output": "/precache/amina_manners/pf7nc6.mp4"
+    },
+    {
+      "text": "حاول مرة أخرى!",
+      "hash": "9596pc",
+      "output": "/precache/amina_manners/9596pc.mp4"
+    },
+    {
+      "text": "It's okay, try again!",
+      "hash": "ii005g",
+      "output": "/precache/amina_manners/ii005g.mp4"
+    },
+    {
+      "text": "You can do it!",
+      "hash": "849vzv",
+      "output": "/precache/amina_manners/849vzv.mp4"
+    },
+    {
+      "text": "نعم!",
+      "hash": "zhnpu2",
+      "output": "/precache/amina_manners/zhnpu2.mp4"
+    },
+    {
+      "text": "صحيح!",
+      "hash": "ycpnrz",
+      "output": "/precache/amina_manners/ycpnrz.mp4"
+    },
+    {
+      "text": "تمام!",
+      "hash": "y5fqsh",
+      "output": "/precache/amina_manners/y5fqsh.mp4"
+    },
+    {
+      "text": "بالضبط!",
+      "hash": "k8a1ua",
+      "output": "/precache/amina_manners/k8a1ua.mp4"
+    },
+    {
+      "text": "فكرة رائعة!",
+      "hash": "q010kk",
+      "output": "/precache/amina_manners/q010kk.mp4"
+    },
+    {
+      "text": "That's right!",
+      "hash": "kchasv",
+      "output": "/precache/amina_manners/kchasv.mp4"
+    },
+    {
+      "text": "هل تريد أن نلعب معاً؟",
+      "hash": "90yqd5",
+      "output": "/precache/amina_manners/90yqd5.mp4"
+    },
+    {
+      "text": "Shall we play together?",
+      "hash": "21ygj0",
+      "output": "/precache/amina_manners/21ygj0.mp4"
+    },
+    {
+      "text": "ما رأيك في تجربة شيء جديد؟",
+      "hash": "5mgo49",
+      "output": "/precache/amina_manners/5mgo49.mp4"
+    },
+    {
+      "text": "هل تريد أن نرسم؟",
+      "hash": "59h1c5",
+      "output": "/precache/amina_manners/59h1c5.mp4"
+    },
+    {
+      "text": "ما رأيك؟",
+      "hash": "2t8hip",
+      "output": "/precache/amina_manners/2t8hip.mp4"
+    },
+    {
+      "text": "What do you think?",
+      "hash": "2sfc0q",
+      "output": "/precache/amina_manners/2sfc0q.mp4"
+    },
+    {
+      "text": "هل تعلم؟ تعلم الأشياء الجديدة ممتع!",
+      "hash": "5jv05t",
+      "output": "/precache/amina_manners/5jv05t.mp4"
+    },
+    {
+      "text": "Did you know? Learning is fun!",
+      "hash": "xrpaav",
+      "output": "/precache/amina_manners/xrpaav.mp4"
+    },
+    {
+      "text": "لنكتشف شيئاً جديداً معاً!",
+      "hash": "i5za2m",
+      "output": "/precache/amina_manners/i5za2m.mp4"
+    },
+    {
+      "text": "هل تعلم؟",
+      "hash": "s5dd7p",
+      "output": "/precache/amina_manners/s5dd7p.mp4"
+    },
+    {
+      "text": "التعلم ممتع!",
+      "hash": "xi4lp2",
+      "output": "/precache/amina_manners/xi4lp2.mp4"
+    },
+    {
+      "text": "Let's discover something new!",
+      "hash": "g8v1oc",
+      "output": "/precache/amina_manners/g8v1oc.mp4"
+    },
+    {
+      "text": "لحظة!",
+      "hash": "ynaihk",
+      "output": "/precache/amina_manners/ynaihk.mp4"
+    },
+    {
+      "text": "دعني أفكر!",
+      "hash": "3pebw6",
+      "output": "/precache/amina_manners/3pebw6.mp4"
+    },
+    {
+      "text": "هممم...",
+      "hash": "m0tp8l",
+      "output": "/precache/amina_manners/m0tp8l.mp4"
+    },
+    {
+      "text": "One moment!",
+      "hash": "8ej00o",
+      "output": "/precache/amina_manners/8ej00o.mp4"
+    },
+    {
+      "text": "Let me think!",
+      "hash": "hhsz8l",
+      "output": "/precache/amina_manners/hhsz8l.mp4"
+    },
+    {
+      "text": "لا تقلق!",
+      "hash": "865o4j",
+      "output": "/precache/amina_manners/865o4j.mp4"
+    },
+    {
+      "text": "أفهم شعورك!",
+      "hash": "t4tr6p",
+      "output": "/precache/amina_manners/t4tr6p.mp4"
+    },
+    {
+      "text": "كل شيء سيكون بخير!",
+      "hash": "6q48ln",
+      "output": "/precache/amina_manners/6q48ln.mp4"
+    },
+    {
+      "text": "أنا معك!",
+      "hash": "re6kq1",
+      "output": "/precache/amina_manners/re6kq1.mp4"
+    },
+    {
+      "text": "Don't worry!",
+      "hash": "vue3yd",
+      "output": "/precache/amina_manners/vue3yd.mp4"
+    },
+    {
+      "text": "I'm here with you!",
+      "hash": "us2y9s",
+      "output": "/precache/amina_manners/us2y9s.mp4"
+    },
+    {
+      "text": "إلى اللقاء! أراك قريباً!",
+      "hash": "g1bad5",
+      "output": "/precache/amina_manners/g1bad5.mp4"
+    },
+    {
+      "text": "Goodbye! See you soon!",
+      "hash": "akex7b",
+      "output": "/precache/amina_manners/akex7b.mp4"
+    },
+    {
+      "text": "كان وقتاً جميلاً معك!",
+      "hash": "az2xpq",
+      "output": "/precache/amina_manners/az2xpq.mp4"
+    },
+    {
+      "text": "أراك قريباً!",
+      "hash": "ajbxk5",
+      "output": "/precache/amina_manners/ajbxk5.mp4"
+    },
+    {
+      "text": "إلى اللقاء!",
+      "hash": "1amjw1",
+      "output": "/precache/amina_manners/1amjw1.mp4"
+    },
+    {
+      "text": "See you soon!",
+      "hash": "sqahpd",
+      "output": "/precache/amina_manners/sqahpd.mp4"
+    },
+    {
+      "text": "هيا نلعب!",
+      "hash": "okh3d5",
+      "output": "/precache/amina_manners/okh3d5.mp4"
+    },
+    {
+      "text": "هيا نرسم!",
+      "hash": "ok2c7h",
+      "output": "/precache/amina_manners/ok2c7h.mp4"
+    },
+    {
+      "text": "هيا نغني!",
+      "hash": "ok9pv2",
+      "output": "/precache/amina_manners/ok9pv2.mp4"
+    },
+    {
+      "text": "هيا نكتشف!",
+      "hash": "tefwcm",
+      "output": "/precache/amina_manners/tefwcm.mp4"
+    },
+    {
+      "text": "Let's play!",
+      "hash": "fc1xfp",
+      "output": "/precache/amina_manners/fc1xfp.mp4"
+    },
+    {
+      "text": "Let's draw!",
+      "hash": "fkebv1",
+      "output": "/precache/amina_manners/fkebv1.mp4"
+    }
+  ],
+  "hana_harmony": [
+    {
+      "text": "مرحباً! كيف حالك اليوم؟",
+      "hash": "gvmw8d",
+      "output": "/precache/hana_harmony/gvmw8d.mp4"
+    },
+    {
+      "text": "Hello! How are you today?",
+      "hash": "d9qzmr",
+      "output": "/precache/hana_harmony/d9qzmr.mp4"
+    },
+    {
+      "text": "أهلاً وسهلاً بك!",
+      "hash": "u4atkn",
+      "output": "/precache/hana_harmony/u4atkn.mp4"
+    },
+    {
+      "text": "أهلاً بك!",
+      "hash": "2j03lb",
+      "output": "/precache/hana_harmony/2j03lb.mp4"
+    },
+    {
+      "text": "صباح الخير!",
+      "hash": "hzoxf9",
+      "output": "/precache/hana_harmony/hzoxf9.mp4"
+    },
+    {
+      "text": "Hello!",
+      "hash": "k76gjq",
+      "output": "/precache/hana_harmony/k76gjq.mp4"
+    },
+    {
+      "text": "أنت بطل! استمر في المحاولة!",
+      "hash": "ner41n",
+      "output": "/precache/hana_harmony/ner41n.mp4"
+    },
+    {
+      "text": "You're amazing! Keep trying!",
+      "hash": "rd8rvv",
+      "output": "/precache/hana_harmony/rd8rvv.mp4"
+    },
+    {
+      "text": "واو! أحسنت!",
+      "hash": "13s7pr",
+      "output": "/precache/hana_harmony/13s7pr.mp4"
+    },
+    {
+      "text": "عمل رائع!",
+      "hash": "5cc7sv",
+      "output": "/precache/hana_harmony/5cc7sv.mp4"
+    },
+    {
+      "text": "مذهل! استمر!",
+      "hash": "xg7hxb",
+      "output": "/precache/hana_harmony/xg7hxb.mp4"
+    },
+    {
+      "text": "Great job!",
+      "hash": "p001zg",
+      "output": "/precache/hana_harmony/p001zg.mp4"
+    },
+    {
+      "text": "أحسنت!",
+      "hash": "ei4nhj",
+      "output": "/precache/hana_harmony/ei4nhj.mp4"
+    },
+    {
+      "text": "ممتاز!",
+      "hash": "7yt6qb",
+      "output": "/precache/hana_harmony/7yt6qb.mp4"
+    },
+    {
+      "text": "رائع!",
+      "hash": "y9qj7h",
+      "output": "/precache/hana_harmony/y9qj7h.mp4"
+    },
+    {
+      "text": "برافو!",
+      "hash": "b72a41",
+      "output": "/precache/hana_harmony/b72a41.mp4"
+    },
+    {
+      "text": "واو!",
+      "hash": "zhou8t",
+      "output": "/precache/hana_harmony/zhou8t.mp4"
+    },
+    {
+      "text": "Awesome!",
+      "hash": "emhmbb",
+      "output": "/precache/hana_harmony/emhmbb.mp4"
+    },
+    {
+      "text": "لا بأس! حاول مرة أخرى!",
+      "hash": "29wucm",
+      "output": "/precache/hana_harmony/29wucm.mp4"
+    },
+    {
+      "text": "لا تستسلم!",
+      "hash": "97b7is",
+      "output": "/precache/hana_harmony/97b7is.mp4"
+    },
+    {
+      "text": "أنت تستطيع!",
+      "hash": "pf7nc6",
+      "output": "/precache/hana_harmony/pf7nc6.mp4"
+    },
+    {
+      "text": "حاول مرة أخرى!",
+      "hash": "9596pc",
+      "output": "/precache/hana_harmony/9596pc.mp4"
+    },
+    {
+      "text": "It's okay, try again!",
+      "hash": "ii005g",
+      "output": "/precache/hana_harmony/ii005g.mp4"
+    },
+    {
+      "text": "You can do it!",
+      "hash": "849vzv",
+      "output": "/precache/hana_harmony/849vzv.mp4"
+    },
+    {
+      "text": "نعم!",
+      "hash": "zhnpu2",
+      "output": "/precache/hana_harmony/zhnpu2.mp4"
+    },
+    {
+      "text": "صحيح!",
+      "hash": "ycpnrz",
+      "output": "/precache/hana_harmony/ycpnrz.mp4"
+    },
+    {
+      "text": "تمام!",
+      "hash": "y5fqsh",
+      "output": "/precache/hana_harmony/y5fqsh.mp4"
+    },
+    {
+      "text": "بالضبط!",
+      "hash": "k8a1ua",
+      "output": "/precache/hana_harmony/k8a1ua.mp4"
+    },
+    {
+      "text": "فكرة رائعة!",
+      "hash": "q010kk",
+      "output": "/precache/hana_harmony/q010kk.mp4"
+    },
+    {
+      "text": "That's right!",
+      "hash": "kchasv",
+      "output": "/precache/hana_harmony/kchasv.mp4"
+    },
+    {
+      "text": "هل تريد أن نلعب معاً؟",
+      "hash": "90yqd5",
+      "output": "/precache/hana_harmony/90yqd5.mp4"
+    },
+    {
+      "text": "Shall we play together?",
+      "hash": "21ygj0",
+      "output": "/precache/hana_harmony/21ygj0.mp4"
+    },
+    {
+      "text": "ما رأيك في تجربة شيء جديد؟",
+      "hash": "5mgo49",
+      "output": "/precache/hana_harmony/5mgo49.mp4"
+    },
+    {
+      "text": "هل تريد أن نرسم؟",
+      "hash": "59h1c5",
+      "output": "/precache/hana_harmony/59h1c5.mp4"
+    },
+    {
+      "text": "ما رأيك؟",
+      "hash": "2t8hip",
+      "output": "/precache/hana_harmony/2t8hip.mp4"
+    },
+    {
+      "text": "What do you think?",
+      "hash": "2sfc0q",
+      "output": "/precache/hana_harmony/2sfc0q.mp4"
+    },
+    {
+      "text": "هل تعلم؟ تعلم الأشياء الجديدة ممتع!",
+      "hash": "5jv05t",
+      "output": "/precache/hana_harmony/5jv05t.mp4"
+    },
+    {
+      "text": "Did you know? Learning is fun!",
+      "hash": "xrpaav",
+      "output": "/precache/hana_harmony/xrpaav.mp4"
+    },
+    {
+      "text": "لنكتشف شيئاً جديداً معاً!",
+      "hash": "i5za2m",
+      "output": "/precache/hana_harmony/i5za2m.mp4"
+    },
+    {
+      "text": "هل تعلم؟",
+      "hash": "s5dd7p",
+      "output": "/precache/hana_harmony/s5dd7p.mp4"
+    },
+    {
+      "text": "التعلم ممتع!",
+      "hash": "xi4lp2",
+      "output": "/precache/hana_harmony/xi4lp2.mp4"
+    },
+    {
+      "text": "Let's discover something new!",
+      "hash": "g8v1oc",
+      "output": "/precache/hana_harmony/g8v1oc.mp4"
+    },
+    {
+      "text": "لحظة!",
+      "hash": "ynaihk",
+      "output": "/precache/hana_harmony/ynaihk.mp4"
+    },
+    {
+      "text": "دعني أفكر!",
+      "hash": "3pebw6",
+      "output": "/precache/hana_harmony/3pebw6.mp4"
+    },
+    {
+      "text": "هممم...",
+      "hash": "m0tp8l",
+      "output": "/precache/hana_harmony/m0tp8l.mp4"
+    },
+    {
+      "text": "One moment!",
+      "hash": "8ej00o",
+      "output": "/precache/hana_harmony/8ej00o.mp4"
+    },
+    {
+      "text": "Let me think!",
+      "hash": "hhsz8l",
+      "output": "/precache/hana_harmony/hhsz8l.mp4"
+    },
+    {
+      "text": "لا تقلق!",
+      "hash": "865o4j",
+      "output": "/precache/hana_harmony/865o4j.mp4"
+    },
+    {
+      "text": "أفهم شعورك!",
+      "hash": "t4tr6p",
+      "output": "/precache/hana_harmony/t4tr6p.mp4"
+    },
+    {
+      "text": "كل شيء سيكون بخير!",
+      "hash": "6q48ln",
+      "output": "/precache/hana_harmony/6q48ln.mp4"
+    },
+    {
+      "text": "أنا معك!",
+      "hash": "re6kq1",
+      "output": "/precache/hana_harmony/re6kq1.mp4"
+    },
+    {
+      "text": "Don't worry!",
+      "hash": "vue3yd",
+      "output": "/precache/hana_harmony/vue3yd.mp4"
+    },
+    {
+      "text": "I'm here with you!",
+      "hash": "us2y9s",
+      "output": "/precache/hana_harmony/us2y9s.mp4"
+    },
+    {
+      "text": "إلى اللقاء! أراك قريباً!",
+      "hash": "g1bad5",
+      "output": "/precache/hana_harmony/g1bad5.mp4"
+    },
+    {
+      "text": "Goodbye! See you soon!",
+      "hash": "akex7b",
+      "output": "/precache/hana_harmony/akex7b.mp4"
+    },
+    {
+      "text": "كان وقتاً جميلاً معك!",
+      "hash": "az2xpq",
+      "output": "/precache/hana_harmony/az2xpq.mp4"
+    },
+    {
+      "text": "أراك قريباً!",
+      "hash": "ajbxk5",
+      "output": "/precache/hana_harmony/ajbxk5.mp4"
+    },
+    {
+      "text": "إلى اللقاء!",
+      "hash": "1amjw1",
+      "output": "/precache/hana_harmony/1amjw1.mp4"
+    },
+    {
+      "text": "See you soon!",
+      "hash": "sqahpd",
+      "output": "/precache/hana_harmony/sqahpd.mp4"
+    },
+    {
+      "text": "هيا نلعب!",
+      "hash": "okh3d5",
+      "output": "/precache/hana_harmony/okh3d5.mp4"
+    },
+    {
+      "text": "هيا نرسم!",
+      "hash": "ok2c7h",
+      "output": "/precache/hana_harmony/ok2c7h.mp4"
+    },
+    {
+      "text": "هيا نغني!",
+      "hash": "ok9pv2",
+      "output": "/precache/hana_harmony/ok9pv2.mp4"
+    },
+    {
+      "text": "هيا نكتشف!",
+      "hash": "tefwcm",
+      "output": "/precache/hana_harmony/tefwcm.mp4"
+    },
+    {
+      "text": "Let's play!",
+      "hash": "fc1xfp",
+      "output": "/precache/hana_harmony/fc1xfp.mp4"
+    },
+    {
+      "text": "Let's draw!",
+      "hash": "fkebv1",
+      "output": "/precache/hana_harmony/fkebv1.mp4"
+    }
+  ],
+  "mona_museum": [
+    {
+      "text": "مرحباً! كيف حالك اليوم؟",
+      "hash": "gvmw8d",
+      "output": "/precache/mona_museum/gvmw8d.mp4"
+    },
+    {
+      "text": "Hello! How are you today?",
+      "hash": "d9qzmr",
+      "output": "/precache/mona_museum/d9qzmr.mp4"
+    },
+    {
+      "text": "أهلاً وسهلاً بك!",
+      "hash": "u4atkn",
+      "output": "/precache/mona_museum/u4atkn.mp4"
+    },
+    {
+      "text": "أهلاً بك!",
+      "hash": "2j03lb",
+      "output": "/precache/mona_museum/2j03lb.mp4"
+    },
+    {
+      "text": "صباح الخير!",
+      "hash": "hzoxf9",
+      "output": "/precache/mona_museum/hzoxf9.mp4"
+    },
+    {
+      "text": "Hello!",
+      "hash": "k76gjq",
+      "output": "/precache/mona_museum/k76gjq.mp4"
+    },
+    {
+      "text": "أنت بطل! استمر في المحاولة!",
+      "hash": "ner41n",
+      "output": "/precache/mona_museum/ner41n.mp4"
+    },
+    {
+      "text": "You're amazing! Keep trying!",
+      "hash": "rd8rvv",
+      "output": "/precache/mona_museum/rd8rvv.mp4"
+    },
+    {
+      "text": "واو! أحسنت!",
+      "hash": "13s7pr",
+      "output": "/precache/mona_museum/13s7pr.mp4"
+    },
+    {
+      "text": "عمل رائع!",
+      "hash": "5cc7sv",
+      "output": "/precache/mona_museum/5cc7sv.mp4"
+    },
+    {
+      "text": "مذهل! استمر!",
+      "hash": "xg7hxb",
+      "output": "/precache/mona_museum/xg7hxb.mp4"
+    },
+    {
+      "text": "Great job!",
+      "hash": "p001zg",
+      "output": "/precache/mona_museum/p001zg.mp4"
+    },
+    {
+      "text": "أحسنت!",
+      "hash": "ei4nhj",
+      "output": "/precache/mona_museum/ei4nhj.mp4"
+    },
+    {
+      "text": "ممتاز!",
+      "hash": "7yt6qb",
+      "output": "/precache/mona_museum/7yt6qb.mp4"
+    },
+    {
+      "text": "رائع!",
+      "hash": "y9qj7h",
+      "output": "/precache/mona_museum/y9qj7h.mp4"
+    },
+    {
+      "text": "برافو!",
+      "hash": "b72a41",
+      "output": "/precache/mona_museum/b72a41.mp4"
+    },
+    {
+      "text": "واو!",
+      "hash": "zhou8t",
+      "output": "/precache/mona_museum/zhou8t.mp4"
+    },
+    {
+      "text": "Awesome!",
+      "hash": "emhmbb",
+      "output": "/precache/mona_museum/emhmbb.mp4"
+    },
+    {
+      "text": "لا بأس! حاول مرة أخرى!",
+      "hash": "29wucm",
+      "output": "/precache/mona_museum/29wucm.mp4"
+    },
+    {
+      "text": "لا تستسلم!",
+      "hash": "97b7is",
+      "output": "/precache/mona_museum/97b7is.mp4"
+    },
+    {
+      "text": "أنت تستطيع!",
+      "hash": "pf7nc6",
+      "output": "/precache/mona_museum/pf7nc6.mp4"
+    },
+    {
+      "text": "حاول مرة أخرى!",
+      "hash": "9596pc",
+      "output": "/precache/mona_museum/9596pc.mp4"
+    },
+    {
+      "text": "It's okay, try again!",
+      "hash": "ii005g",
+      "output": "/precache/mona_museum/ii005g.mp4"
+    },
+    {
+      "text": "You can do it!",
+      "hash": "849vzv",
+      "output": "/precache/mona_museum/849vzv.mp4"
+    },
+    {
+      "text": "نعم!",
+      "hash": "zhnpu2",
+      "output": "/precache/mona_museum/zhnpu2.mp4"
+    },
+    {
+      "text": "صحيح!",
+      "hash": "ycpnrz",
+      "output": "/precache/mona_museum/ycpnrz.mp4"
+    },
+    {
+      "text": "تمام!",
+      "hash": "y5fqsh",
+      "output": "/precache/mona_museum/y5fqsh.mp4"
+    },
+    {
+      "text": "بالضبط!",
+      "hash": "k8a1ua",
+      "output": "/precache/mona_museum/k8a1ua.mp4"
+    },
+    {
+      "text": "فكرة رائعة!",
+      "hash": "q010kk",
+      "output": "/precache/mona_museum/q010kk.mp4"
+    },
+    {
+      "text": "That's right!",
+      "hash": "kchasv",
+      "output": "/precache/mona_museum/kchasv.mp4"
+    },
+    {
+      "text": "هل تريد أن نلعب معاً؟",
+      "hash": "90yqd5",
+      "output": "/precache/mona_museum/90yqd5.mp4"
+    },
+    {
+      "text": "Shall we play together?",
+      "hash": "21ygj0",
+      "output": "/precache/mona_museum/21ygj0.mp4"
+    },
+    {
+      "text": "ما رأيك في تجربة شيء جديد؟",
+      "hash": "5mgo49",
+      "output": "/precache/mona_museum/5mgo49.mp4"
+    },
+    {
+      "text": "هل تريد أن نرسم؟",
+      "hash": "59h1c5",
+      "output": "/precache/mona_museum/59h1c5.mp4"
+    },
+    {
+      "text": "ما رأيك؟",
+      "hash": "2t8hip",
+      "output": "/precache/mona_museum/2t8hip.mp4"
+    },
+    {
+      "text": "What do you think?",
+      "hash": "2sfc0q",
+      "output": "/precache/mona_museum/2sfc0q.mp4"
+    },
+    {
+      "text": "هل تعلم؟ تعلم الأشياء الجديدة ممتع!",
+      "hash": "5jv05t",
+      "output": "/precache/mona_museum/5jv05t.mp4"
+    },
+    {
+      "text": "Did you know? Learning is fun!",
+      "hash": "xrpaav",
+      "output": "/precache/mona_museum/xrpaav.mp4"
+    },
+    {
+      "text": "لنكتشف شيئاً جديداً معاً!",
+      "hash": "i5za2m",
+      "output": "/precache/mona_museum/i5za2m.mp4"
+    },
+    {
+      "text": "هل تعلم؟",
+      "hash": "s5dd7p",
+      "output": "/precache/mona_museum/s5dd7p.mp4"
+    },
+    {
+      "text": "التعلم ممتع!",
+      "hash": "xi4lp2",
+      "output": "/precache/mona_museum/xi4lp2.mp4"
+    },
+    {
+      "text": "Let's discover something new!",
+      "hash": "g8v1oc",
+      "output": "/precache/mona_museum/g8v1oc.mp4"
+    },
+    {
+      "text": "لحظة!",
+      "hash": "ynaihk",
+      "output": "/precache/mona_museum/ynaihk.mp4"
+    },
+    {
+      "text": "دعني أفكر!",
+      "hash": "3pebw6",
+      "output": "/precache/mona_museum/3pebw6.mp4"
+    },
+    {
+      "text": "هممم...",
+      "hash": "m0tp8l",
+      "output": "/precache/mona_museum/m0tp8l.mp4"
+    },
+    {
+      "text": "One moment!",
+      "hash": "8ej00o",
+      "output": "/precache/mona_museum/8ej00o.mp4"
+    },
+    {
+      "text": "Let me think!",
+      "hash": "hhsz8l",
+      "output": "/precache/mona_museum/hhsz8l.mp4"
+    },
+    {
+      "text": "لا تقلق!",
+      "hash": "865o4j",
+      "output": "/precache/mona_museum/865o4j.mp4"
+    },
+    {
+      "text": "أفهم شعورك!",
+      "hash": "t4tr6p",
+      "output": "/precache/mona_museum/t4tr6p.mp4"
+    },
+    {
+      "text": "كل شيء سيكون بخير!",
+      "hash": "6q48ln",
+      "output": "/precache/mona_museum/6q48ln.mp4"
+    },
+    {
+      "text": "أنا معك!",
+      "hash": "re6kq1",
+      "output": "/precache/mona_museum/re6kq1.mp4"
+    },
+    {
+      "text": "Don't worry!",
+      "hash": "vue3yd",
+      "output": "/precache/mona_museum/vue3yd.mp4"
+    },
+    {
+      "text": "I'm here with you!",
+      "hash": "us2y9s",
+      "output": "/precache/mona_museum/us2y9s.mp4"
+    },
+    {
+      "text": "إلى اللقاء! أراك قريباً!",
+      "hash": "g1bad5",
+      "output": "/precache/mona_museum/g1bad5.mp4"
+    },
+    {
+      "text": "Goodbye! See you soon!",
+      "hash": "akex7b",
+      "output": "/precache/mona_museum/akex7b.mp4"
+    },
+    {
+      "text": "كان وقتاً جميلاً معك!",
+      "hash": "az2xpq",
+      "output": "/precache/mona_museum/az2xpq.mp4"
+    },
+    {
+      "text": "أراك قريباً!",
+      "hash": "ajbxk5",
+      "output": "/precache/mona_museum/ajbxk5.mp4"
+    },
+    {
+      "text": "إلى اللقاء!",
+      "hash": "1amjw1",
+      "output": "/precache/mona_museum/1amjw1.mp4"
+    },
+    {
+      "text": "See you soon!",
+      "hash": "sqahpd",
+      "output": "/precache/mona_museum/sqahpd.mp4"
+    },
+    {
+      "text": "هيا نلعب!",
+      "hash": "okh3d5",
+      "output": "/precache/mona_museum/okh3d5.mp4"
+    },
+    {
+      "text": "هيا نرسم!",
+      "hash": "ok2c7h",
+      "output": "/precache/mona_museum/ok2c7h.mp4"
+    },
+    {
+      "text": "هيا نغني!",
+      "hash": "ok9pv2",
+      "output": "/precache/mona_museum/ok9pv2.mp4"
+    },
+    {
+      "text": "هيا نكتشف!",
+      "hash": "tefwcm",
+      "output": "/precache/mona_museum/tefwcm.mp4"
+    },
+    {
+      "text": "Let's play!",
+      "hash": "fc1xfp",
+      "output": "/precache/mona_museum/fc1xfp.mp4"
+    },
+    {
+      "text": "Let's draw!",
+      "hash": "fkebv1",
+      "output": "/precache/mona_museum/fkebv1.mp4"
+    }
+  ],
+  "amal_empathy": [
+    {
+      "text": "مرحباً! كيف حالك اليوم؟",
+      "hash": "gvmw8d",
+      "output": "/precache/amal_empathy/gvmw8d.mp4"
+    },
+    {
+      "text": "Hello! How are you today?",
+      "hash": "d9qzmr",
+      "output": "/precache/amal_empathy/d9qzmr.mp4"
+    },
+    {
+      "text": "أهلاً وسهلاً بك!",
+      "hash": "u4atkn",
+      "output": "/precache/amal_empathy/u4atkn.mp4"
+    },
+    {
+      "text": "أهلاً بك!",
+      "hash": "2j03lb",
+      "output": "/precache/amal_empathy/2j03lb.mp4"
+    },
+    {
+      "text": "صباح الخير!",
+      "hash": "hzoxf9",
+      "output": "/precache/amal_empathy/hzoxf9.mp4"
+    },
+    {
+      "text": "Hello!",
+      "hash": "k76gjq",
+      "output": "/precache/amal_empathy/k76gjq.mp4"
+    },
+    {
+      "text": "أنت بطل! استمر في المحاولة!",
+      "hash": "ner41n",
+      "output": "/precache/amal_empathy/ner41n.mp4"
+    },
+    {
+      "text": "You're amazing! Keep trying!",
+      "hash": "rd8rvv",
+      "output": "/precache/amal_empathy/rd8rvv.mp4"
+    },
+    {
+      "text": "واو! أحسنت!",
+      "hash": "13s7pr",
+      "output": "/precache/amal_empathy/13s7pr.mp4"
+    },
+    {
+      "text": "عمل رائع!",
+      "hash": "5cc7sv",
+      "output": "/precache/amal_empathy/5cc7sv.mp4"
+    },
+    {
+      "text": "مذهل! استمر!",
+      "hash": "xg7hxb",
+      "output": "/precache/amal_empathy/xg7hxb.mp4"
+    },
+    {
+      "text": "Great job!",
+      "hash": "p001zg",
+      "output": "/precache/amal_empathy/p001zg.mp4"
+    },
+    {
+      "text": "أحسنت!",
+      "hash": "ei4nhj",
+      "output": "/precache/amal_empathy/ei4nhj.mp4"
+    },
+    {
+      "text": "ممتاز!",
+      "hash": "7yt6qb",
+      "output": "/precache/amal_empathy/7yt6qb.mp4"
+    },
+    {
+      "text": "رائع!",
+      "hash": "y9qj7h",
+      "output": "/precache/amal_empathy/y9qj7h.mp4"
+    },
+    {
+      "text": "برافو!",
+      "hash": "b72a41",
+      "output": "/precache/amal_empathy/b72a41.mp4"
+    },
+    {
+      "text": "واو!",
+      "hash": "zhou8t",
+      "output": "/precache/amal_empathy/zhou8t.mp4"
+    },
+    {
+      "text": "Awesome!",
+      "hash": "emhmbb",
+      "output": "/precache/amal_empathy/emhmbb.mp4"
+    },
+    {
+      "text": "لا بأس! حاول مرة أخرى!",
+      "hash": "29wucm",
+      "output": "/precache/amal_empathy/29wucm.mp4"
+    },
+    {
+      "text": "لا تستسلم!",
+      "hash": "97b7is",
+      "output": "/precache/amal_empathy/97b7is.mp4"
+    },
+    {
+      "text": "أنت تستطيع!",
+      "hash": "pf7nc6",
+      "output": "/precache/amal_empathy/pf7nc6.mp4"
+    },
+    {
+      "text": "حاول مرة أخرى!",
+      "hash": "9596pc",
+      "output": "/precache/amal_empathy/9596pc.mp4"
+    },
+    {
+      "text": "It's okay, try again!",
+      "hash": "ii005g",
+      "output": "/precache/amal_empathy/ii005g.mp4"
+    },
+    {
+      "text": "You can do it!",
+      "hash": "849vzv",
+      "output": "/precache/amal_empathy/849vzv.mp4"
+    },
+    {
+      "text": "نعم!",
+      "hash": "zhnpu2",
+      "output": "/precache/amal_empathy/zhnpu2.mp4"
+    },
+    {
+      "text": "صحيح!",
+      "hash": "ycpnrz",
+      "output": "/precache/amal_empathy/ycpnrz.mp4"
+    },
+    {
+      "text": "تمام!",
+      "hash": "y5fqsh",
+      "output": "/precache/amal_empathy/y5fqsh.mp4"
+    },
+    {
+      "text": "بالضبط!",
+      "hash": "k8a1ua",
+      "output": "/precache/amal_empathy/k8a1ua.mp4"
+    },
+    {
+      "text": "فكرة رائعة!",
+      "hash": "q010kk",
+      "output": "/precache/amal_empathy/q010kk.mp4"
+    },
+    {
+      "text": "That's right!",
+      "hash": "kchasv",
+      "output": "/precache/amal_empathy/kchasv.mp4"
+    },
+    {
+      "text": "هل تريد أن نلعب معاً؟",
+      "hash": "90yqd5",
+      "output": "/precache/amal_empathy/90yqd5.mp4"
+    },
+    {
+      "text": "Shall we play together?",
+      "hash": "21ygj0",
+      "output": "/precache/amal_empathy/21ygj0.mp4"
+    },
+    {
+      "text": "ما رأيك في تجربة شيء جديد؟",
+      "hash": "5mgo49",
+      "output": "/precache/amal_empathy/5mgo49.mp4"
+    },
+    {
+      "text": "هل تريد أن نرسم؟",
+      "hash": "59h1c5",
+      "output": "/precache/amal_empathy/59h1c5.mp4"
+    },
+    {
+      "text": "ما رأيك؟",
+      "hash": "2t8hip",
+      "output": "/precache/amal_empathy/2t8hip.mp4"
+    },
+    {
+      "text": "What do you think?",
+      "hash": "2sfc0q",
+      "output": "/precache/amal_empathy/2sfc0q.mp4"
+    },
+    {
+      "text": "هل تعلم؟ تعلم الأشياء الجديدة ممتع!",
+      "hash": "5jv05t",
+      "output": "/precache/amal_empathy/5jv05t.mp4"
+    },
+    {
+      "text": "Did you know? Learning is fun!",
+      "hash": "xrpaav",
+      "output": "/precache/amal_empathy/xrpaav.mp4"
+    },
+    {
+      "text": "لنكتشف شيئاً جديداً معاً!",
+      "hash": "i5za2m",
+      "output": "/precache/amal_empathy/i5za2m.mp4"
+    },
+    {
+      "text": "هل تعلم؟",
+      "hash": "s5dd7p",
+      "output": "/precache/amal_empathy/s5dd7p.mp4"
+    },
+    {
+      "text": "التعلم ممتع!",
+      "hash": "xi4lp2",
+      "output": "/precache/amal_empathy/xi4lp2.mp4"
+    },
+    {
+      "text": "Let's discover something new!",
+      "hash": "g8v1oc",
+      "output": "/precache/amal_empathy/g8v1oc.mp4"
+    },
+    {
+      "text": "لحظة!",
+      "hash": "ynaihk",
+      "output": "/precache/amal_empathy/ynaihk.mp4"
+    },
+    {
+      "text": "دعني أفكر!",
+      "hash": "3pebw6",
+      "output": "/precache/amal_empathy/3pebw6.mp4"
+    },
+    {
+      "text": "هممم...",
+      "hash": "m0tp8l",
+      "output": "/precache/amal_empathy/m0tp8l.mp4"
+    },
+    {
+      "text": "One moment!",
+      "hash": "8ej00o",
+      "output": "/precache/amal_empathy/8ej00o.mp4"
+    },
+    {
+      "text": "Let me think!",
+      "hash": "hhsz8l",
+      "output": "/precache/amal_empathy/hhsz8l.mp4"
+    },
+    {
+      "text": "لا تقلق!",
+      "hash": "865o4j",
+      "output": "/precache/amal_empathy/865o4j.mp4"
+    },
+    {
+      "text": "أفهم شعورك!",
+      "hash": "t4tr6p",
+      "output": "/precache/amal_empathy/t4tr6p.mp4"
+    },
+    {
+      "text": "كل شيء سيكون بخير!",
+      "hash": "6q48ln",
+      "output": "/precache/amal_empathy/6q48ln.mp4"
+    },
+    {
+      "text": "أنا معك!",
+      "hash": "re6kq1",
+      "output": "/precache/amal_empathy/re6kq1.mp4"
+    },
+    {
+      "text": "Don't worry!",
+      "hash": "vue3yd",
+      "output": "/precache/amal_empathy/vue3yd.mp4"
+    },
+    {
+      "text": "I'm here with you!",
+      "hash": "us2y9s",
+      "output": "/precache/amal_empathy/us2y9s.mp4"
+    },
+    {
+      "text": "إلى اللقاء! أراك قريباً!",
+      "hash": "g1bad5",
+      "output": "/precache/amal_empathy/g1bad5.mp4"
+    },
+    {
+      "text": "Goodbye! See you soon!",
+      "hash": "akex7b",
+      "output": "/precache/amal_empathy/akex7b.mp4"
+    },
+    {
+      "text": "كان وقتاً جميلاً معك!",
+      "hash": "az2xpq",
+      "output": "/precache/amal_empathy/az2xpq.mp4"
+    },
+    {
+      "text": "أراك قريباً!",
+      "hash": "ajbxk5",
+      "output": "/precache/amal_empathy/ajbxk5.mp4"
+    },
+    {
+      "text": "إلى اللقاء!",
+      "hash": "1amjw1",
+      "output": "/precache/amal_empathy/1amjw1.mp4"
+    },
+    {
+      "text": "See you soon!",
+      "hash": "sqahpd",
+      "output": "/precache/amal_empathy/sqahpd.mp4"
+    },
+    {
+      "text": "هيا نلعب!",
+      "hash": "okh3d5",
+      "output": "/precache/amal_empathy/okh3d5.mp4"
+    },
+    {
+      "text": "هيا نرسم!",
+      "hash": "ok2c7h",
+      "output": "/precache/amal_empathy/ok2c7h.mp4"
+    },
+    {
+      "text": "هيا نغني!",
+      "hash": "ok9pv2",
+      "output": "/precache/amal_empathy/ok9pv2.mp4"
+    },
+    {
+      "text": "هيا نكتشف!",
+      "hash": "tefwcm",
+      "output": "/precache/amal_empathy/tefwcm.mp4"
+    },
+    {
+      "text": "Let's play!",
+      "hash": "fc1xfp",
+      "output": "/precache/amal_empathy/fc1xfp.mp4"
+    },
+    {
+      "text": "Let's draw!",
+      "hash": "fkebv1",
+      "output": "/precache/amal_empathy/fkebv1.mp4"
+    }
+  ],
+  "leila_logic": [
+    {
+      "text": "مرحباً! كيف حالك اليوم؟",
+      "hash": "gvmw8d",
+      "output": "/precache/leila_logic/gvmw8d.mp4"
+    },
+    {
+      "text": "Hello! How are you today?",
+      "hash": "d9qzmr",
+      "output": "/precache/leila_logic/d9qzmr.mp4"
+    },
+    {
+      "text": "أهلاً وسهلاً بك!",
+      "hash": "u4atkn",
+      "output": "/precache/leila_logic/u4atkn.mp4"
+    },
+    {
+      "text": "أهلاً بك!",
+      "hash": "2j03lb",
+      "output": "/precache/leila_logic/2j03lb.mp4"
+    },
+    {
+      "text": "صباح الخير!",
+      "hash": "hzoxf9",
+      "output": "/precache/leila_logic/hzoxf9.mp4"
+    },
+    {
+      "text": "Hello!",
+      "hash": "k76gjq",
+      "output": "/precache/leila_logic/k76gjq.mp4"
+    },
+    {
+      "text": "أنت بطل! استمر في المحاولة!",
+      "hash": "ner41n",
+      "output": "/precache/leila_logic/ner41n.mp4"
+    },
+    {
+      "text": "You're amazing! Keep trying!",
+      "hash": "rd8rvv",
+      "output": "/precache/leila_logic/rd8rvv.mp4"
+    },
+    {
+      "text": "واو! أحسنت!",
+      "hash": "13s7pr",
+      "output": "/precache/leila_logic/13s7pr.mp4"
+    },
+    {
+      "text": "عمل رائع!",
+      "hash": "5cc7sv",
+      "output": "/precache/leila_logic/5cc7sv.mp4"
+    },
+    {
+      "text": "مذهل! استمر!",
+      "hash": "xg7hxb",
+      "output": "/precache/leila_logic/xg7hxb.mp4"
+    },
+    {
+      "text": "Great job!",
+      "hash": "p001zg",
+      "output": "/precache/leila_logic/p001zg.mp4"
+    },
+    {
+      "text": "أحسنت!",
+      "hash": "ei4nhj",
+      "output": "/precache/leila_logic/ei4nhj.mp4"
+    },
+    {
+      "text": "ممتاز!",
+      "hash": "7yt6qb",
+      "output": "/precache/leila_logic/7yt6qb.mp4"
+    },
+    {
+      "text": "رائع!",
+      "hash": "y9qj7h",
+      "output": "/precache/leila_logic/y9qj7h.mp4"
+    },
+    {
+      "text": "برافو!",
+      "hash": "b72a41",
+      "output": "/precache/leila_logic/b72a41.mp4"
+    },
+    {
+      "text": "واو!",
+      "hash": "zhou8t",
+      "output": "/precache/leila_logic/zhou8t.mp4"
+    },
+    {
+      "text": "Awesome!",
+      "hash": "emhmbb",
+      "output": "/precache/leila_logic/emhmbb.mp4"
+    },
+    {
+      "text": "لا بأس! حاول مرة أخرى!",
+      "hash": "29wucm",
+      "output": "/precache/leila_logic/29wucm.mp4"
+    },
+    {
+      "text": "لا تستسلم!",
+      "hash": "97b7is",
+      "output": "/precache/leila_logic/97b7is.mp4"
+    },
+    {
+      "text": "أنت تستطيع!",
+      "hash": "pf7nc6",
+      "output": "/precache/leila_logic/pf7nc6.mp4"
+    },
+    {
+      "text": "حاول مرة أخرى!",
+      "hash": "9596pc",
+      "output": "/precache/leila_logic/9596pc.mp4"
+    },
+    {
+      "text": "It's okay, try again!",
+      "hash": "ii005g",
+      "output": "/precache/leila_logic/ii005g.mp4"
+    },
+    {
+      "text": "You can do it!",
+      "hash": "849vzv",
+      "output": "/precache/leila_logic/849vzv.mp4"
+    },
+    {
+      "text": "نعم!",
+      "hash": "zhnpu2",
+      "output": "/precache/leila_logic/zhnpu2.mp4"
+    },
+    {
+      "text": "صحيح!",
+      "hash": "ycpnrz",
+      "output": "/precache/leila_logic/ycpnrz.mp4"
+    },
+    {
+      "text": "تمام!",
+      "hash": "y5fqsh",
+      "output": "/precache/leila_logic/y5fqsh.mp4"
+    },
+    {
+      "text": "بالضبط!",
+      "hash": "k8a1ua",
+      "output": "/precache/leila_logic/k8a1ua.mp4"
+    },
+    {
+      "text": "فكرة رائعة!",
+      "hash": "q010kk",
+      "output": "/precache/leila_logic/q010kk.mp4"
+    },
+    {
+      "text": "That's right!",
+      "hash": "kchasv",
+      "output": "/precache/leila_logic/kchasv.mp4"
+    },
+    {
+      "text": "هل تريد أن نلعب معاً؟",
+      "hash": "90yqd5",
+      "output": "/precache/leila_logic/90yqd5.mp4"
+    },
+    {
+      "text": "Shall we play together?",
+      "hash": "21ygj0",
+      "output": "/precache/leila_logic/21ygj0.mp4"
+    },
+    {
+      "text": "ما رأيك في تجربة شيء جديد؟",
+      "hash": "5mgo49",
+      "output": "/precache/leila_logic/5mgo49.mp4"
+    },
+    {
+      "text": "هل تريد أن نرسم؟",
+      "hash": "59h1c5",
+      "output": "/precache/leila_logic/59h1c5.mp4"
+    },
+    {
+      "text": "ما رأيك؟",
+      "hash": "2t8hip",
+      "output": "/precache/leila_logic/2t8hip.mp4"
+    },
+    {
+      "text": "What do you think?",
+      "hash": "2sfc0q",
+      "output": "/precache/leila_logic/2sfc0q.mp4"
+    },
+    {
+      "text": "هل تعلم؟ تعلم الأشياء الجديدة ممتع!",
+      "hash": "5jv05t",
+      "output": "/precache/leila_logic/5jv05t.mp4"
+    },
+    {
+      "text": "Did you know? Learning is fun!",
+      "hash": "xrpaav",
+      "output": "/precache/leila_logic/xrpaav.mp4"
+    },
+    {
+      "text": "لنكتشف شيئاً جديداً معاً!",
+      "hash": "i5za2m",
+      "output": "/precache/leila_logic/i5za2m.mp4"
+    },
+    {
+      "text": "هل تعلم؟",
+      "hash": "s5dd7p",
+      "output": "/precache/leila_logic/s5dd7p.mp4"
+    },
+    {
+      "text": "التعلم ممتع!",
+      "hash": "xi4lp2",
+      "output": "/precache/leila_logic/xi4lp2.mp4"
+    },
+    {
+      "text": "Let's discover something new!",
+      "hash": "g8v1oc",
+      "output": "/precache/leila_logic/g8v1oc.mp4"
+    },
+    {
+      "text": "لحظة!",
+      "hash": "ynaihk",
+      "output": "/precache/leila_logic/ynaihk.mp4"
+    },
+    {
+      "text": "دعني أفكر!",
+      "hash": "3pebw6",
+      "output": "/precache/leila_logic/3pebw6.mp4"
+    },
+    {
+      "text": "هممم...",
+      "hash": "m0tp8l",
+      "output": "/precache/leila_logic/m0tp8l.mp4"
+    },
+    {
+      "text": "One moment!",
+      "hash": "8ej00o",
+      "output": "/precache/leila_logic/8ej00o.mp4"
+    },
+    {
+      "text": "Let me think!",
+      "hash": "hhsz8l",
+      "output": "/precache/leila_logic/hhsz8l.mp4"
+    },
+    {
+      "text": "لا تقلق!",
+      "hash": "865o4j",
+      "output": "/precache/leila_logic/865o4j.mp4"
+    },
+    {
+      "text": "أفهم شعورك!",
+      "hash": "t4tr6p",
+      "output": "/precache/leila_logic/t4tr6p.mp4"
+    },
+    {
+      "text": "كل شيء سيكون بخير!",
+      "hash": "6q48ln",
+      "output": "/precache/leila_logic/6q48ln.mp4"
+    },
+    {
+      "text": "أنا معك!",
+      "hash": "re6kq1",
+      "output": "/precache/leila_logic/re6kq1.mp4"
+    },
+    {
+      "text": "Don't worry!",
+      "hash": "vue3yd",
+      "output": "/precache/leila_logic/vue3yd.mp4"
+    },
+    {
+      "text": "I'm here with you!",
+      "hash": "us2y9s",
+      "output": "/precache/leila_logic/us2y9s.mp4"
+    },
+    {
+      "text": "إلى اللقاء! أراك قريباً!",
+      "hash": "g1bad5",
+      "output": "/precache/leila_logic/g1bad5.mp4"
+    },
+    {
+      "text": "Goodbye! See you soon!",
+      "hash": "akex7b",
+      "output": "/precache/leila_logic/akex7b.mp4"
+    },
+    {
+      "text": "كان وقتاً جميلاً معك!",
+      "hash": "az2xpq",
+      "output": "/precache/leila_logic/az2xpq.mp4"
+    },
+    {
+      "text": "أراك قريباً!",
+      "hash": "ajbxk5",
+      "output": "/precache/leila_logic/ajbxk5.mp4"
+    },
+    {
+      "text": "إلى اللقاء!",
+      "hash": "1amjw1",
+      "output": "/precache/leila_logic/1amjw1.mp4"
+    },
+    {
+      "text": "See you soon!",
+      "hash": "sqahpd",
+      "output": "/precache/leila_logic/sqahpd.mp4"
+    },
+    {
+      "text": "هيا نلعب!",
+      "hash": "okh3d5",
+      "output": "/precache/leila_logic/okh3d5.mp4"
+    },
+    {
+      "text": "هيا نرسم!",
+      "hash": "ok2c7h",
+      "output": "/precache/leila_logic/ok2c7h.mp4"
+    },
+    {
+      "text": "هيا نغني!",
+      "hash": "ok9pv2",
+      "output": "/precache/leila_logic/ok9pv2.mp4"
+    },
+    {
+      "text": "هيا نكتشف!",
+      "hash": "tefwcm",
+      "output": "/precache/leila_logic/tefwcm.mp4"
+    },
+    {
+      "text": "Let's play!",
+      "hash": "fc1xfp",
+      "output": "/precache/leila_logic/fc1xfp.mp4"
+    },
+    {
+      "text": "Let's draw!",
+      "hash": "fkebv1",
+      "output": "/precache/leila_logic/fkebv1.mp4"
+    }
+  ],
+  "salma_sound": [
+    {
+      "text": "مرحباً! كيف حالك اليوم؟",
+      "hash": "gvmw8d",
+      "output": "/precache/salma_sound/gvmw8d.mp4"
+    },
+    {
+      "text": "Hello! How are you today?",
+      "hash": "d9qzmr",
+      "output": "/precache/salma_sound/d9qzmr.mp4"
+    },
+    {
+      "text": "أهلاً وسهلاً بك!",
+      "hash": "u4atkn",
+      "output": "/precache/salma_sound/u4atkn.mp4"
+    },
+    {
+      "text": "أهلاً بك!",
+      "hash": "2j03lb",
+      "output": "/precache/salma_sound/2j03lb.mp4"
+    },
+    {
+      "text": "صباح الخير!",
+      "hash": "hzoxf9",
+      "output": "/precache/salma_sound/hzoxf9.mp4"
+    },
+    {
+      "text": "Hello!",
+      "hash": "k76gjq",
+      "output": "/precache/salma_sound/k76gjq.mp4"
+    },
+    {
+      "text": "أنت بطل! استمر في المحاولة!",
+      "hash": "ner41n",
+      "output": "/precache/salma_sound/ner41n.mp4"
+    },
+    {
+      "text": "You're amazing! Keep trying!",
+      "hash": "rd8rvv",
+      "output": "/precache/salma_sound/rd8rvv.mp4"
+    },
+    {
+      "text": "واو! أحسنت!",
+      "hash": "13s7pr",
+      "output": "/precache/salma_sound/13s7pr.mp4"
+    },
+    {
+      "text": "عمل رائع!",
+      "hash": "5cc7sv",
+      "output": "/precache/salma_sound/5cc7sv.mp4"
+    },
+    {
+      "text": "مذهل! استمر!",
+      "hash": "xg7hxb",
+      "output": "/precache/salma_sound/xg7hxb.mp4"
+    },
+    {
+      "text": "Great job!",
+      "hash": "p001zg",
+      "output": "/precache/salma_sound/p001zg.mp4"
+    },
+    {
+      "text": "أحسنت!",
+      "hash": "ei4nhj",
+      "output": "/precache/salma_sound/ei4nhj.mp4"
+    },
+    {
+      "text": "ممتاز!",
+      "hash": "7yt6qb",
+      "output": "/precache/salma_sound/7yt6qb.mp4"
+    },
+    {
+      "text": "رائع!",
+      "hash": "y9qj7h",
+      "output": "/precache/salma_sound/y9qj7h.mp4"
+    },
+    {
+      "text": "برافو!",
+      "hash": "b72a41",
+      "output": "/precache/salma_sound/b72a41.mp4"
+    },
+    {
+      "text": "واو!",
+      "hash": "zhou8t",
+      "output": "/precache/salma_sound/zhou8t.mp4"
+    },
+    {
+      "text": "Awesome!",
+      "hash": "emhmbb",
+      "output": "/precache/salma_sound/emhmbb.mp4"
+    },
+    {
+      "text": "لا بأس! حاول مرة أخرى!",
+      "hash": "29wucm",
+      "output": "/precache/salma_sound/29wucm.mp4"
+    },
+    {
+      "text": "لا تستسلم!",
+      "hash": "97b7is",
+      "output": "/precache/salma_sound/97b7is.mp4"
+    },
+    {
+      "text": "أنت تستطيع!",
+      "hash": "pf7nc6",
+      "output": "/precache/salma_sound/pf7nc6.mp4"
+    },
+    {
+      "text": "حاول مرة أخرى!",
+      "hash": "9596pc",
+      "output": "/precache/salma_sound/9596pc.mp4"
+    },
+    {
+      "text": "It's okay, try again!",
+      "hash": "ii005g",
+      "output": "/precache/salma_sound/ii005g.mp4"
+    },
+    {
+      "text": "You can do it!",
+      "hash": "849vzv",
+      "output": "/precache/salma_sound/849vzv.mp4"
+    },
+    {
+      "text": "نعم!",
+      "hash": "zhnpu2",
+      "output": "/precache/salma_sound/zhnpu2.mp4"
+    },
+    {
+      "text": "صحيح!",
+      "hash": "ycpnrz",
+      "output": "/precache/salma_sound/ycpnrz.mp4"
+    },
+    {
+      "text": "تمام!",
+      "hash": "y5fqsh",
+      "output": "/precache/salma_sound/y5fqsh.mp4"
+    },
+    {
+      "text": "بالضبط!",
+      "hash": "k8a1ua",
+      "output": "/precache/salma_sound/k8a1ua.mp4"
+    },
+    {
+      "text": "فكرة رائعة!",
+      "hash": "q010kk",
+      "output": "/precache/salma_sound/q010kk.mp4"
+    },
+    {
+      "text": "That's right!",
+      "hash": "kchasv",
+      "output": "/precache/salma_sound/kchasv.mp4"
+    },
+    {
+      "text": "هل تريد أن نلعب معاً؟",
+      "hash": "90yqd5",
+      "output": "/precache/salma_sound/90yqd5.mp4"
+    },
+    {
+      "text": "Shall we play together?",
+      "hash": "21ygj0",
+      "output": "/precache/salma_sound/21ygj0.mp4"
+    },
+    {
+      "text": "ما رأيك في تجربة شيء جديد؟",
+      "hash": "5mgo49",
+      "output": "/precache/salma_sound/5mgo49.mp4"
+    },
+    {
+      "text": "هل تريد أن نرسم؟",
+      "hash": "59h1c5",
+      "output": "/precache/salma_sound/59h1c5.mp4"
+    },
+    {
+      "text": "ما رأيك؟",
+      "hash": "2t8hip",
+      "output": "/precache/salma_sound/2t8hip.mp4"
+    },
+    {
+      "text": "What do you think?",
+      "hash": "2sfc0q",
+      "output": "/precache/salma_sound/2sfc0q.mp4"
+    },
+    {
+      "text": "هل تعلم؟ تعلم الأشياء الجديدة ممتع!",
+      "hash": "5jv05t",
+      "output": "/precache/salma_sound/5jv05t.mp4"
+    },
+    {
+      "text": "Did you know? Learning is fun!",
+      "hash": "xrpaav",
+      "output": "/precache/salma_sound/xrpaav.mp4"
+    },
+    {
+      "text": "لنكتشف شيئاً جديداً معاً!",
+      "hash": "i5za2m",
+      "output": "/precache/salma_sound/i5za2m.mp4"
+    },
+    {
+      "text": "هل تعلم؟",
+      "hash": "s5dd7p",
+      "output": "/precache/salma_sound/s5dd7p.mp4"
+    },
+    {
+      "text": "التعلم ممتع!",
+      "hash": "xi4lp2",
+      "output": "/precache/salma_sound/xi4lp2.mp4"
+    },
+    {
+      "text": "Let's discover something new!",
+      "hash": "g8v1oc",
+      "output": "/precache/salma_sound/g8v1oc.mp4"
+    },
+    {
+      "text": "لحظة!",
+      "hash": "ynaihk",
+      "output": "/precache/salma_sound/ynaihk.mp4"
+    },
+    {
+      "text": "دعني أفكر!",
+      "hash": "3pebw6",
+      "output": "/precache/salma_sound/3pebw6.mp4"
+    },
+    {
+      "text": "هممم...",
+      "hash": "m0tp8l",
+      "output": "/precache/salma_sound/m0tp8l.mp4"
+    },
+    {
+      "text": "One moment!",
+      "hash": "8ej00o",
+      "output": "/precache/salma_sound/8ej00o.mp4"
+    },
+    {
+      "text": "Let me think!",
+      "hash": "hhsz8l",
+      "output": "/precache/salma_sound/hhsz8l.mp4"
+    },
+    {
+      "text": "لا تقلق!",
+      "hash": "865o4j",
+      "output": "/precache/salma_sound/865o4j.mp4"
+    },
+    {
+      "text": "أفهم شعورك!",
+      "hash": "t4tr6p",
+      "output": "/precache/salma_sound/t4tr6p.mp4"
+    },
+    {
+      "text": "كل شيء سيكون بخير!",
+      "hash": "6q48ln",
+      "output": "/precache/salma_sound/6q48ln.mp4"
+    },
+    {
+      "text": "أنا معك!",
+      "hash": "re6kq1",
+      "output": "/precache/salma_sound/re6kq1.mp4"
+    },
+    {
+      "text": "Don't worry!",
+      "hash": "vue3yd",
+      "output": "/precache/salma_sound/vue3yd.mp4"
+    },
+    {
+      "text": "I'm here with you!",
+      "hash": "us2y9s",
+      "output": "/precache/salma_sound/us2y9s.mp4"
+    },
+    {
+      "text": "إلى اللقاء! أراك قريباً!",
+      "hash": "g1bad5",
+      "output": "/precache/salma_sound/g1bad5.mp4"
+    },
+    {
+      "text": "Goodbye! See you soon!",
+      "hash": "akex7b",
+      "output": "/precache/salma_sound/akex7b.mp4"
+    },
+    {
+      "text": "كان وقتاً جميلاً معك!",
+      "hash": "az2xpq",
+      "output": "/precache/salma_sound/az2xpq.mp4"
+    },
+    {
+      "text": "أراك قريباً!",
+      "hash": "ajbxk5",
+      "output": "/precache/salma_sound/ajbxk5.mp4"
+    },
+    {
+      "text": "إلى اللقاء!",
+      "hash": "1amjw1",
+      "output": "/precache/salma_sound/1amjw1.mp4"
+    },
+    {
+      "text": "See you soon!",
+      "hash": "sqahpd",
+      "output": "/precache/salma_sound/sqahpd.mp4"
+    },
+    {
+      "text": "هيا نلعب!",
+      "hash": "okh3d5",
+      "output": "/precache/salma_sound/okh3d5.mp4"
+    },
+    {
+      "text": "هيا نرسم!",
+      "hash": "ok2c7h",
+      "output": "/precache/salma_sound/ok2c7h.mp4"
+    },
+    {
+      "text": "هيا نغني!",
+      "hash": "ok9pv2",
+      "output": "/precache/salma_sound/ok9pv2.mp4"
+    },
+    {
+      "text": "هيا نكتشف!",
+      "hash": "tefwcm",
+      "output": "/precache/salma_sound/tefwcm.mp4"
+    },
+    {
+      "text": "Let's play!",
+      "hash": "fc1xfp",
+      "output": "/precache/salma_sound/fc1xfp.mp4"
+    },
+    {
+      "text": "Let's draw!",
+      "hash": "fkebv1",
+      "output": "/precache/salma_sound/fkebv1.mp4"
+    }
+  ]
+}

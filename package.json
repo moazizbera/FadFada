@@ -12,12 +12,18 @@
     "db:deploy": "prisma migrate deploy",
     "start": "next start",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "demo": "tsx scripts/demo-video.ts",
-    "demo:install": "npx playwright install chromium"
+    "demo:install": "npx playwright install chromium",
+    "precache": "node scripts/precache-children.mjs",
+    "precache:zain": "node scripts/precache-children.mjs --persona zain_kg_explorer"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
     "@google/genai": "^1.7.0",
     "@neondatabase/serverless": "^0.10.4",
     "@next-auth/prisma-adapter": "^1.0.7",

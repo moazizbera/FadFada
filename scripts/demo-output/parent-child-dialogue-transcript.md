@@ -6,7 +6,7 @@ Voice references:
 - `test-parent.mp3` - use for the parent voice tone
 - `test-child.mp3` - use for the child voice tone
 
-Important note: the MP3 files are voice samples only. The dialogue below is built from the 20-screenshot demo transcript and rewritten as a parent-child conversation for the video.
+Important note: the MP3 files are voice samples only. The dialogue below is built from the screenshot demo transcript and rewritten as a parent-child conversation for the video. The child profile in the updated screenshots is Ahmed.
 
 Target length: about 3 minutes.
 
@@ -20,13 +20,15 @@ Target length: about 3 minutes.
 
 **Parent:** I can see that. The first screen looks calm, but there is a lot happening. You can chat, choose a companion, breathe, send voice, or open tools from one place.
 
+**Parent:** In this three-minute demo, every main workflow shows a different Gemini capability: text reasoning, persona prompting, multimodal homework understanding, structured JSON generation, child-safe role separation, and voice-ready interaction.
+
 **Child:** And the companions are different. Nora feels calm, but there are also planners, storytellers, creators, and helpers for learning.
 
-**Parent:** That is one of the Gemini parts. FadFada does not only change the avatar. It sends the selected persona, language, world, and recent messages into the AI prompt, so Gemini responds with the right tone and role.
+**Parent:** That is one of the Gemini parts. FadFada does not only change the avatar. It sends the selected persona, language, emotional world, and recent messages into Gemini, so the same model can respond with the right tone and role.
 
 **Child:** So if I ask for a story, it talks like a storyteller. And if you ask for help, it talks like a parent helper.
 
-**Parent:** Exactly. The app also has Daily Pulse. You can choose mood, energy, and what you need, then Gemini uses that as context for a guided check-in.
+**Parent:** Exactly. The app also has Daily Pulse. You can choose mood, energy, and what you need, then Gemini uses that context for a guided check-in, not a static scripted answer.
 
 **Child:** I like that replies can become things too. A plan, a saved moment, a proof card, or something I can come back to later.
 
@@ -42,19 +44,23 @@ Target length: about 3 minutes.
 
 **Child:** And Gemini reads the homework picture?
 
-**Parent:** Yes. This is the multimodal part. Gemini looks at the worksheet image, understands the subject and task, then returns structured JSON: child intro, activities, hints, choices, answers, and visual metadata.
+**Parent:** Yes. This is the multimodal Gemini part. Gemini reads the worksheet image, understands the subject, task, and child level, then returns structured JSON: child intro, activities, hints, choices, answers, and visual metadata.
 
 **Child:** So my worksheet becomes a game. I can hear the question, answer by voice, or tap choices like C, A, B, and D.
 
-**Parent:** Exactly. And when I switch into your profile, the whole app changes. It says, "Hi Rana," shows only child-safe companions, removes adult tools, and uses a different server-side prompt for you.
+**Parent:** Exactly. And when I switch into Ahmed's profile, the whole app changes. It says, "Hi Ahmed," shows Faris Focus and other child-safe companions, removes adult tools, and uses a different server-side prompt for him.
 
-**Child:** That means it talks to me like a kid, not like you.
+**Child:** That means it talks to Ahmed like a kid, not like you.
 
-**Parent:** That is the safety point. Parent mode and child mode are isolated. The parent identity never leaks into the child chat, and the child prompt uses your name, age, and child-safe language.
+**Parent:** That is the safety point. Parent mode and child mode are isolated server-side. The workspace identity tells Gemini whether it is speaking to a parent or a child, and the child prompt uses Ahmed's name, age, and child-safe language.
+
+**Child:** And Ahmed can start a new chat without adult Omar showing up?
+
+**Parent:** Yes. New chat keeps Ahmed in child mode with Faris Focus, and he can use daily moments, drawing, Color Piano, and voice-ready responses without opening the parent workspace.
 
 **Child:** I also get stories. There is a story passport, story cards, auto-read, quizzes, and choices inside the story.
 
-**Parent:** Stories can become guided Gemini conversations too. The companion can ask questions, give choices, and help you reflect safely.
+**Parent:** Stories can become guided Gemini conversations too. The companion can ask questions, give choices, and help you reflect safely, while the product also has a Google Cloud Text-to-Speech path for spoken companion responses.
 
 **Child:** And I can choose child companions like Deema Drama, Rami Riddles, Amina Manners, Sami Space, and Leila Logic.
 
@@ -62,7 +68,11 @@ Target length: about 3 minutes.
 
 **Child:** So it feels like my own world, but you still know I am safe.
 
-**Parent:** That is FadFada: one family account, separate parent and child identities, Gemini-powered homework and stories, and child-safe conversations that know exactly who they are speaking to.
+**Parent:** That is FadFada: one family account, separate parent and child identities, Gemini-powered reflection, homework, stories, structured activities, and child-safe conversations that know exactly who they are speaking to.
+
+**Parent:** For operations, the admin dashboard gives the team live product signals, user growth, plan mix, AI readiness, provider and model status, safety events, and configuration health in one private control room.
+
+**Parent:** Admins can also review avatar star ratings and feedback, so the companion roster improves from real usage while keeping family conversations private.
 
 ---
 
@@ -70,11 +80,12 @@ Target length: about 3 minutes.
 
 | Time | Screens | Dialogue focus |
 | --- | --- | --- |
-| 0:00-0:25 | F_1-F_3 | Parent asks; child introduces FadFada; chat and personas |
-| 0:25-0:50 | F_4-F_7 | Daily Pulse, saved moments, proof cards, continuity |
-| 0:50-1:35 | F_8-F_12 | Parent workspace, child profiles, Gemini multimodal homework transformation |
-| 1:35-2:35 | F_13-F_19 | Child mode, identity isolation, homework game, stories, companions |
-| 2:35-3:00 | F_20 | Parent oversight, return code, final safety message |
+| 0:00-0:25 | F_1-F_3 | Gemini text reasoning, persona prompting, chat and companions |
+| 0:25-0:50 | F_4-F_7 | Daily Pulse context, saved moments, proof cards, continuity |
+| 0:50-1:35 | F_8-F_12 | Parent workspace, child profiles, Gemini multimodal homework and structured JSON |
+| 1:35-2:20 | F_13-F_19 | Ahmed child mode, server-side role separation, homework game, stories, companions |
+| 2:20-2:45 | F_20, F_23-F_28 | Parent oversight, return gate, child-safe new chat, drawing, Color Piano, voice-ready interaction |
+| 2:45-3:00+ | F_21_Admin-F_22_Admin | Admin AI readiness, provider/model status, avatar ratings, operations proof |
 
 ---
 

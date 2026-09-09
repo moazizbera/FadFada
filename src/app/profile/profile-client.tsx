@@ -5,6 +5,7 @@ import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { useAppLocale } from "../../components/AppShell";
+import { configureRevenueCat, getFirstPurchaseablePackage, isRevenueCatAvailable, purchaseRevenueCatPackage } from "../../lib/revenuecat";
 
 type SavedMoment = {
   id: string;
@@ -396,6 +397,10 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
   }, [capsuleLibraryItems, capsuleSearchQuery, capsuleTypeFilter, capsuleWorldFilter]);
   const companionRecommendations = buildCompanionRecommendations(journeyInsight.dominantWorlds, language);
   const parentTimeline = useMemo(() => buildParentCopilotTimeline(childProfiles, childPulse, language), [childProfiles, childPulse, language]);
+  const parentInsightHub = useMemo(
+    () => buildParentInsightHub(childProfiles, childPulse, weeklyReport, language),
+    [childProfiles, childPulse, weeklyReport, language]
+  );
 
   useEffect(() => {
     setSavedMoments(JSON.parse(localStorage.getItem("fadfada-saved-moments") || "[]") as SavedMoment[]);
@@ -813,6 +818,51 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
   async function startPlusCheckout() {
     setBillingStatus("opening");
     setBillingMessage("");
+
+    if (isRevenueCatAvailable()) {
+      try {
+        await configureRevenueCat(profile.id);
+        const { offering, pkg } = await getFirstPurchaseablePackage();
+        if (!pkg) {
+          setBillingStatus("error");
+          setBillingMessage(isArabic ? "لا تتوفر باقات اشتراك حالياً." : "No subscription packages are available right now.");
+          return;
+        }
+        await purchaseRevenueCatPackage(offering?.identifier, pkg.identifier);
+        const verifyResponse = await fetch("/api/revenuecat/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ appUserId: profile.id, entitlementId: "plus_access" }),
+        }).catch(() => null);
+        const verifyData = verifyResponse ? ((await verifyResponse.json().catch(() => ({}))) as { entitlement?: string; error?: string }) : null;
+
+        if (verifyData?.entitlement === "PLUS") {
+          setProfile((current) => ({ ...current, activeTier: "PLUS" }));
+          await updateSession();
+          setBillingStatus("idle");
+          setBillingMessage(isArabic ? "تم تفعيل بلس بنجاح." : "Plus activated successfully.");
+        } else {
+          setBillingStatus("error");
+          setBillingMessage(isArabic ? "تم الشراء، لكن تعذر تأكيد التفعيل. جرّب استعادة المشتريات لاحقاً." : "Purchase completed, but activation could not be confirmed. Try restoring purchases later.");
+        }
+        return;
+      } catch (error) {
+        const userCancelled =
+          error instanceof Error && /purchase failed/i.test(error.message) && error.message.includes("false");
+        setBillingStatus("error");
+        setBillingMessage(
+          isArabic
+            ? userCancelled
+              ? "تم إلغاء عملية الشراء."
+              : "تعذر إتمام الشراء. جرّب مجدداً."
+            : userCancelled
+              ? "Purchase was cancelled."
+              : "Could not complete the purchase. Please try again."
+        );
+        return;
+      }
+    }
+
     const discountCode = typeof window !== "undefined" ? localStorage.getItem("fadfada-discount-code") || undefined : undefined;
     const response = await fetch("/api/checkout", {
       method: "POST",
@@ -830,14 +880,40 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
     setBillingMessage(getCheckoutErrorMessage(data, language));
   }
 
+  async function restorePlusPurchases() {
+    setBillingStatus("opening");
+    setBillingMessage("");
+    try {
+      const { restoreRevenueCatPurchases } = await import("../../lib/revenuecat");
+      const customerInfo = await restoreRevenueCatPurchases();
+      const hasPlus = Boolean(customerInfo?.entitlements?.plus_access?.isActive);
+      if (hasPlus) {
+        await fetch("/api/revenuecat/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ appUserId: profile.id, entitlementId: "plus_access" }),
+        });
+        setProfile((current) => ({ ...current, activeTier: "PLUS" }));
+        await updateSession();
+        setBillingMessage(isArabic ? "تمت استعادة مشترياتك." : "Your purchases were restored.");
+      } else {
+        setBillingMessage(isArabic ? "لا توجد مشتريات سابقة لهذا الحساب." : "No previous purchases found for this account.");
+      }
+    } catch {
+      setBillingMessage(isArabic ? "تعذرت استعادة المشتريات حالياً." : "Could not restore purchases right now.");
+    } finally {
+      setBillingStatus("idle");
+    }
+  }
+
   function selectProfileTab(tabId: ProfileTabId) {
     setActiveProfileTab(tabId);
     window.history.pushState(null, "", `#${tabId}`);
   }
 
   return (
-    <main className="min-h-screen bg-ink px-4 pb-16 pt-24 text-bone/90 sm:px-6 md:px-8" dir={direction}>
-      <section className="mx-auto mb-6 max-w-5xl border border-white/10 bg-white/[0.025] p-4">
+    <main className="min-h-screen overflow-x-clip bg-ink px-3 pb-16 pt-24 text-bone/90 sm:px-6 md:px-8" dir={direction}>
+      <section className="mx-auto mb-6 max-w-5xl border border-white/10 bg-white/[0.025] p-3 sm:p-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="ui-kicker text-gold">{isArabic ? "مركز الحساب" : "Account center"}</p>
@@ -847,28 +923,28 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
             {isArabic ? "إغلاق والعودة للرئيسية" : "Close and return home"}
           </Link>
         </div>
-        <nav className="mt-5 flex gap-2 overflow-x-auto [scrollbar-width:none]" aria-label={isArabic ? "أقسام ملف الحساب" : "Account profile sections"} role="tablist">
+        <nav className="mt-5 grid grid-cols-2 gap-2 min-[520px]:grid-cols-4" aria-label={isArabic ? "أقسام ملف الحساب" : "Account profile sections"} role="tablist">
           {[
             { id: "account-details", ar: "الحساب", en: "Account" },
             { id: "child-profiles", ar: "الأطفال", en: "Children" },
             { id: "journey-map", ar: "الرحلة", en: "Journey" },
             { id: "saved-library", ar: "المحفوظات", en: "Saved" },
           ].map((item) => (
-            <button key={item.id} type="button" role="tab" aria-selected={activeProfileTab === item.id} onClick={() => selectProfileTab(item.id as ProfileTabId)} className={`shrink-0 border px-4 py-2 font-arsans text-sm transition-colors ${activeProfileTab === item.id ? "border-gold/55 bg-gold/15 text-gold" : "border-white/10 bg-black/15 text-bone/70 hover:border-gold/35 hover:text-gold"}`}>
+            <button key={item.id} type="button" role="tab" aria-selected={activeProfileTab === item.id} onClick={() => selectProfileTab(item.id as ProfileTabId)} className={`min-h-10 border px-3 py-2 font-arsans text-sm transition-colors ${activeProfileTab === item.id ? "border-gold/55 bg-gold/15 text-gold" : "border-white/10 bg-black/15 text-bone/70 hover:border-gold/35 hover:text-gold"}`}>
               {isArabic ? item.ar : item.en}
             </button>
           ))}
         </nav>
       </section>
-      <section className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[0.9fr_1.1fr]">
-        <aside id="account-details" className={`${activeProfileTab === "account-details" ? "" : "hidden"} scroll-mt-24 border border-white/10 bg-white/[0.03] p-5`}>
+      <section className="mx-auto grid max-w-5xl gap-5 sm:gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+        <aside id="account-details" className={`${activeProfileTab === "account-details" ? "" : "hidden"} scroll-mt-24 border border-white/10 bg-white/[0.03] p-4 sm:p-5`}>
           <p className="ui-kicker">{isArabic ? "ملف الحساب" : "Account profile"}</p>
-          <div className="mt-5 flex items-center gap-4">
+          <div className="mt-5 flex min-w-0 items-center gap-3 sm:gap-4">
             <span className="relative h-20 w-20 overflow-hidden rounded-[1.7rem] border border-white/10 bg-slate-950">
               {profile.image ? <Image src={profile.image} alt={isArabic ? "شعار الملف" : "Profile logo"} fill sizes="80px" className="object-cover" unoptimized /> : <span className="grid h-full place-items-center font-mono text-2xl text-gold">{isArabic ? "ف" : "F"}</span>}
             </span>
             <div className="min-w-0">
-              <h1 className="truncate font-arserif text-4xl text-bone/95">{profile.nickname || profile.name || (isArabic ? "ملفي" : "My profile")}</h1>
+              <h1 className="truncate font-arserif text-3xl text-bone/95 sm:text-4xl">{profile.nickname || profile.name || (isArabic ? "ملفي" : "My profile")}</h1>
               <p className="mt-1 truncate font-ensans text-xs text-bone/45" dir="ltr">{profile.email}</p>
               <p className="mt-1 font-arsans text-sm text-gold">{profile.role === "ADMIN" ? (isArabic ? "مدير" : "Admin") : isArabic ? "مستخدم" : "User"} · {formatTier(profile.activeTier, language)}</p>
             </div>
@@ -885,7 +961,7 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
           </div>
         </aside>
 
-        <section className={`${activeProfileTab === "account-details" ? "" : "hidden"} border border-gold/20 bg-gold/[0.025] p-5`}>
+        <section className={`${activeProfileTab === "account-details" ? "" : "hidden"} border border-gold/20 bg-gold/[0.025] p-4 sm:p-5`}>
           <p className="ui-kicker">{isArabic ? "الفوترة" : "Billing"}</p>
           <h2 className="mt-2 font-arserif text-3xl text-bone/90">{isArabic ? "إدارة الخطة" : "Manage plan"}</h2>
           <p className="mt-3 font-arsans text-sm leading-7 text-bone/60">
@@ -907,6 +983,11 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
                 {billingStatus === "opening" ? (isArabic ? "جار فتح الدفع..." : "Opening checkout...") : isArabic ? "الترقية إلى بلس" : "Upgrade to Plus"}
               </button>
             )}
+            {isRevenueCatAvailable() ? (
+              <button type="button" onClick={() => void restorePlusPurchases()} disabled={billingStatus === "opening"} className="ui-action border border-white/15 px-4 py-3 text-bone/85 hover:border-gold/35 hover:text-gold">
+                {isArabic ? "استعادة المشتريات" : "Restore purchases"}
+              </button>
+            ) : null}
             <Link href="/refund" className="ui-action border border-white/15 px-4 py-3 text-bone/85 hover:border-gold/35 hover:text-gold">
               {isArabic ? "سياسة الاسترداد" : "Refund policy"}
             </Link>
@@ -915,7 +996,7 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
           <PlusUnlockedPanel language={language} activeTier={profile.activeTier} />
         </section>
 
-        <form onSubmit={saveProfile} className={`${activeProfileTab === "account-details" ? "" : "hidden"} space-y-5 border border-white/10 bg-white/[0.025] p-5`}>
+        <form onSubmit={saveProfile} className={`${activeProfileTab === "account-details" ? "" : "hidden"} space-y-5 border border-white/10 bg-white/[0.025] p-4 sm:p-5`}>
           <div>
             <p className="ui-kicker">{isArabic ? "تعديل الهوية العامة" : "Edit public identity"}</p>
             <p className="mt-2 font-arsans text-sm leading-7 text-bone/55">{isArabic ? "هذه بيانات حساب المستخدم، وليست شخصية الرفيق داخل المحادثة." : "These are account details, separate from the companion persona inside chat."}</p>
@@ -926,7 +1007,7 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
 
           <div>
             <p className="mb-3 font-arsans text-sm text-bone/65">{isArabic ? "أو اختر شعار حساب جاهز" : "Or choose a ready account logo"}</p>
-            <div className="grid grid-cols-6 gap-2">
+            <div className="grid grid-cols-3 gap-2 min-[420px]:grid-cols-6">
               {logoOptions.map((logo) => (
                 <button key={logo} type="button" onClick={() => setProfile((current) => ({ ...current, image: logo }))} className={`relative aspect-square overflow-hidden border ${profile.image === logo ? "border-gold" : "border-white/10"}`}>
                   <Image src={logo} alt={isArabic ? "خيار شعار الحساب" : "Profile logo option"} fill sizes="64px" className="object-cover" unoptimized />
@@ -947,7 +1028,7 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
           {status === "error" ? <p className="font-arsans text-sm text-red-200">{isArabic ? "لم يتم الحفظ. تأكد أن الروابط تبدأ باتصال آمن." : "Could not save. Make sure links use a secure address."}</p> : null}
         </form>
 
-        <section id="child-profiles" className={`${activeProfileTab === "child-profiles" ? "" : "hidden"} scroll-mt-24 border border-cyan-200/15 bg-cyan-200/[0.025] p-5 md:col-span-2`}>
+        <section id="child-profiles" className={`${activeProfileTab === "child-profiles" ? "" : "hidden"} scroll-mt-24 border border-cyan-200/15 bg-cyan-200/[0.025] p-4 sm:p-5 md:col-span-2`}>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-3xl">
               <p className="ui-kicker text-cyan-100">{isArabic ? "ملفات الأطفال" : "Children profiles"}</p>
@@ -958,7 +1039,7 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
                   : "Each child gets a separate space and conversation history. Children do not use email or passwords, and returning to the parent profile requires parent email confirmation."}
               </p>
             </div>
-            <div className="grid w-full gap-2 sm:grid-cols-4 lg:w-auto lg:min-w-[24rem]">
+            <div className="grid w-full gap-2 min-[520px]:grid-cols-2 lg:w-auto lg:min-w-[24rem] lg:grid-cols-4">
               <button type="button" onClick={() => setChildProfilesExpanded((current) => !current)} className="ui-action border border-cyan-200/25 px-3 py-2 text-xs text-cyan-100 hover:bg-cyan-200 hover:text-ink">
                 {childProfilesExpanded ? (isArabic ? "إخفاء الملفات" : "Collapse") : isArabic ? "عرض الملفات" : "Show profiles"}
               </button>
@@ -974,7 +1055,7 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2" role="tablist" aria-label={isArabic ? "أقسام شاشة الأطفال" : "Children view sections"}>
+          <div className="mt-4 grid grid-cols-2 gap-2 min-[520px]:grid-cols-4" role="tablist" aria-label={isArabic ? "أقسام شاشة الأطفال" : "Children view sections"}>
             {([
               { id: "overview", ar: "ملخص سريع", en: "Quick overview" },
               { id: "insights", ar: "التحليلات", en: "Insights" },
@@ -989,7 +1070,7 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
                   role="tab"
                   aria-selected={active}
                   onClick={() => setActiveChildPanel(tab.id)}
-                  className={`ui-action border px-3 py-2 text-xs transition-colors ${active ? "border-cyan-200/50 bg-cyan-200 text-ink" : "border-white/10 text-bone/68 hover:border-cyan-200/35 hover:text-cyan-100"}`}
+                  className={`ui-action min-h-10 border px-3 py-2 text-xs transition-colors ${active ? "border-cyan-200/50 bg-cyan-200 text-ink" : "border-white/10 text-bone/68 hover:border-cyan-200/35 hover:text-cyan-100"}`}
                 >
                   {isArabic ? tab.ar : tab.en}
                 </button>
@@ -997,9 +1078,22 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
             })}
           </div>
 
+          <ParentInsightHub
+            language={language}
+            insight={parentInsightHub}
+            onOpenInsights={() => setActiveChildPanel("insights")}
+            onOpenHomework={() => openParentToolDialog("homework")}
+            onOpenPlaybook={() => openParentToolDialog("playbook")}
+            onRefresh={() => {
+              void loadChildProfiles();
+              void loadWeeklyParentReport();
+            }}
+            loading={childStatus === "loading" || weeklyReportStatus === "loading"}
+          />
+
           {activeChildPanel === "overview" ? (
           <>
-          <div className="mt-4 grid gap-3 sm:grid-cols-4">
+          <div className="mt-4 grid gap-3 min-[520px]:grid-cols-2 lg:grid-cols-4">
             <div className="border border-cyan-200/12 bg-cyan-200/[0.035] p-3">
               <span className="block font-arsans text-[10px] uppercase tracking-[0.08em] text-cyan-100/50">{isArabic ? "الدخول" : "Access"}</span>
               <span className="mt-1 block font-arsans text-xs leading-5 text-bone/60">{isArabic ? "من حساب الوالد فقط" : "Parent account only"}</span>
@@ -2100,6 +2194,95 @@ function ProfileInput({ label, value, onChange, dir = "auto" }: { label: string;
   );
 }
 
+type ParentInsightHubModel = {
+  headline: string;
+  subline: string;
+  priorityLabel: string;
+  priorityTone: "steady" | "watch" | "care";
+  tonightAction: string;
+  privacyLine: string;
+  stats: Array<{ label: string; value: string; detail: string }>;
+  children: Array<{
+    childProfileId: string;
+    nickname: string;
+    badge: string;
+    headline: string;
+    nextStep: string;
+    riskLevel: ChildPulseSummary["riskLevel"];
+    updatedAt: string | null;
+  }>;
+};
+
+function ParentInsightHub({ language, insight, onOpenInsights, onOpenHomework, onOpenPlaybook, onRefresh, loading }: { language: "ar" | "en"; insight: ParentInsightHubModel; onOpenInsights: () => void; onOpenHomework: () => void; onOpenPlaybook: () => void; onRefresh: () => void; loading: boolean }) {
+  const isArabic = language === "ar";
+  const priorityClass = insight.priorityTone === "care"
+    ? "border-red-200/26 bg-red-200/[0.055] text-red-100"
+    : insight.priorityTone === "watch"
+      ? "border-amber-200/26 bg-amber-200/[0.055] text-amber-100"
+      : "border-emerald-200/24 bg-emerald-200/[0.05] text-emerald-100";
+
+  return (
+    <section className="mt-4 overflow-hidden border border-white/10 bg-[#0E0D10]/72 shadow-[0_24px_90px_rgba(0,0,0,0.28)]">
+      <div className="grid gap-4 p-3 sm:p-4 lg:grid-cols-[0.92fr_1.08fr]">
+        <div className={`relative overflow-hidden border p-4 ${priorityClass}`}>
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_12%,rgba(247,243,236,0.16),transparent_7rem),radial-gradient(circle_at_92%_14%,rgba(201,168,106,0.18),transparent_7rem)]" />
+          <div className="relative">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.12em] opacity-70">{isArabic ? "مركز بصيرة الوالد" : "Parent Insight Hub"}</p>
+                <h3 className="mt-2 font-arserif text-3xl leading-9 text-bone/95">{insight.headline}</h3>
+              </div>
+              <span className="rounded-full border border-current/22 bg-black/14 px-3 py-1 font-arsans text-[11px] font-semibold">{insight.priorityLabel}</span>
+            </div>
+            <p className="mt-3 max-w-xl font-arsans text-sm leading-7 text-bone/68">{insight.subline}</p>
+            <div className="mt-4 border border-white/10 bg-black/18 p-3">
+              <p className="font-arsans text-[11px] font-semibold uppercase tracking-[0.08em] text-gold/72">{isArabic ? "خطوة الليلة" : "Tonight's move"}</p>
+              <p className="mt-2 font-arsans text-sm leading-6 text-bone/82">{insight.tonightAction}</p>
+            </div>
+            <p className="mt-3 font-arsans text-[11px] leading-5 text-bone/48">{insight.privacyLine}</p>
+          </div>
+        </div>
+
+        <div className="grid gap-3">
+          <div className="grid gap-2 sm:grid-cols-4">
+            {insight.stats.map((stat) => (
+              <article key={stat.label} className="border border-white/10 bg-white/[0.03] p-3">
+                <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35">{stat.label}</p>
+                <p className="mt-2 font-enserif text-3xl italic text-bone/95" dir="ltr">{stat.value}</p>
+                <p className="mt-1 font-arsans text-[11px] leading-5 text-bone/45">{stat.detail}</p>
+              </article>
+            ))}
+          </div>
+          <div className="grid gap-2 lg:grid-cols-2">
+            {insight.children.length > 0 ? insight.children.slice(0, 2).map((child) => (
+              <article key={child.childProfileId} className="border border-white/10 bg-black/16 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate font-arsans text-sm font-semibold text-bone/90" dir="auto">{child.nickname}</p>
+                  <span className={`rounded-full border px-2 py-0.5 font-arsans text-[10px] ${child.riskLevel === "high" ? "border-red-200/45 text-red-100" : child.riskLevel === "medium" ? "border-amber-200/45 text-amber-100" : "border-emerald-200/35 text-emerald-100"}`}>{child.badge}</span>
+                </div>
+                <p className="mt-2 font-arsans text-sm leading-6 text-bone/76">{child.headline}</p>
+                <p className="mt-2 font-arsans text-xs leading-5 text-cyan-100/70">{child.nextStep}</p>
+                <p className="mt-2 font-arsans text-[10px] text-bone/34">{child.updatedAt ? formatChildConversationDate(child.updatedAt, language) : (isArabic ? "هادئ هذا الأسبوع" : "quiet this week")}</p>
+              </article>
+            )) : (
+              <article className="border border-dashed border-white/14 bg-black/12 p-3 lg:col-span-2">
+                <p className="font-arsans text-sm text-bone/62">{isArabic ? "سيظهر مركز البصيرة بعد أول نشاط لطفل أو أول تقرير أسبوعي." : "The insight hub will become richer after the first child activity or weekly report."}</p>
+              </article>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-2 border-t border-white/10 bg-black/14 p-3 sm:grid-cols-4">
+        <button type="button" onClick={onOpenInsights} className="ui-action min-h-10 border border-gold/25 px-3 py-2 text-xs text-gold/85 hover:bg-gold hover:text-ink">{isArabic ? "فتح التحليلات" : "Open insights"}</button>
+        <button type="button" onClick={onOpenHomework} className="ui-action min-h-10 border border-emerald-200/24 px-3 py-2 text-xs text-emerald-100 hover:bg-emerald-100 hover:text-ink">{isArabic ? "تحويل واجب" : "Transform homework"}</button>
+        <button type="button" onClick={onOpenPlaybook} className="ui-action min-h-10 border border-amber-200/24 px-3 py-2 text-xs text-amber-100 hover:bg-amber-100 hover:text-ink">{isArabic ? "خطة موقف" : "Build playbook"}</button>
+        <button type="button" onClick={onRefresh} disabled={loading} className="ui-action min-h-10 border border-white/10 px-3 py-2 text-xs text-bone/68 hover:border-cyan-200/35 hover:text-cyan-100 disabled:cursor-wait disabled:opacity-55">{loading ? (isArabic ? "تحديث..." : "Refreshing...") : isArabic ? "تحديث" : "Refresh"}</button>
+      </div>
+    </section>
+  );
+}
+
 function formatChildAgeBand(ageBand: ChildProfile["ageBand"], language: "ar" | "en") {
   const labels: Record<ChildProfile["ageBand"], { ar: string; en: string }> = {
     under_8: { ar: "أقل من ٨", en: "Under 8" },
@@ -2212,6 +2395,75 @@ function WeeklyMetricTile({ label, value }: { label: string; value: string }) {
       <span className="mt-1 block font-mono text-sm text-bone/88">{value}</span>
     </div>
   );
+}
+
+function buildParentInsightHub(childProfiles: ChildProfile[], childPulse: ChildPulseSummary[], weeklyReport: WeeklyParentReport | null, language: "ar" | "en"): ParentInsightHubModel {
+  const isArabic = language === "ar";
+  const activePulse = childPulse.filter((item) => item.turnCount7d > 0 || item.lastActivityAt);
+  const highRiskCount = childPulse.filter((item) => item.riskLevel === "high").length;
+  const mediumRiskCount = childPulse.filter((item) => item.riskLevel === "medium").length;
+  const totalTurns = weeklyReport?.metrics.totalTurns ?? childPulse.reduce((sum, item) => sum + item.turnCount7d, 0);
+  const homeworkCount = weeklyReport?.metrics.homeworkAssignments ?? 0;
+  const playbookCount = weeklyReport?.metrics.playbookRuns ?? 0;
+  const quietChildren = Math.max(0, childProfiles.length - activePulse.length);
+  const priorityTone: ParentInsightHubModel["priorityTone"] = highRiskCount > 0 ? "care" : mediumRiskCount > 0 || quietChildren > 0 ? "watch" : "steady";
+  const priorityLabel = priorityTone === "care"
+    ? isArabic ? "أولوية دعم" : "Support priority"
+    : priorityTone === "watch"
+      ? isArabic ? "متابعة لطيفة" : "Gentle watch"
+      : isArabic ? "إيقاع مستقر" : "Steady rhythm";
+  const mostRecentPulse = [...childPulse].sort((left, right) => new Date(right.lastActivityAt || 0).getTime() - new Date(left.lastActivityAt || 0).getTime())[0];
+  const headline = highRiskCount > 0
+    ? isArabic ? "اقترب بهدوء قبل أي تصحيح" : "Move closer before correcting"
+    : activePulse.length > 0
+      ? isArabic ? "لديك نافذة اتصال جاهزة اليوم" : "You have a connection window today"
+      : childProfiles.length > 0
+        ? isArabic ? "افتح باباً صغيراً بلا ضغط" : "Open a small door without pressure"
+        : isArabic ? "ابدأ بإضافة أول طفل" : "Start by adding your first child";
+  const subline = weeklyReport?.summary || (isArabic
+    ? "مركز سريع يترجم نشاط الطفل إلى خطوة والدية واحدة، مع الحفاظ على خصوصية مساحة الطفل."
+    : "A fast hub that turns child activity into one parent move while preserving the child workspace boundary.");
+  const tonightAction = weeklyReport?.children[0]?.nextAction || (mostRecentPulse
+    ? buildConnectionRitual(mostRecentPulse, language).title
+    : childProfiles.length > 0
+      ? isArabic ? "اسأل كل طفل سؤال لون اليوم: أي لون يشبه يومك؟" : "Ask each child the color question: what color was your day?"
+      : isArabic ? "أنشئ ملف طفل ثم افتح مساحة الطفل من القائمة." : "Create a child profile, then open the child workspace from the menu.");
+  const children = childProfiles.map((child) => {
+    const pulse = childPulse.find((item) => item.childProfileId === child.id);
+    const reportChild = weeklyReport?.children.find((item) => item.childProfileId === child.id);
+    const ritual = pulse ? buildConnectionRitual(pulse, language) : null;
+
+    return {
+      childProfileId: child.id,
+      nickname: child.nickname,
+      badge: pulse ? formatChildPulseRisk(pulse.riskLevel, language) : isArabic ? "هادئ" : "Quiet",
+      headline: reportChild?.headline || ritual?.title || (isArabic ? "لم يبدأ نشاط هذا الأسبوع بعد" : "No activity yet this week"),
+      nextStep: reportChild?.nextAction || ritual?.detail || (isArabic ? "ابدأ بدعوة لعب قصيرة أو واجب بسيط." : "Start with a short play invite or simple homework mission."),
+      riskLevel: pulse?.riskLevel ?? "low",
+      updatedAt: pulse?.lastActivityAt ?? child.updatedAt,
+    };
+  }).sort((left, right) => {
+    const riskRank = { high: 3, medium: 2, low: 1 } as const;
+    const riskDelta = riskRank[right.riskLevel] - riskRank[left.riskLevel];
+    if (riskDelta !== 0) return riskDelta;
+    return new Date(right.updatedAt || 0).getTime() - new Date(left.updatedAt || 0).getTime();
+  });
+
+  return {
+    headline,
+    subline,
+    priorityLabel,
+    priorityTone,
+    tonightAction,
+    privacyLine: isArabic ? "يعرض هذا المركز مؤشرات وملخصات آمنة، وليس نص محادثات الطفل الخاصة." : "This hub shows safe signals and summaries, not the child’s private chat transcript.",
+    stats: [
+      { label: isArabic ? "أطفال" : "Children", value: String(childProfiles.length), detail: isArabic ? `${activePulse.length} نشط` : `${activePulse.length} active` },
+      { label: isArabic ? "تفاعل" : "Turns", value: String(totalTurns), detail: isArabic ? "آخر ٧ أيام" : "last 7 days" },
+      { label: isArabic ? "واجب" : "Homework", value: String(homeworkCount), detail: isArabic ? "مهام مرسلة" : "assigned" },
+      { label: isArabic ? "خطط" : "Plans", value: String(playbookCount), detail: isArabic ? "دعم والد" : "parent support" },
+    ],
+    children,
+  };
 }
 
 function buildConnectionRitual(item: ChildPulseSummary, language: "ar" | "en") {

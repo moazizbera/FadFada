@@ -38,10 +38,10 @@ export function SignInClient() {
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-ink px-5 pb-12 pt-24 text-bone/90" dir={direction}>
-      <section className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-xl items-center">
-        <form onSubmit={submit} className="w-full border border-white/10 bg-[#0E0D10]/88 p-5 shadow-2xl backdrop-blur-xl">
-          <div className="mb-5 flex items-center justify-between gap-4 border-b border-white/10 pb-4">
+    <main className="min-h-screen overflow-x-clip bg-ink px-3 pb-12 pt-24 text-bone/90 sm:px-5" dir={direction}>
+      <section className="mx-auto flex min-h-[calc(100dvh-8rem)] max-w-xl items-center">
+        <form onSubmit={submit} className="w-full border border-white/10 bg-[#0E0D10]/88 p-4 shadow-2xl backdrop-blur-xl sm:p-5">
+          <div className="mb-5 flex items-center justify-between gap-3 border-b border-white/10 pb-4">
             <Link href="/" className="ui-action rounded-lg border border-white/10 px-3 py-2 text-bone/70 transition-colors hover:border-gold/45 hover:text-gold">
               {isArabic ? "العودة للرئيسية" : "Back home"}
             </Link>
@@ -51,7 +51,7 @@ export function SignInClient() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="ui-kicker">{isArabic ? "تسجيل الدخول" : "Sign in"}</p>
-              <h2 className="mt-3 font-arserif text-4xl text-bone/95">{isArabic ? "حساب فضفضة" : "FadFada account"}</h2>
+              <h2 className="mt-3 font-arserif text-3xl text-bone/95 sm:text-4xl">{isArabic ? "حساب فضفضة" : "FadFada account"}</h2>
             </div>
           </div>
 
@@ -95,14 +95,14 @@ export function SignInClient() {
             {state === "loading" ? (isArabic ? "جار الدخول..." : "Signing in...") : isArabic ? "دخول إلى فضفضة" : "Enter FadFada"}
           </button>
 
-          <div className="mt-5 flex items-center justify-between gap-4 border-t border-white/10 pt-4">
+          <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/10 pt-4 max-[420px]:flex-col max-[420px]:items-stretch">
             <p className="font-arsans text-xs text-bone/40">{isArabic ? "لديك صلاحية إدارة؟" : "Have admin access?"}</p>
             <Link href="/admin/login" className="ui-action text-gold transition-colors hover:text-bone">
               {isArabic ? "دخول الإدارة" : "Admin sign in"}
             </Link>
           </div>
 
-          <div className="mt-5 grid gap-2 sm:grid-cols-3">
+          <div className="mt-5 grid gap-2 min-[520px]:grid-cols-3">
             <Signal direction={direction} label={isArabic ? "تثبيت" : "Install"} value={isArabic ? "قابل للتثبيت" : "Installable"} />
             <Signal direction={direction} label={isArabic ? "حفظ" : "Save"} value={isArabic ? "لحظاتك" : "Moments"} />
             <Signal direction={direction} label={isArabic ? "تجربة" : "Demo"} value={isArabic ? "مجاني" : "Free"} />

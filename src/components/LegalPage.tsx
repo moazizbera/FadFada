@@ -24,8 +24,8 @@ export function LegalPage({ eyebrow, title, updated, intro, sections }: LegalPag
   const isArabic = language === "ar";
 
   return (
-    <main className="mx-auto min-h-screen max-w-3xl px-5 pb-20 pt-28" dir={direction}>
-      <div className="mb-10">
+    <main className="mx-auto min-h-screen max-w-3xl overflow-x-clip px-3 pb-20 pt-24 sm:px-5 sm:pt-28" dir={direction}>
+      <div className="mb-8 sm:mb-10">
         <Link href="/" className="ui-action text-bone/55 transition-colors hover:text-gold">
           {isArabic ? "العودة إلى فضفضة" : "Back to FadFada"}
         </Link>
@@ -37,7 +37,7 @@ export function LegalPage({ eyebrow, title, updated, intro, sections }: LegalPag
 
       <div className="grid gap-5">
         {sections.map((section) => (
-          <section key={section.title.en} className="luxury-surface rounded-2xl p-5">
+          <section key={section.title.en} className="luxury-surface rounded-2xl p-4 sm:p-5">
             <h2 className="font-arsans text-lg font-semibold text-bone">{section.title[language]}</h2>
             <p className="mt-3 font-arsans text-sm leading-7 text-bone/68">{section.body[language]}</p>
           </section>

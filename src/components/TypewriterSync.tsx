@@ -81,6 +81,14 @@ export function TypewriterSync({ text, cadence = "steady_calm", language = "ar",
       return;
     }
 
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReduced) {
+      setVisibleText(formattedText);
+      setIsComplete(true);
+      completionRef.current?.();
+      return;
+    }
+
     setVisibleText("");
     setIsComplete(false);
 

@@ -6,7 +6,6 @@ export default function HomePage() {
     <div>
       <VisitorTracker />
       <ChatWindow />
-      <h1>Test Page</h1>
     </div>
   );
 }

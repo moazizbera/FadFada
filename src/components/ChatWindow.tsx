@@ -12,6 +12,10 @@ import { selectableWorlds, worlds, type WorldId } from "../lib/worlds";
 import { useAppLocale } from "./AppShell";
 import { BreathingExercise } from "./BreathingExercise";
 import { PersonaDrawer } from "./PersonaDrawer";
+import PersonaSpeaking from "./PersonaSpeaking";
+import { findBrowserVoiceForEdgeTTS, getPersonaEdgeTTS } from "../lib/tts";
+import ChildDrawingBoard from "./ChildDrawingBoard";
+import ChildMusicActivity from "./ChildMusicActivity";
 import { TypewriterSync, type EmotionalCadence } from "./TypewriterSync";
 
 // Web Speech API types (browser-only, not in all TS dom lib versions)
@@ -316,7 +320,7 @@ function normalizeGreetingName(value: string | null | undefined) {
 }
 
 function cleanClientDiscountCode(value: string | null) {
-  const cleanedValue = value?.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 48);
+  const cleanedValue = value?.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 48);
   return cleanedValue || "";
 }
 
@@ -338,6 +342,7 @@ const journeySnapshotStorageKey = "fadfada-journey-snapshots";
 const growthQuestStorageKey = "fadfada-growth-quests";
 const generatedMediaStorageKey = "fadfada-generated-media";
 const discountCodeStorageKey = "fadfada-discount-code";
+const defaultLaunchDiscountCode = "FADA30";
 const voiceDialectStorageKey = "fadfada-voice-dialect";
 const offlineDraftStorageKey = "fadfada-offline-draft";
 const visitorNameStorageKey = "fadfada-visitor-name";
@@ -1548,6 +1553,29 @@ function ChildStorySceneCard({ story, language }: { story: ChildStory; language:
   );
 }
 
+function CompactChildStoryGuideCard({ story, language }: { story: ChildStory; language: Language }) {
+  const isArabic = language === "ar";
+  const storyTitle = isArabic ? story.titleAr : story.titleEn;
+  const storySubtitle = isArabic ? story.subtitleAr : story.subtitleEn;
+  const firstPage = isArabic ? story.pagesAr[0] : story.pagesEn[0];
+
+  return (
+    <div className="mb-3 overflow-hidden rounded-2xl border border-amber-100/16 bg-[#0E0D10]/84 shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
+      <div className={`flex items-center gap-3 bg-gradient-to-br ${story.posterClassName} p-3 text-start`}>
+        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-white/24 bg-white/16 font-arserif text-2xl text-white shadow-xl backdrop-blur-md" aria-hidden="true">
+          {story.posterGlyph}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-white/70" dir="ltr">Story guide</p>
+          <h3 className="mt-0.5 truncate font-arsans text-base font-bold leading-6 text-white">{storyTitle}</h3>
+          <p className="line-clamp-2 font-arsans text-xs leading-5 text-white/76">{storySubtitle}</p>
+        </div>
+      </div>
+      <p className="line-clamp-2 px-3 py-2.5 font-arsans text-xs leading-5 text-bone/68">{firstPage}</p>
+    </div>
+  );
+}
+
 function getHomeworkActivityVisual(activity: ChildHomeworkActivity, index: number): { kind: ChildHomeworkVisual["kind"]; count: number; label: string; expectedAnswer: string | null } {
   const text = `${activity.title} ${activity.prompt} ${activity.hint}`.toLowerCase();
   const kind = activity.visual?.kind
@@ -2051,11 +2079,19 @@ function getPreferredVoiceConfig(voiceConfig: PersonaVoiceConfig): PersonaVoiceC
   return { ...voiceConfig, locale: preferredLocale };
 }
 
-function selectSpeechVoice(language: Language, voiceConfig: PersonaVoiceConfig) {
+function selectSpeechVoice(language: Language, voiceConfig: PersonaVoiceConfig, edgeTtsVoiceName?: string) {
   if (typeof window === "undefined" || !window.speechSynthesis) return undefined;
 
   const voices = window.speechSynthesis.getVoices();
   if (voices.length === 0) return undefined;
+
+  if (edgeTtsVoiceName) {
+    const edgeVoiceName = findBrowserVoiceForEdgeTTS(edgeTtsVoiceName);
+    if (edgeVoiceName) {
+      const edgeVoice = voices.find((voice) => voice.name === edgeVoiceName);
+      if (edgeVoice) return edgeVoice;
+    }
+  }
 
   const localePreferences = getDialectLocalePreferences(language, voiceConfig).map((locale) => locale.toLowerCase());
   const nameHints = getDialectNameHints(language, voiceConfig);
@@ -2173,6 +2209,8 @@ export function ChatWindow() {
   const [childMomentSlideIndex, setChildMomentSlideIndex] = useState(0);
   const [childHomeworkSlideIndex, setChildHomeworkSlideIndex] = useState(0);
   const [breathingOpen, setBreathingOpen] = useState(false);
+  const [drawingBoardOpen, setDrawingBoardOpen] = useState(false);
+  const [musicActivityOpen, setMusicActivityOpen] = useState(false);
   const recorderRef = useRef<ISpeechRecognition | null>(null);
   const keepRecordingRef = useRef(false);
   const recordingRestartCountRef = useRef(0);
@@ -2183,6 +2221,7 @@ export function ChatWindow() {
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const pendingVisitorChallengeFocusRef = useRef<"composer" | "name" | null>(null);
   const pendingReplyFocusRef = useRef(false);
+  const upgradeLaunchHandledRef = useRef(false);
 
   const activeWorld = worlds[world];
   const sessionUser = session?.user as ({ id?: string; activeTier?: string; tokenBalance?: number } & Record<string, unknown>) | undefined;
@@ -2278,6 +2317,14 @@ export function ChatWindow() {
     return source.slice(0, 10);
   }, [childHomeworkAssignments, pendingChildHomeworkAssignments]);
   const activeChildHomeworkSlide = childHomeworkSlides[childHomeworkSlideIndex % Math.max(childHomeworkSlides.length, 1)];
+  const childMissionStats = useMemo(() => ({
+    pendingHomework: pendingChildHomeworkAssignments.length,
+    completedHomework: completedChildHomeworkAssignments.length,
+    totalHomework: childHomeworkAssignments.length,
+    checkInStreak: dailyPulseStats.streak,
+    savedMoments: savedMomentIds.length,
+    chatTurns: messages.filter((message) => message.role === "user").length,
+  }), [childHomeworkAssignments.length, completedChildHomeworkAssignments.length, dailyPulseStats.streak, messages, pendingChildHomeworkAssignments.length, savedMomentIds.length]);
   const storyboardGallerySourceMessage = useMemo<ChatMessage>(() => latestAssistantMessage ?? {
     id: "storyboard-gallery-demo",
     role: "assistant",
@@ -2371,6 +2418,15 @@ export function ChatWindow() {
     }, 5600);
     return () => window.clearInterval(timer);
   }, [isChildWorkspace, childHomeworkSlides.length]);
+
+  useEffect(() => {
+    if (isChildWorkspace) return;
+    setChildHomeworkDrawerOpen(false);
+    setChildHomeworkTab("pending");
+    setDrawingBoardOpen(false);
+    setMusicActivityOpen(false);
+    setBreathingOpen(false);
+  }, [isChildWorkspace]);
 
   useEffect(() => {
     if (pendingChildHomeworkAssignments.length === 0 && completedChildHomeworkAssignments.length > 0) {
@@ -3051,9 +3107,10 @@ export function ChatWindow() {
   }
 
   function runHomeHeaderAction(action: HomeHeaderAction) {
+    closeTransientOverlays();
+
     if (action === "start") {
       setPersonaOpen(false);
-      setToolsOpen(false);
       scrollToSection("chat");
       window.setTimeout(focusInput, 120);
       void trackInteraction("starter_tap", { type: "top_menu_start", language });
@@ -3075,14 +3132,12 @@ export function ChatWindow() {
     if (action === "homework") {
       if (!isChildWorkspace) return;
       setPersonaOpen(false);
-      setToolsOpen(false);
       setChildHomeworkDrawerOpen(true);
       return;
     }
 
     if (action === "newChat") {
       setPersonaOpen(false);
-      setToolsOpen(false);
       void startNewChatSession();
       void trackInteraction("starter_tap", { type: "top_menu_new_chat", language });
       return;
@@ -3123,16 +3178,19 @@ export function ChatWindow() {
       window.history.replaceState(null, "", nextUrl);
     }
 
+  }, [avatarsEnabled, language]);
+
+  useEffect(() => {
     const handleAction = (event: Event) => {
       const action = (event as CustomEvent<{ action?: HomeHeaderAction }>).detail?.action;
-      if (action === "start" || action === "avatars" || action === "stories" || action === "newChat") {
+      if (action === "start" || action === "avatars" || action === "stories" || action === "homework" || action === "newChat") {
         runHomeHeaderAction(action);
       }
     };
 
     window.addEventListener(fadfadaHomeActionEventName, handleAction);
     return () => window.removeEventListener(fadfadaHomeActionEventName, handleAction);
-  }, [avatarsEnabled, language]);
+  });
 
   function showShareStatus(status: ShareStatus) {
     setShareStatus(status);
@@ -3392,7 +3450,7 @@ export function ChatWindow() {
     utterance.lang = getSpeechLocale(speechLanguage, preferredVoiceConfig);
     utterance.rate = preferredVoiceConfig.rate;
     utterance.pitch = preferredVoiceConfig.pitch;
-    utterance.voice = selectSpeechVoice(speechLanguage, preferredVoiceConfig) ?? null;
+    utterance.voice = selectSpeechVoice(speechLanguage, preferredVoiceConfig, getPersonaEdgeTTS(persona.id).voice) ?? null;
     utterance.onend = () => setSpeakingMessageId(null);
     utterance.onerror = () => setSpeakingMessageId(null);
     setSpeakingMessageId(messageId);
@@ -3411,6 +3469,19 @@ export function ChatWindow() {
 
   function toggleVoicePlayback(message: ChatMessage) {
     if (typeof window === "undefined") return;
+
+    const messagePersona = resolveMessagePersona(message, customPersona);
+    const isChildPersona = NEW_CHILDREN_ROSTER.some((c) => c.id === messagePersona.id);
+
+    if (isChildPersona) {
+      if (speakingMessageId === message.id) {
+        stopVoicePlayback();
+        return;
+      }
+      stopVoicePlayback();
+      setSpeakingMessageId(message.id);
+      return;
+    }
 
     if (speakingMessageId === message.id) {
       stopVoicePlayback();
@@ -3961,6 +4032,19 @@ export function ChatWindow() {
     if (authStatus === "loading") return;
     setConversationHydrated(false);
 
+    const params = new URLSearchParams(window.location.search);
+    const urlDiscountCode = cleanClientDiscountCode(params.get("discount"));
+    const storedDiscountCode = cleanClientDiscountCode(localStorage.getItem(discountCodeStorageKey));
+    const nextDiscountCode = urlDiscountCode || storedDiscountCode || defaultLaunchDiscountCode;
+    setActiveDiscountCode(nextDiscountCode);
+    localStorage.setItem(discountCodeStorageKey, nextDiscountCode);
+
+    if (!upgradeLaunchHandledRef.current && params.get("upgrade") === "plus") {
+      upgradeLaunchHandledRef.current = true;
+      setPaywallOpen(true);
+      void trackInteraction("starter_tap", { type: "launch_discount_upgrade", language, discountCode: nextDiscountCode });
+    }
+
     const storedUserId = localStorage.getItem(visitorUserIdKey);
     if (storedUserId) {
       setUserId(storedUserId);
@@ -4074,7 +4158,7 @@ export function ChatWindow() {
         discountCode: activeDiscountCode || undefined,
       }),
     }).catch(() => null);
-    const data = response ? ((await response.json()) as { url?: string; error?: string; message?: string }) : null;
+    const data = response ? ((await response.json()) as { url?: string; error?: string; message?: string; messageEn?: string }) : null;
 
     if (data?.url) {
       window.location.assign(data.url);
@@ -4090,7 +4174,11 @@ export function ChatWindow() {
         id: crypto.randomUUID(),
         role: "assistant",
         text:
-          language === "ar"
+          data?.error === "DISCOUNT_NOT_ACTIVE"
+            ? language === "ar"
+              ? "كود الخصم جاهز داخل فضفضة، لكنه لم يُفعّل داخل Lemon Squeezy بعد. فعّل الكود هناك أولاً حتى لا يدفع المستخدم السعر الكامل."
+              : "The discount code is ready in FadFada, but it is not active in Lemon Squeezy yet. Activate it there first so users do not pay full price."
+            : language === "ar"
             ? "لم يفتح الدفع الآن. تأكد أن إعدادات الدفع مفعلة، ثم جرّب الترقية مرة أخرى."
             : "Checkout did not open. Check that payment settings are configured, then try upgrading again.",
         world,
@@ -4297,6 +4385,21 @@ export function ChatWindow() {
     void trackInteraction("starter_tap", { type: "floating_secret_shortcuts", language });
   }
 
+  function closeTransientOverlays() {
+    setPersonaOpen(false);
+    setToolsOpen(false);
+    setPaywallOpen(false);
+    setPlusWelcomeOpen(false);
+    setBreathingOpen(false);
+    setVisitorShowcaseOpen(false);
+    setReceiptOpen(false);
+    setStoryOpen(false);
+    setStoryboardGalleryOpen(false);
+    setChildHomeworkDrawerOpen(false);
+    setDrawingBoardOpen(false);
+    setMusicActivityOpen(false);
+  }
+
   const visitorShowcaseDialog = visitorShowcaseOpen && typeof document !== "undefined" ? createPortal(
     <div className="fixed inset-0 z-[85] overflow-y-auto bg-[#050607]/82 px-3 py-4 backdrop-blur-xl sm:px-5 sm:py-8" role="dialog" aria-modal="true" aria-label={language === "ar" ? "استكشاف فضفضة" : "Explore FadFada"} dir={language === "ar" ? "rtl" : "ltr"}>
       <button type="button" className="absolute inset-0" onClick={closeVisitorShowcase} aria-label={language === "ar" ? "إغلاق المقدمة" : "Close intro"} />
@@ -4446,9 +4549,9 @@ export function ChatWindow() {
   const activeHomeworkList = childHomeworkTab === "pending" ? pendingChildHomeworkAssignments : completedChildHomeworkAssignments;
 
   const childHomeworkDialog = childHomeworkDrawerOpen && isChildWorkspace && typeof document !== "undefined" ? createPortal(
-    <div className="fixed inset-0 z-[85] overflow-y-auto bg-[#050607]/84 px-3 py-4 backdrop-blur-xl sm:px-5" role="dialog" aria-modal="true" aria-label={language === "ar" ? "قائمة الواجب" : "Homework list"} dir={language === "ar" ? "rtl" : "ltr"}>
+    <div className="fixed inset-x-0 bottom-[4.75rem] top-0 z-[85] overflow-y-auto bg-[#050607]/84 px-3 py-4 backdrop-blur-xl sm:px-5" role="dialog" aria-modal="true" aria-label={language === "ar" ? "قائمة الواجب" : "Homework list"} dir={language === "ar" ? "rtl" : "ltr"}>
       <button type="button" className="absolute inset-0" onClick={() => setChildHomeworkDrawerOpen(false)} aria-label={language === "ar" ? "إغلاق قائمة الواجب" : "Close homework list"} />
-      <section className="relative mx-auto max-w-3xl rounded-[1.5rem] border border-emerald-100/22 bg-[#0E0D10]/96 p-3 shadow-[0_32px_120px_rgba(0,0,0,0.58)] sm:p-4">
+      <section className="relative mx-auto flex max-h-full max-w-3xl flex-col rounded-[1.5rem] border border-emerald-100/22 bg-[#0E0D10]/96 p-3 shadow-[0_32px_120px_rgba(0,0,0,0.58)] sm:p-4">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 pb-3">
           <div className="text-start">
             <p className="ui-kicker text-emerald-100/84">{language === "ar" ? "لوحة الواجب" : "Homework board"}</p>
@@ -4475,7 +4578,7 @@ export function ChatWindow() {
           </button>
         </div>
 
-        <div className="mt-3 max-h-[70vh] space-y-2 overflow-y-auto pr-1 [scrollbar-color:rgba(110,231,183,0.45)_transparent]">
+        <div className="mobile-scrollbar-none mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 [scrollbar-color:rgba(110,231,183,0.45)_transparent]">
           {activeHomeworkList.length === 0 ? (
             <p className="rounded-xl border border-dashed border-white/16 bg-black/25 p-3 font-arsans text-sm text-bone/70">
               {childHomeworkTab === "pending"
@@ -4521,9 +4624,58 @@ export function ChatWindow() {
     document.body
   ) : null;
 
+  const bottomNavigation = typeof document !== "undefined" ? createPortal(
+    <BottomNav
+      key={conversationScopeKey}
+      language={language}
+      onHome={() => {
+        closeTransientOverlays();
+        scrollToSection("home");
+      }}
+      onLearn={isChildWorkspace ? () => {
+        closeTransientOverlays();
+        setChildHomeworkDrawerOpen(true);
+      } : () => {
+        closeTransientOverlays();
+        scrollToConversationEnd();
+        window.setTimeout(() => {
+          scrollToConversationEnd();
+          focusInput();
+        }, 120);
+      }}
+      onBreathe={() => {
+        closeTransientOverlays();
+        setBreathingOpen(true);
+      }}
+      onDraw={isChildWorkspace ? () => {
+        closeTransientOverlays();
+        setDrawingBoardOpen(true);
+      } : (avatarsEnabled ? () => {
+        closeTransientOverlays();
+        openAvatarDrawer();
+      } : () => {
+        closeTransientOverlays();
+        setToolsOpen(true);
+      })}
+      onStories={isChildWorkspace && avatarsEnabled ? () => {
+        closeTransientOverlays();
+        openStoryShelf();
+      } : undefined}
+      onSing={isChildWorkspace ? () => {
+        closeTransientOverlays();
+        setMusicActivityOpen(true);
+      } : () => {
+        closeTransientOverlays();
+        setToolsOpen(true);
+      }}
+      isChildWorkspace={isChildWorkspace}
+    />,
+    document.body
+  ) : null;
+
   return (
     <main
-      className={`relative mx-auto flex min-h-screen max-w-5xl flex-col overflow-x-hidden px-4 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-20 transition-all duration-700 ease-in-out sm:px-6 sm:pb-[calc(11rem+env(safe-area-inset-bottom))] md:px-8 md:pb-[calc(10rem+env(safe-area-inset-bottom))] ${personaEnvironment.ambientClassName} ${personaEnvironment.textClassName} ${personaEnvironment.typographyClassName}`}
+      className={`animate-rise-in relative mx-auto flex min-h-screen w-full max-w-5xl flex-col overflow-x-clip px-3 pb-[calc(9.5rem+env(safe-area-inset-bottom))] pt-20 transition-all duration-700 ease-in-out min-[380px]:px-4 sm:px-6 sm:pb-[calc(8rem+env(safe-area-inset-bottom))] md:px-8 md:pb-[calc(6rem+env(safe-area-inset-bottom))] ${personaEnvironment.ambientClassName} ${personaEnvironment.textClassName} ${personaEnvironment.typographyClassName}`}
       style={{
         backgroundImage: activeWorld.gradient,
         "--persona-aura": personaAura,
@@ -4533,21 +4685,20 @@ export function ChatWindow() {
     >
       <div className={`persona-ambient-layer pointer-events-none absolute inset-0 ${personaEnvironment.animationClassName}`} />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_8%,rgba(247,243,236,0.08),transparent_22rem)]" />
-
-      <header className="relative z-10 flex min-h-44 items-start justify-between sm:min-h-24">
+      <header className="relative z-10 flex min-h-40 items-start justify-between sm:min-h-24">
         <button type="button" onClick={() => void startNewChatSession()} className="ui-action rounded-full border border-white/10 bg-black/15 px-3 py-2 text-xs text-[#F7F3EC]/70 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
           {language === "ar" ? "محادثة جديدة" : "New chat"}
         </button>
         {avatarsEnabled && sessionReady ? (
-        <div className="absolute left-1/2 top-12 flex w-36 -translate-x-1/2 flex-col items-center gap-1.5 sm:top-0 sm:w-40">
+        <div className="absolute left-1/2 top-11 flex w-32 -translate-x-1/2 flex-col items-center gap-1.5 min-[380px]:w-36 sm:top-0 sm:w-40">
           <button
             type="button"
             onClick={openAvatarDrawer}
-            className="flex w-full flex-col items-center gap-1.5 rounded-[1.25rem] border border-white/10 bg-black/15 px-3 py-2 text-center outline-none backdrop-blur-sm transition-colors hover:border-[#C9A86A]/45"
+            className="flex w-full flex-col items-center gap-1.5 rounded-[1.25rem] border border-white/10 bg-black/15 px-3 py-2 text-center outline-none backdrop-blur-sm transition-all hover:border-[#C9A86A]/45 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-[#C9A86A]/50"
             aria-label={language === "ar" ? `افتح اختيار الرفيق ${activePersona.nameAr}` : `Open persona drawer for ${activePersona.nameEn}`}
           >
             <span
-              className={`h-16 w-16 sm:h-[4.75rem] sm:w-[4.75rem] ${headerAvatarFrameClass} rounded-[1.65rem] transition-all duration-500 ${isThinking ? "animate-pulse scale-105" : "animate-breathe scale-105 duration-[4000ms]"
+              className={`h-14 w-14 min-[380px]:h-16 min-[380px]:w-16 sm:h-[4.75rem] sm:w-[4.75rem] ${headerAvatarFrameClass} rounded-[1.4rem] sm:rounded-[1.65rem] transition-all duration-500 ${isThinking ? "animate-pulse scale-105" : "animate-breathe scale-105 duration-[4000ms]"
                 }`}
               style={{ boxShadow: `0 0 0 1px rgba(255,255,255,0.14), 0 0 44px ${activeHeaderPresentation.auraHex}C8, 0 26px 76px ${activeHeaderPresentation.auraHex}82` }}
             >
@@ -4590,7 +4741,7 @@ export function ChatWindow() {
         </div>
       </header>
 
-      <section ref={homeRef} className="relative z-10 mt-8 scroll-mt-24 flex flex-col items-center">
+      <section ref={homeRef} className="relative z-10 mt-5 scroll-mt-24 flex flex-col items-center sm:mt-8">
         <div className="hidden min-[360px]:block">
           <PresenceOrb world={world} color={activeWorld.orbHex} />
         </div>
@@ -4604,49 +4755,40 @@ export function ChatWindow() {
             ? (language === "ar" ? `وضع الطفل · ${activeProfile.name}` : `Child mode · ${activeProfile.name}`)
             : (language === "ar" ? `وضع الوالد · ${activeProfile.name}` : `Parent mode · ${activeProfile.name}`)}
         </p>
-        <p className="mt-2 max-w-md text-center font-arsans text-base font-medium leading-7 text-[#F7F3EC]/76">
-          {isChildWorkspace
-            ? language === "ar"
-              ? "هذه مساحة أطفال آمنة: قصص، ألغاز، تعلم، ورفاق أطفال فقط."
-              : "This is a safe child space: stories, puzzles, learning, and children companions only."
-            : language === "ar"
-              ? "مساحة عربية/إنجليزية هادئة: اكتب ما بداخلك، واختر من القائمة عندما تحتاج رفيقًا أو خطوة أو حفظ لحظة."
-              : "A calm Arabic/English space: write what is inside, then open the menu when you need a companion, a step, or a saved moment."}
-        </p>
         {isChildWorkspace ? (
-          <div className="mt-5 w-full max-w-2xl" dir={language === "ar" ? "rtl" : "ltr"}>
-            <div className="-mx-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="flex min-w-max items-center gap-1.5">
-                <button type="button" onClick={startChildTapGame} className="ui-action h-10 min-w-[6.4rem] shrink-0 rounded-xl bg-[#E6C36A] px-3 text-xs text-[#0E0D10] shadow-[0_10px_24px_rgba(230,195,106,0.2)] transition-colors hover:bg-[#F7F3EC]">
-                  {language === "ar" ? "ابدأ اللعب" : "Start playing"}
-                </button>
-                <button type="button" onClick={openStoryShelf} className="ui-action inline-flex h-10 min-w-[5.6rem] shrink-0 items-center justify-center gap-1.5 rounded-xl border border-sky-200/35 bg-sky-200/10 px-3 text-xs text-sky-100 transition-colors hover:bg-sky-200 hover:text-[#0E0D10]">
-                  <StoryIcon />
-                  <span>{language === "ar" ? "القصص" : "Stories"}</span>
-                </button>
-                <button type="button" onClick={() => avatarsEnabled ? openAvatarDrawer() : setToolsOpen(true)} className="ui-action h-10 min-w-[6.9rem] shrink-0 rounded-xl border border-white/18 bg-white/[0.055] px-3 text-xs text-[#F7F3EC]/84 transition-colors hover:border-[#F7F3EC]/45 hover:text-[#F7F3EC]">
-                  {language === "ar" ? "اختر رفيقك" : "Choose your friend"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setChildHomeworkDrawerOpen(true)}
-                  className="ui-action h-10 min-w-[6.4rem] shrink-0 rounded-xl border border-emerald-100/24 bg-emerald-100/12 px-3 text-xs text-emerald-50 transition-colors hover:bg-emerald-100 hover:text-[#0E0D10]"
-                >
-                  {language === "ar" ? "الواجب" : "Homework"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => startDailyChildMoment(activeChildMomentSlide.item, activeChildMomentSlide.id)}
-                  disabled={isThinking || !activePersonaIsChild}
-                  className="ui-action h-10 min-w-[6.4rem] shrink-0 rounded-xl border border-sky-100/24 bg-sky-100/[0.11] px-3 text-xs text-sky-50 transition-colors hover:bg-sky-100 hover:text-[#0E0D10] disabled:cursor-wait disabled:opacity-60"
-                >
-                  {language === "ar" ? "لحظة اليوم" : "Today moment"}
-                </button>
-              </div>
-            </div>
+          <div className="mt-3 flex items-center gap-2 rounded-full border border-amber-100/18 bg-black/18 px-3 py-1.5" dir="ltr">
+            {["story", "learn", "create", "calm"].map((item) => (
+              <span key={item} className="h-1.5 w-6 rounded-full bg-gradient-to-r from-amber-100/80 to-sky-100/70" />
+            ))}
           </div>
         ) : (
-          <div className="mt-5 grid w-full max-w-xl gap-2 sm:grid-cols-3" dir={language === "ar" ? "rtl" : "ltr"}>
+          <p className="mt-2 max-w-md text-center font-arsans text-base font-medium leading-7 text-[#F7F3EC]/76">
+            {language === "ar"
+              ? "مساحة عربية/إنجليزية هادئة: اكتب ما بداخلك، واختر من القائمة عندما تحتاج رفيقًا أو خطوة أو حفظ لحظة."
+              : "A calm Arabic/English space: write what is inside, then open the menu when you need a companion, a step, or a saved moment."}
+          </p>
+        )}
+          {isChildWorkspace ? (
+          <ChildMissionHub
+            language={language}
+            childName={activeChildNickname || activeProfile.name}
+            personaName={activePersonaDisplayName}
+            activeMoment={activeChildMomentSlide}
+            homework={activeChildHomeworkSlide}
+            stats={childMissionStats}
+            disabled={isThinking || !activePersonaIsChild}
+            onPlay={startChildTapGame}
+            onStory={openStoryShelf}
+            onBuddy={() => avatarsEnabled ? openAvatarDrawer() : setToolsOpen(true)}
+            onHomework={() => activeChildHomeworkSlide ? startChildHomework(activeChildHomeworkSlide) : setChildHomeworkDrawerOpen(true)}
+            onHomeworkList={() => setChildHomeworkDrawerOpen(true)}
+            onToday={() => startDailyChildMoment(activeChildMomentSlide.item, activeChildMomentSlide.id)}
+            onDraw={() => setDrawingBoardOpen(true)}
+            onMusic={() => setMusicActivityOpen(true)}
+            onBreathe={() => setBreathingOpen(true)}
+          />
+        ) : (
+          <div className="mt-5 grid w-full max-w-xl gap-2 min-[520px]:grid-cols-3" dir={language === "ar" ? "rtl" : "ltr"}>
             <button type="button" onClick={focusInput} className="ui-action rounded-xl bg-[#E6C36A] px-4 py-3 text-[#0E0D10] shadow-[0_14px_34px_rgba(230,195,106,0.22)] transition-colors hover:bg-[#F7F3EC]">
               {language === "ar" ? "ابدأ الفضفضة" : "Start venting"}
             </button>
@@ -4666,7 +4808,7 @@ export function ChatWindow() {
                 {language === "ar" ? "كل الأدوات" : "All tools"}
               </button>
             </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-5">
+            <div className="mt-3 grid gap-2 min-[520px]:grid-cols-2 md:grid-cols-5">
               {[
                 {
                   id: "storyboard",
@@ -4726,124 +4868,12 @@ export function ChatWindow() {
                   },
                 },
               ].map((tool) => (
-                <button key={tool.id} type="button" onClick={tool.onClick} className="group min-h-24 rounded-2xl border border-white/12 bg-white/[0.045] p-3 text-start transition duration-300 hover:-translate-y-0.5 hover:border-[#E6C36A]/42 hover:bg-[#E6C36A]/10">
+                <button key={tool.id} type="button" onClick={tool.onClick} className="group min-h-20 rounded-2xl border border-white/12 bg-white/[0.045] p-3 text-start transition duration-300 hover:-translate-y-0.5 hover:border-[#E6C36A]/42 hover:bg-[#E6C36A]/10 sm:min-h-24">
                   <SymbolIcon name={tool.icon} className="h-5 w-5 text-[#E6C36A]/82" />
                   <span className="mt-2 block font-arsans text-sm font-bold text-[#F7F3EC]/90">{language === "ar" ? tool.ar : tool.en}</span>
                   <span className="mt-1 block font-arsans text-[11px] leading-4 text-[#F7F3EC]/54 group-hover:text-[#F7F3EC]/72">{language === "ar" ? tool.helperAr : tool.helperEn}</span>
                 </button>
               ))}
-            </div>
-          </div>
-        ) : null}
-        {isChildWorkspace ? (
-          <div className="mt-4 w-full max-w-2xl rounded-3xl border border-sky-100/20 bg-gradient-to-b from-sky-100/[0.08] to-emerald-100/[0.06] p-2.5 shadow-[0_20px_56px_rgba(56,189,248,0.1)]" dir={language === "ar" ? "rtl" : "ltr"}>
-            <div className="grid gap-2 md:grid-cols-2">
-              <div className="rounded-2xl border border-sky-100/20 bg-black/16 p-2.5">
-                <div className="flex items-center justify-between gap-2 px-0.5 text-start">
-                  <p className="font-arsans text-[10px] font-semibold uppercase tracking-[0.08em] text-sky-100/72">{language === "ar" ? "لحظة اليوم" : "Today"}</p>
-                </div>
-                <div className="mt-2 flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setChildMomentSlideIndex((current) => (current - 1 + childMomentSlides.length) % childMomentSlides.length)}
-                    className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-sky-100/24 bg-black/22 text-sky-100/72 transition-colors hover:bg-sky-100/15"
-                    aria-label={language === "ar" ? "السابق" : "Previous"}
-                  >
-                    <span className="font-arsans text-sm">{language === "ar" ? "→" : "←"}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => startDailyChildMoment(activeChildMomentSlide.item, activeChildMomentSlide.id)}
-                    disabled={isThinking || !activePersonaIsChild}
-                    className={`group relative min-h-24 flex-1 overflow-hidden rounded-xl border p-3 text-start shadow-[0_10px_24px_rgba(0,0,0,0.14)] transition duration-300 hover:-translate-y-0.5 hover:border-[#F7F3EC]/35 disabled:cursor-wait disabled:opacity-60 ${activeChildMomentSlide.cardClassName}`}
-                  >
-                    <span className="absolute -right-2 -top-2 text-3xl opacity-25">{activeChildMomentSlide.emoji}</span>
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="font-arsans text-sm font-bold text-[#F7F3EC] line-clamp-1">{activeChildMomentSlide.item.label}</span>
-                      <SymbolIcon name={activeChildMomentSlide.icon} className="h-5 w-5 text-current/60" />
-                    </span>
-                    <span className="mt-2.5 inline-flex rounded-full border border-white/20 bg-black/18 px-2.5 py-0.5 font-arsans text-[11px] font-semibold text-[#F7F3EC]/86">
-                      {language === "ar" ? "ابدأ" : "Start"}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setChildMomentSlideIndex((current) => (current + 1) % childMomentSlides.length)}
-                    className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-sky-100/24 bg-black/22 text-sky-100/72 transition-colors hover:bg-sky-100/15"
-                    aria-label={language === "ar" ? "التالي" : "Next"}
-                  >
-                    <span className="font-arsans text-sm">{language === "ar" ? "←" : "→"}</span>
-                  </button>
-                </div>
-                <div className="mt-1.5 flex items-center justify-center gap-1" aria-hidden="true">
-                  {childMomentSlides.map((slide, index) => (
-                    <span
-                      key={slide.id}
-                      className={`h-1 rounded-full transition-all ${index === childMomentSlideIndex ? "w-4 bg-sky-100/90" : "w-1 bg-sky-100/35"}`}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-emerald-100/20 bg-black/16 p-2.5">
-                <div className="flex items-center justify-between gap-2 px-0.5 text-start">
-                  <p className="font-arsans text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-100/72">{language === "ar" ? "واجباتي" : "My homework"}</p>
-                  <span className="rounded-full border border-emerald-100/16 bg-black/20 px-2 py-0.5 font-mono text-[9px] text-emerald-100/60" dir="ltr">{pendingChildHomeworkAssignments.length}/{childHomeworkAssignments.length}</span>
-                </div>
-                <div className="mt-2">
-                  {childHomeworkSlides.length > 0 ? (
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setChildHomeworkSlideIndex((current) => (current - 1 + childHomeworkSlides.length) % childHomeworkSlides.length)}
-                        className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-emerald-100/24 bg-black/22 text-emerald-100/72 transition-colors hover:bg-emerald-100/15"
-                        aria-label={language === "ar" ? "السابق" : "Previous"}
-                      >
-                        <span className="font-arsans text-sm">{language === "ar" ? "→" : "←"}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => activeChildHomeworkSlide && startChildHomework(activeChildHomeworkSlide)}
-                        disabled={isThinking || !activePersonaIsChild || !activeChildHomeworkSlide}
-                        className="group relative min-h-24 flex-1 overflow-hidden rounded-xl border border-emerald-100/24 bg-gradient-to-br from-black/18 to-emerald-100/10 p-3 text-start transition duration-300 hover:-translate-y-0.5 hover:border-emerald-100/42 disabled:cursor-wait disabled:opacity-60"
-                      >
-                        <span className="absolute -right-2 -top-2 text-3xl opacity-25">🎒</span>
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="font-arsans text-sm font-bold leading-5 text-[#F7F3EC]/94 line-clamp-1">{activeChildHomeworkSlide?.detectedTask || (language === "ar" ? "واجب" : "Homework")}</span>
-                          <SymbolIcon name="school" className="h-5 w-5 shrink-0 text-emerald-100/58" />
-                        </span>
-                        <span className="mt-2.5 inline-flex rounded-full border border-emerald-100/25 px-2.5 py-0.5 font-arsans text-[11px] font-semibold text-emerald-100/82">
-                          {activeChildHomeworkSlide?.missionCompleted
-                            ? (language === "ar" ? "مكتمل" : "Completed")
-                            : (language === "ar" ? "ابدأ" : "Start")}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setChildHomeworkSlideIndex((current) => (current + 1) % childHomeworkSlides.length)}
-                        className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-emerald-100/24 bg-black/22 text-emerald-100/72 transition-colors hover:bg-emerald-100/15"
-                        aria-label={language === "ar" ? "التالي" : "Next"}
-                      >
-                        <span className="font-arsans text-sm">{language === "ar" ? "←" : "→"}</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-dashed border-emerald-100/18 bg-black/12 p-3 text-start">
-                      <p className="font-arsans text-xs font-semibold text-[#F7F3EC]/78">{childHomeworkStatus === "loading" ? (language === "ar" ? "جار التحميل..." : "Loading...") : language === "ar" ? "لا يوجد واجب بعد" : "No homework yet"}</p>
-                    </div>
-                  )}
-                  {childHomeworkSlides.length > 1 ? (
-                    <div className="mt-1.5 flex items-center justify-center gap-1" aria-hidden="true">
-                      {childHomeworkSlides.map((assignment, index) => (
-                        <span
-                          key={assignment.id}
-                          className={`h-1 rounded-full transition-all ${index === childHomeworkSlideIndex ? "w-4 bg-emerald-100/90" : "w-1 bg-emerald-100/35"}`}
-                        />
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
             </div>
           </div>
         ) : null}
@@ -4867,14 +4897,19 @@ export function ChatWindow() {
 
       <section
         ref={chatRef}
-        className={`relative z-10 mx-auto mt-8 flex min-h-0 w-full max-w-3xl max-h-[calc(100dvh-14rem)] flex-1 flex-col gap-8 overflow-y-auto pb-[calc(13rem+env(safe-area-inset-bottom))] text-right transition-opacity duration-500 sm:pb-[calc(11rem+env(safe-area-inset-bottom))] md:max-h-none ${paywallOpen ? "opacity-20" : "opacity-100"
+        role="log"
+        aria-live="polite"
+        aria-atomic="false"
+        aria-busy={isThinking}
+        className={`relative z-10 mx-auto mt-6 flex min-h-[18rem] w-full max-w-3xl flex-1 flex-col gap-6 overflow-y-visible pb-24 text-right transition-opacity duration-500 sm:mt-8 sm:gap-8 ${paywallOpen ? "opacity-20" : "opacity-100"
           }`}
       >
-        {messages.map((message) => {
+        {messages.map((message, index) => {
           const messageLanguage = message.language || language;
           const messageDirection = messageLanguage === "ar" ? "rtl" : "ltr";
           const messageAlignment = messageLanguage === "ar" ? "text-right" : "text-left";
           const messagePersona = message.role === "assistant" ? resolveMessagePersona(message, customPersona) : activePersona;
+          const isChildPersona = NEW_CHILDREN_ROSTER.some((c) => c.id === messagePersona.id);
           const messagePersonaPresentation = getHeaderAvatarPresentation(messagePersona);
           const messagePersonaEnvironment = getPersonaEnvironmentProfile(messagePersona.id);
           const messageAvatarPath = message.role === "assistant" ? message.avatarPath || messagePersonaPresentation.avatarPath : message.avatarPath || accountImage || undefined;
@@ -4903,17 +4938,25 @@ export function ChatWindow() {
               </div>
             ) : (
               <div className={`flex items-start gap-3 ${messageDirection === "rtl" ? "flex-row-reverse" : "flex-row"}`}>
-                <span className="relative mt-1 h-9 w-9 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-[#0E0D10] shadow-[0_12px_28px_rgba(0,0,0,0.28)]">
-                  {isGeneratedAvatarPath(messageAvatarPath) || isSvgAvatarPath(messageAvatarPath) ? (
-                    <img src={messageAvatarPath} alt={messageDisplayName} className="h-full w-full object-cover" />
-                  ) : (
-                    <Image src={messageAvatarPath || messagePersonaPresentation.avatarPath} alt={messageDisplayName} fill sizes="36px" className="object-cover" />
-                  )}
-                </span>
+                <PersonaSpeaking
+                  personaId={messagePersona.id}
+                  avatarPath={messageAvatarPath || messagePersonaPresentation.avatarPath}
+                  displayName={messageDisplayName}
+                  text={messageText}
+                  language={messageLanguage}
+                  voiceConfig={messagePersona.voiceConfig}
+                  edgeTtsVoiceName={getPersonaEdgeTTS(messagePersona.id).voice}
+                  glowColorHex={messagePersona.glowColorHex}
+                  autoPlay={(index === messages.length - 1 && isChildPersona) || speakingMessageId === message.id}
+                  useStaticImg={isGeneratedAvatarPath(messageAvatarPath) || isSvgAvatarPath(messageAvatarPath)}
+                  onSpeakingEnd={() => {
+                    if (speakingMessageId === message.id) setSpeakingMessageId(null);
+                  }}
+                />
                 <div className="min-w-0 flex-1">
-                  <p className="mb-2 font-arsans text-[11px] text-[#C9A86A]/70">{messageDisplayName}</p>
+                  <p className="mb-2 break-words font-arsans text-[11px] text-[#C9A86A]/70">{messageDisplayName}</p>
                   {message.generatedMedia ? <GeneratedMediaCard language={messageLanguage} asset={message.generatedMedia} /> : null}
-                  {messageChildStory ? <ChildStorySceneCard story={messageChildStory} language={messageLanguage} /> : null}
+                  {messageChildStory ? <CompactChildStoryGuideCard story={messageChildStory} language={messageLanguage} /> : null}
                   {messageHomeworkActivities.length ? (
                     <ChildHomeworkActivityCards
                       activities={messageHomeworkActivities}
@@ -4932,6 +4975,30 @@ export function ChatWindow() {
                     instant={animatedAssistantMessageIds.includes(message.id)}
                     onComplete={() => setAnimatedAssistantMessageIds((current) => current.includes(message.id) ? current : [...current, message.id])}
                   />
+                  {isChildWorkspace && message.suggestions?.length ? (
+                    <div className="mt-3 grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:gap-2" dir={messageDirection}>
+                      {message.suggestions.slice(0, 3).map((suggestion, i) => {
+                        const chipEmoji = pickChildEmoji(suggestion);
+                        const chipColors = [
+                          "border-sky-300/30 bg-sky-300/10 text-sky-200 hover:bg-sky-300/20",
+                          "border-emerald-300/30 bg-emerald-300/10 text-emerald-200 hover:bg-emerald-300/20",
+                          "border-amber-300/30 bg-amber-300/10 text-amber-200 hover:bg-amber-300/20",
+                        ];
+                        return (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => submitChildSuggestion(suggestion)}
+                            className={`ui-action min-h-12 rounded-xl border px-2 py-2 text-center font-arsans text-[11px] font-bold leading-4 transition-all hover:scale-[1.02] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 sm:min-h-0 sm:rounded-full sm:px-4 sm:py-2.5 sm:text-sm ${chipColors[i]}`}
+                            title={suggestion}
+                          >
+                            <span className="block text-base leading-none sm:inline sm:text-sm" aria-hidden="true">{chipEmoji}</span>
+                            <span className="line-clamp-2 sm:inline sm:line-clamp-none">{suggestion}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
                   {message.resources?.length ? <LearningResourcePreview language={messageLanguage} resources={message.resources} /> : null}
                 <MomentActions
                   language={language}
@@ -4962,7 +5029,7 @@ export function ChatWindow() {
         <div ref={chatEndRef} className="h-14 sm:h-20" aria-hidden="true" />
       </section>
 
-      {paywallOpen ? <PaywallCard language={language} accessState={accessState} remainingReflections={remainingReflections} configuration={experienceConfiguration} loading={checkoutLoading} onCheckout={startCheckout} onSignIn={openSignInGift} onClose={() => setPaywallOpen(false)} /> : null}
+      {paywallOpen ? <PaywallCard language={language} accessState={accessState} remainingReflections={remainingReflections} configuration={experienceConfiguration} discountCode={activeDiscountCode} loading={checkoutLoading} onCheckout={startCheckout} onSignIn={openSignInGift} onClose={() => setPaywallOpen(false)} /> : null}
 
       {receiptDialog}
 
@@ -4970,7 +5037,7 @@ export function ChatWindow() {
 
       {childHomeworkDialog}
 
-      {toolsOpen ? (
+      {toolsOpen && typeof document !== "undefined" ? createPortal(
         <HomeToolsDialog
           language={language}
           activePanel={activeHomePanel}
@@ -4988,7 +5055,7 @@ export function ChatWindow() {
             />
           ) : null}
           {activeHomePanel === "sessions" ? (
-            <SessionHistoryPanel
+            <CompactSessionSettings
               language={language}
               accessState={accessState}
               sessions={chatSessions}
@@ -5030,57 +5097,39 @@ export function ChatWindow() {
             </>
           ) : null}
           {activeHomePanel === "prompts" ? (
-            <>
-              <SecretCommandGuide language={language} onSelect={stageSecretCommand} />
-              <StarterMomentRail language={language} onSelect={submitStarterMoment} />
-              <JudgeDemoRail language={language} onSelect={submitJudgeScenario} />
-            </>
+            <CompactPromptSettings language={language} onCommand={stageSecretCommand} onStarter={submitStarterMoment} onJudge={submitJudgeScenario} />
           ) : null}
           {activeHomePanel === "plans" ? (
-            <PlanComparisonCard language={language} loading={checkoutLoading} status={checkoutStatus} onUpgrade={() => void startCheckout()} />
+            <CompactPlanSettings language={language} loading={checkoutLoading} status={checkoutStatus} onUpgrade={() => void startCheckout()} />
           ) : null}
           {activeHomePanel === "about" ? (
-            <>
-              <UserFlowGuide language={language} />
-              <ProductPositioning language={language} open={storyOpen} onToggle={() => setStoryOpen((open) => !open)} />
-              <FeatureStrip language={language} />
-              <VisitorCommentBox
-                language={language}
-                value={visitorComment}
-                status={visitorCommentStatus}
-                onChange={(value) => {
-                  setVisitorComment(value);
-                  if (visitorCommentStatus !== "idle") setVisitorCommentStatus("idle");
-                }}
-                onSubmit={submitVisitorComment}
-              />
-            </>
+            <CompactAboutSettings
+              language={language}
+              value={visitorComment}
+              status={visitorCommentStatus}
+              onChange={(value) => {
+                setVisitorComment(value);
+                if (visitorCommentStatus !== "idle") setVisitorCommentStatus("idle");
+              }}
+              onSubmit={(event) => void submitVisitorComment(event)}
+            />
           ) : null}
-        </HomeToolsDialog>
+        </HomeToolsDialog>,
+        document.body
       ) : null}
 
-      <form onSubmit={submitMessage} className="fixed inset-x-3 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-30 mx-auto flex max-h-[50dvh] flex-col gap-2 overflow-y-auto rounded-[1.1rem] border border-white/10 bg-[#111014]/92 p-2.5 shadow-[0_22px_70px_rgba(0,0,0,0.45)] backdrop-blur-2xl [scrollbar-width:thin] sm:inset-x-6 sm:max-h-[45dvh] sm:rounded-[1.35rem] sm:p-3 md:inset-x-8 lg:left-1/2 lg:right-auto lg:w-full lg:max-w-3xl lg:-translate-x-1/2">
-        <BottomNav
-          language={language}
-          onHome={() => scrollToSection("home")}
-          onChat={() => {
-            scrollToConversationEnd();
-            window.setTimeout(() => {
-              scrollToConversationEnd();
-              focusInput();
-            }, 120);
-          }}
-          onBreathe={() => setBreathingOpen(true)}
-          onPersona={avatarsEnabled ? openAvatarDrawer : undefined}
-          onStories={isChildWorkspace && avatarsEnabled ? openStoryShelf : undefined}
-          onMenu={() => setToolsOpen(true)}
-        />
+      {bottomNavigation}
+
+      <form onSubmit={submitMessage} className="fixed inset-x-2 bottom-[max(4.25rem,calc(env(safe-area-inset-bottom)+3.25rem))] z-20 mx-auto flex max-h-[55dvh] flex-col gap-2 overflow-y-auto rounded-[1.1rem] border border-white/10 bg-[#111014]/92 p-2.5 shadow-[0_22px_70px_rgba(0,0,0,0.45)] backdrop-blur-2xl mobile-scrollbar-none min-[380px]:inset-x-3 sm:inset-x-6 sm:max-h-[48dvh] sm:rounded-[1.35rem] sm:p-3 md:inset-x-8 lg:left-1/2 lg:right-auto lg:w-full lg:max-w-3xl lg:-translate-x-1/2">
         {!effectiveUserName ? (
-          <div className="rounded-2xl border border-[#C9A86A]/25 bg-[#0E0D10]/90 p-2.5 shadow-xl sm:p-3" dir={language === "ar" ? "rtl" : "ltr"}>
-            <p className="hidden font-arsans text-xs leading-5 text-[#F7F3EC]/68 min-[360px]:block">
-              {language === "ar" ? "قبل ما نبدأ، اكتب اسمك أو الاسم الذي تحب أن نناديك به." : "Before we start, enter your name or what you would like to be called."}
+          <div className="rounded-2xl border border-[#C9A86A]/25 bg-[#0E0D10]/90 p-3 shadow-xl sm:p-4" dir={language === "ar" ? "rtl" : "ltr"}>
+            <p className="text-center font-arsans text-sm font-bold text-[#F7F3EC]/90">
+              {language === "ar" ? "👋 من أنت؟" : "👋 Who are you?"}
             </p>
-            <div className="flex items-center gap-2 min-[360px]:mt-2">
+            <p className="mt-1 text-center font-arsans text-[11px] text-[#F7F3EC]/45">
+              {language === "ar" ? "اكتب اسمك للبدء — لا حاجة لحساب." : "Type your name to start — no account needed."}
+            </p>
+            <div className="mt-3 flex items-center gap-2">
               <input
                 ref={nameInputRef}
                 value={visitorNameDraft}
@@ -5096,9 +5145,9 @@ export function ChatWindow() {
                 maxLength={32}
                 dir="auto"
                 placeholder={language === "ar" ? "اسمك" : "Your name"}
-                className="min-h-10 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 font-arsans text-sm text-[#F7F3EC]/90 outline-none placeholder:text-[#F7F3EC]/28 focus:border-[#C9A86A]/55"
+                className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 font-arsans text-sm text-[#F7F3EC]/90 outline-none placeholder:text-[#F7F3EC]/28 focus:border-[#C9A86A]/55"
               />
-              <button type="button" onClick={saveVisitorName} className="ui-action shrink-0 rounded-xl bg-[#C9A86A] px-3 py-2 font-arsans text-xs text-[#0E0D10] transition-colors hover:bg-[#F7F3EC] min-[360px]:px-4">
+              <button type="button" onClick={saveVisitorName} className="ui-action shrink-0 rounded-xl bg-[#C9A86A] px-4 py-2.5 font-arsans text-sm font-bold text-[#0E0D10] transition-colors hover:bg-[#F7F3EC]">
                 {language === "ar" ? "حفظ" : "Save"}
               </button>
             </div>
@@ -5193,14 +5242,15 @@ export function ChatWindow() {
           <button
             type="button"
             onClick={toggleVoiceCapture}
-            className={`relative flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-2 py-2 font-arsans text-[11px] transition-colors min-[360px]:px-2.5 sm:min-h-11 sm:gap-2 sm:px-3 sm:text-xs ${isRecording ? "border-red-200/35 bg-red-200/10 text-red-100 shadow-[0_0_0_6px_rgba(248,113,113,0.12)]" : "border-[#F7F3EC]/10 bg-[#F7F3EC]/[0.03] text-[#C9A86A] hover:border-[#C9A86A]/45"
+            className={`relative flex h-12 shrink-0 items-center gap-2 rounded-full border px-4 py-2.5 font-arsans text-sm font-bold transition-all min-[360px]:px-5 sm:h-14 sm:px-6 sm:text-base ${isRecording ? "border-red-200/35 bg-red-200/10 text-red-100 shadow-[0_0_0_8px_rgba(248,113,113,0.12)]" : "border-[#6BCB77]/25 bg-[#6BCB77]/8 text-[#6BCB77] hover:border-[#6BCB77]/45 hover:bg-[#6BCB77]/15 active:scale-95"
               }`}
             aria-pressed={isRecording}
             aria-label={isRecording ? (language === "ar" ? "إيقاف التسجيل الصوتي" : "Stop voice recording") : language === "ar" ? "تشغيل التسجيل الصوتي" : "Start voice recording"}
           >
             <span className={isRecording ? "absolute inset-0 rounded-full border border-[#C9A86A]/60 animate-ping" : "hidden"} />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#C9A86A]" aria-hidden="true" />
-            <span className="hidden min-[360px]:inline">{isRecording ? (language === "ar" ? "إيقاف" : "Stop") : language === "ar" ? "صوت" : "Voice"}</span>
+            <span className="h-3 w-3 rounded-full bg-[#6BCB77]" aria-hidden="true" />
+            <span>{isRecording ? (language === "ar" ? "⏹️" : "⏹️") : "🎤"}</span>
+            <span className="hidden min-[360px]:inline">{isRecording ? (language === "ar" ? "إيقاف" : "Stop") : language === "ar" ? "تسجيل" : "Record"}</span>
           </button>
         )}
         <textarea
@@ -5211,10 +5261,10 @@ export function ChatWindow() {
           rows={1}
           dir={language === "ar" ? "rtl" : "ltr"}
           placeholder={isChildWorkspace && activePersonaIsChild ? (language === "ar" ? "أو اكتب كلمة قصيرة..." : "Or type one short word...") : language === "ar" ? "فضفض هنا..." : "Write freely..."}
-          className={`${isChildWorkspace && activePersonaIsChild ? "min-h-8 text-sm leading-6 opacity-78 sm:min-h-9 sm:text-sm" : "min-h-10 text-base leading-[1.75] sm:min-h-12 sm:text-lg sm:leading-[1.9]"} min-w-0 flex-1 resize-none border-0 bg-transparent font-arsans text-[#F7F3EC]/95 outline-none placeholder:text-[#F7F3EC]/25 ${language === "ar" ? "text-right" : "text-left"}`}
+          className={`${isChildWorkspace && activePersonaIsChild ? "min-h-12 text-base leading-6 sm:min-h-14 sm:text-lg" : "min-h-10 text-base leading-[1.75] sm:min-h-12 sm:text-lg sm:leading-[1.9]"} min-w-0 flex-1 resize-none border-0 bg-transparent font-arsans text-[#F7F3EC]/95 outline-none placeholder:text-[#F7F3EC]/25 ${language === "ar" ? "text-right" : "text-left"}`}
         />
-        <button type="submit" disabled={isThinking} className={`ui-action min-h-10 shrink-0 pb-1 text-sm text-[#C9A86A] transition-colors hover:text-[#F7F3EC] disabled:opacity-60 sm:min-h-11 sm:pb-2 ${isThinking ? "animate-pulse" : ""}`}>
-          {isThinking ? (language === "ar" ? "ينتظر" : "Waiting") : language === "ar" ? "إرسال" : "Send"}
+        <button type="submit" disabled={isThinking} className={`ui-action grid h-12 w-12 shrink-0 place-items-center rounded-full text-lg text-[#C9A86A] transition-all hover:bg-[#C9A86A]/15 hover:text-[#F7F3EC] active:scale-90 disabled:opacity-60 sm:h-14 sm:w-14 sm:text-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A86A]/60 ${isThinking ? "animate-pulse" : ""}`}>
+          {isThinking ? "⏳" : "⬅️"}
         </button>
         </div>
       </form>
@@ -5237,8 +5287,43 @@ export function ChatWindow() {
         onAvatarRate={rateAvatar}
       />
 
-      {breathingOpen ? (
-        <BreathingExercise language={language} onClose={() => setBreathingOpen(false)} />
+      {breathingOpen && typeof document !== "undefined" ? createPortal(
+        <BreathingExercise language={language} onClose={() => setBreathingOpen(false)} />,
+        document.body
+      ) : null}
+
+      {drawingBoardOpen && isChildWorkspace && typeof document !== "undefined" ? createPortal(
+        <ChildDrawingBoard
+          language={language}
+          personaId={activePersona.id}
+          personaNameAr={activePersona.nameAr}
+          personaNameEn={activePersona.nameEn}
+          avatarPath={activePersona.avatarPath}
+          voiceConfig={activePersona.voiceConfig}
+          edgeTtsVoiceName={getPersonaEdgeTTS(activePersona.id).voice}
+          onClose={() => setDrawingBoardOpen(false)}
+        />,
+        document.body
+      ) : null}
+
+      {musicActivityOpen && isChildWorkspace && typeof document !== "undefined" ? createPortal(
+        <ChildMusicActivity
+          language={language}
+          onClose={() => setMusicActivityOpen(false)}
+        />,
+        document.body
+      ) : null}
+
+      {childRewardToast ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none" key={childRewardToast.id}>
+          <div className="animate-bounce rounded-3xl border border-[#C9A86A]/30 bg-[#0E0D10]/95 px-8 py-6 shadow-[0_0_60px_rgba(201,168,106,0.2)] backdrop-blur-2xl pointer-events-auto">
+            <div className="text-center">
+              <div className="text-5xl">🎉</div>
+              <p className="mt-3 font-arsans text-2xl font-bold text-[#C9A86A]">{childRewardToast.text}</p>
+              <p className="mt-1 font-arsans text-sm text-bone/50">{language === "ar" ? "أحسنت!" : "Well done!"}</p>
+            </div>
+          </div>
+        </div>
       ) : null}
     </main>
   );
@@ -5277,6 +5362,203 @@ function ChatLegalLinks({ language, version }: { language: Language; version: st
       ))}
       {version ? <span className="font-mono text-[10px] text-[#C9A86A]/64" dir="ltr">v{version}</span> : null}
     </nav>
+  );
+}
+
+type ChildMissionHubProps = {
+  language: Language;
+  childName: string;
+  personaName: string;
+  activeMoment: {
+    id: "learn" | "feel" | "connect";
+    emoji: string;
+    title: string;
+    item: DailyChildMoment["learn"];
+  };
+  homework?: ChildHomeworkAssignment;
+  stats: {
+    pendingHomework: number;
+    completedHomework: number;
+    totalHomework: number;
+    checkInStreak: number;
+    savedMoments: number;
+    chatTurns: number;
+  };
+  disabled: boolean;
+  onPlay: () => void;
+  onStory: () => void;
+  onBuddy: () => void;
+  onHomework: () => void;
+  onHomeworkList: () => void;
+  onToday: () => void;
+  onDraw: () => void;
+  onMusic: () => void;
+  onBreathe: () => void;
+};
+
+function ChildMissionHub({ language, childName, personaName, activeMoment, homework, stats, disabled, onPlay, onStory, onBuddy, onHomework, onHomeworkList, onToday, onDraw, onMusic, onBreathe }: ChildMissionHubProps) {
+  const isArabic = language === "ar";
+  const direction = isArabic ? "rtl" : "ltr";
+  const passportLevel = Math.max(1, Math.min(9, Math.floor((stats.chatTurns + stats.completedHomework + stats.savedMoments + stats.checkInStreak) / 3) + 1));
+  const progress = Math.min(100, 18 + stats.chatTurns * 8 + stats.completedHomework * 18 + stats.savedMoments * 10 + stats.checkInStreak * 7);
+  const gardenMood = stats.checkInStreak >= 3 ? "bloom" : stats.chatTurns > 2 ? "glow" : stats.pendingHomework > 0 ? "quest" : "quiet";
+  const gardenCopy = {
+    quiet: isArabic ? "حديقة هادئة تنتظر أول مهمة" : "A quiet garden waiting for the first mission",
+    quest: isArabic ? "هناك مهمة تعلم جاهزة" : "A learning mission is ready",
+    glow: isArabic ? "الكلمات بدأت تضيء الطريق" : "Words are starting to light the path",
+    bloom: isArabic ? "الاستمرار صنع زهوراً صغيرة" : "Your streak is growing small blooms",
+  }[gardenMood];
+
+  const missions = [
+    {
+      id: "today",
+      tone: "from-sky-200/22 via-cyan-100/12 to-white/[0.03] border-sky-100/26",
+      icon: activeMoment.emoji,
+      kicker: activeMoment.title,
+      title: activeMoment.item.label,
+      detail: isArabic ? "مهمة قصيرة مع رفيقك" : "A tiny mission with your buddy",
+      action: isArabic ? "ابدأ" : "Start",
+      onClick: onToday,
+    },
+    {
+      id: "homework",
+      tone: "from-emerald-200/20 via-lime-100/10 to-white/[0.03] border-emerald-100/24",
+      icon: "🎒",
+      kicker: isArabic ? "تعلم" : "Learn",
+      title: homework?.detectedTask || (isArabic ? "افتح لوحة الواجب" : "Open homework board"),
+      detail: stats.totalHomework > 0
+        ? `${stats.pendingHomework}/${stats.totalHomework} ${isArabic ? "غير مكتمل" : "pending"}`
+        : isArabic ? "لا يوجد واجب الآن" : "No homework yet",
+      action: homework ? (isArabic ? "حلها" : "Solve") : (isArabic ? "اللوحة" : "Board"),
+      onClick: homework ? onHomework : onHomeworkList,
+    },
+    {
+      id: "create",
+      tone: "from-rose-200/20 via-amber-100/12 to-white/[0.03] border-rose-100/24",
+      icon: "🎨",
+      kicker: isArabic ? "اصنع" : "Create",
+      title: isArabic ? "ارسم أو اعزف" : "Draw or play music",
+      detail: isArabic ? "اختر رسمة أو نغمة" : "Choose a drawing or tune",
+      action: isArabic ? "ارسم" : "Draw",
+      onClick: onDraw,
+      secondaryAction: isArabic ? "موسيقى" : "Music",
+      secondaryOnClick: onMusic,
+    },
+    {
+      id: "calm",
+      tone: "from-violet-200/16 via-slate-100/10 to-white/[0.03] border-violet-100/22",
+      icon: "🌙",
+      kicker: isArabic ? "هدوء" : "Calm",
+      title: isArabic ? "تنفس ثم العب" : "Breathe, then play",
+      detail: isArabic ? "دقيقة تهدئة قبل الكلام" : "One calm minute before talking",
+      action: isArabic ? "تنفس" : "Breathe",
+      onClick: onBreathe,
+    },
+  ];
+
+  return (
+    <section className="mt-5 w-full max-w-4xl overflow-hidden rounded-[1.6rem] border border-white/12 bg-[#0E0D10]/72 p-3 text-start shadow-[0_26px_90px_rgba(0,0,0,0.34)] backdrop-blur-xl sm:p-4" dir={direction}>
+      <div className="grid gap-3 lg:grid-cols-[0.78fr_1.22fr]">
+        <div className="relative min-h-64 overflow-hidden rounded-[1.35rem] border border-amber-100/20 bg-gradient-to-br from-[#18243A] via-[#171722] to-[#0B1012] p-4">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_24%_22%,rgba(252,211,77,0.23),transparent_7rem),radial-gradient(circle_at_78%_14%,rgba(125,211,252,0.2),transparent_7rem),radial-gradient(circle_at_62%_92%,rgba(110,231,183,0.16),transparent_9rem)]" />
+          <div className="relative flex items-start justify-between gap-3">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-amber-100/65">{isArabic ? "مركز مهام الطفل" : "Child mission hub"}</p>
+              <h2 className="mt-2 max-w-xs font-arui text-2xl font-semibold leading-8 text-[#F7F3EC]/95">
+                {isArabic ? `اختار مغامرتك يا ${childName}` : `Choose your adventure, ${childName}`}
+              </h2>
+            </div>
+            <button type="button" onClick={onBuddy} className="ui-action rounded-full border border-white/14 bg-white/[0.06] px-3 py-2 font-arsans text-xs text-[#F7F3EC]/76 transition-colors hover:border-amber-100/45 hover:text-amber-100">
+              {personaName}
+            </button>
+          </div>
+
+          <div className="relative mt-5 rounded-[1.2rem] border border-white/10 bg-black/22 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-arsans text-xs text-[#F7F3EC]/52">{isArabic ? "جواز التقدم" : "Progress passport"}</p>
+                <p className="mt-1 font-enserif text-4xl italic text-amber-100" dir="ltr">Lv {passportLevel}</p>
+              </div>
+              <div className="grid h-20 w-24 place-items-center rounded-[1.1rem] border border-emerald-100/18 bg-emerald-100/[0.07]">
+                <MoodGarden mood={gardenMood} />
+              </div>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10" dir="ltr">
+              <span className="block h-full rounded-full bg-gradient-to-r from-amber-200 via-sky-200 to-emerald-200" style={{ width: `${progress}%` }} />
+            </div>
+            <p className="mt-3 font-arsans text-xs leading-5 text-[#F7F3EC]/58">{gardenCopy}</p>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <ChildPassportStat label={isArabic ? "كلام" : "Talk"} value={stats.chatTurns} />
+              <ChildPassportStat label={isArabic ? "واجب" : "Work"} value={stats.completedHomework} />
+              <ChildPassportStat label={isArabic ? "حفظ" : "Saved"} value={stats.savedMoments} />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          {missions.map((mission) => (
+            <article key={mission.id} className={`group relative min-h-36 overflow-hidden rounded-[1.25rem] border bg-gradient-to-br p-3 transition duration-300 hover:-translate-y-0.5 ${mission.tone}`}>
+              <span className="absolute -end-1 -top-3 text-5xl opacity-20 transition-transform duration-300 group-hover:scale-110" aria-hidden="true">{mission.icon}</span>
+              <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#F7F3EC]/42">{mission.kicker}</p>
+              <h3 className="mt-2 line-clamp-2 min-h-10 max-w-[13rem] font-arsans text-base font-bold leading-5 text-[#F7F3EC]/92">{mission.title}</h3>
+              <p className="mt-2 line-clamp-2 font-arsans text-xs leading-5 text-[#F7F3EC]/52">{mission.detail}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" onClick={mission.onClick} disabled={disabled} className="ui-action rounded-full border border-white/16 bg-white/[0.08] px-3 py-2 font-arsans text-xs font-bold text-[#F7F3EC]/84 transition-colors hover:bg-[#F7F3EC] hover:text-[#0E0D10] disabled:cursor-wait disabled:opacity-55">
+                  {mission.action}
+                </button>
+                {mission.secondaryAction ? (
+                  <button type="button" onClick={mission.secondaryOnClick} disabled={disabled} className="ui-action rounded-full border border-white/10 px-3 py-2 font-arsans text-xs font-bold text-[#F7F3EC]/58 transition-colors hover:border-white/28 hover:text-[#F7F3EC] disabled:cursor-wait disabled:opacity-55">
+                    {mission.secondaryAction}
+                  </button>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <button type="button" onClick={onPlay} disabled={disabled} className="ui-action min-h-12 rounded-2xl bg-amber-200 px-4 py-3 font-arsans text-sm font-bold text-[#0E0D10] shadow-[0_12px_34px_rgba(251,191,36,0.18)] transition-colors hover:bg-[#F7F3EC] disabled:cursor-wait disabled:opacity-60">
+          {isArabic ? "لعبة سريعة" : "Quick play"}
+        </button>
+        <button type="button" onClick={onStory} className="ui-action min-h-12 rounded-2xl border border-sky-100/24 bg-sky-100/[0.08] px-4 py-3 font-arsans text-sm font-bold text-sky-50 transition-colors hover:bg-sky-100 hover:text-[#0E0D10]">
+          {isArabic ? "رف القصص" : "Story shelf"}
+        </button>
+        <button type="button" onClick={onHomeworkList} className="ui-action min-h-12 rounded-2xl border border-emerald-100/24 bg-emerald-100/[0.08] px-4 py-3 font-arsans text-sm font-bold text-emerald-50 transition-colors hover:bg-emerald-100 hover:text-[#0E0D10]">
+          {stats.pendingHomework > 0
+            ? isArabic ? `${stats.pendingHomework} واجب جاهز` : `${stats.pendingHomework} homework ready`
+            : isArabic ? "لوحة الواجب" : "Homework board"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function ChildPassportStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.045] px-2 py-2 text-center">
+      <p className="font-mono text-[9px] uppercase tracking-[0.08em] text-[#F7F3EC]/35">{label}</p>
+      <p className="mt-1 font-enserif text-xl italic text-[#F7F3EC]/92" dir="ltr">{value}</p>
+    </div>
+  );
+}
+
+function MoodGarden({ mood }: { mood: "quiet" | "quest" | "glow" | "bloom" }) {
+  const petals = mood === "bloom" ? 6 : mood === "glow" ? 4 : mood === "quest" ? 3 : 2;
+  return (
+    <div className="relative h-16 w-20" aria-hidden="true">
+      <span className="absolute bottom-2 left-2 right-2 h-4 rounded-[100%] bg-emerald-300/20" />
+      <span className="absolute bottom-4 left-1/2 h-9 w-1 -translate-x-1/2 rounded-full bg-emerald-200/70" />
+      {Array.from({ length: petals }, (_, index) => (
+        <span
+          key={index}
+          className="absolute left-1/2 top-4 h-5 w-3 origin-bottom rounded-full bg-amber-100/80"
+          style={{ transform: `translateX(-50%) rotate(${index * (360 / petals)}deg) translateY(-0.6rem)` }}
+        />
+      ))}
+      <span className="absolute left-1/2 top-6 h-4 w-4 -translate-x-1/2 rounded-full bg-amber-200" />
+      {mood !== "quiet" ? <span className="absolute right-2 top-1 h-2 w-2 rounded-full bg-sky-100/75 shadow-[0_0_18px_rgba(186,230,253,0.8)]" /> : null}
+    </div>
   );
 }
 
@@ -5582,7 +5864,7 @@ function buildProofCard(message: ChatMessage, userMessage: ChatMessage | undefin
     `Companion: ${personaName}`,
     `World: ${worldName}`,
     `After: ${afterText}`,
-    `Next step: ${nextStep}`,
+`Next step: ${nextStep}`,
     "",
     "FadFada does not just answer. It turns a conversation into a saved, shareable, actionable moment.",
     "#FadFada #AICompanion #MentalWellbeing #PersonalGrowth #BuildInPublic",
@@ -5618,7 +5900,7 @@ function buildSafeReceiptShareText(message: ChatMessage, userMessage: ChatMessag
     "I turned a heavy thought into one small step on FadFada.",
     "",
     `World: ${receipt.worldName}`,
-    `Next step: ${receipt.nextStep}`,
+`Next step: ${receipt.nextStep}`,
     "",
     "I am not sharing my private text, only the outcome: a clearer feeling and one action I can take.",
     "#FadFada #TinyStep #ArabicAI",
@@ -6248,8 +6530,8 @@ function HomeToolTabs({ language, activePanel, onSelect }: { language: Language;
   ];
 
   return (
-    <div className="mt-6 w-full rounded-2xl border border-white/10 bg-white/[0.025] p-1.5" dir={isArabic ? "rtl" : "ltr"}>
-      <div className="grid grid-cols-3 gap-1 sm:grid-cols-7">
+    <div className="w-full rounded-2xl border border-white/10 bg-white/[0.025] p-1" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="grid grid-cols-4 gap-1 sm:grid-cols-7">
         {panels.map((panel) => {
           const active = panel.id === activePanel;
           return (
@@ -6257,7 +6539,7 @@ function HomeToolTabs({ language, activePanel, onSelect }: { language: Language;
               key={panel.id}
               type="button"
               onClick={() => onSelect(panel.id)}
-              className={`min-h-10 rounded-xl px-2 py-2 text-center text-xs transition-colors ${isArabic ? "font-arsans" : "font-ensans"} ${active ? "bg-[#C9A86A] text-[#0E0D10]" : "text-[#F7F3EC]/55 hover:bg-white/[0.045] hover:text-[#F7F3EC]/88"}`}
+              className={`min-h-8 rounded-xl px-1.5 py-1.5 text-center text-[11px] leading-4 transition-colors sm:min-h-10 sm:px-2 sm:py-2 sm:text-xs ${isArabic ? "font-arsans" : "font-ensans"} ${active ? "bg-[#C9A86A] text-[#0E0D10]" : "text-[#F7F3EC]/55 hover:bg-white/[0.045] hover:text-[#F7F3EC]/88"}`}
             >
               {panel[language]}
             </button>
@@ -6284,22 +6566,262 @@ function HomeToolsDialog({
   const isArabic = language === "ar";
 
   return (
-    <div className="fixed inset-0 z-[80] grid place-items-center bg-black/65 px-3 py-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={isArabic ? "أدوات فضفضة" : "FadFada tools"}>
+    <div className="fixed inset-0 z-[80] grid place-items-center bg-black/65 px-2 py-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:px-3 sm:py-[max(1rem,env(safe-area-inset-bottom))]" role="dialog" aria-modal="true" aria-label={isArabic ? "أدوات فضفضة" : "FadFada tools"}>
       <button type="button" className="absolute inset-0" onClick={onClose} aria-label={isArabic ? "إغلاق الأدوات" : "Close tools"} />
-      <section className="relative max-h-[calc(100dvh-2rem)] w-full max-w-3xl overscroll-contain overflow-y-auto rounded-[1.5rem] border border-white/10 bg-[#0E0D10]/96 p-4 shadow-2xl backdrop-blur-2xl [scrollbar-color:rgba(201,168,106,0.45)_transparent] sm:p-5" dir={isArabic ? "rtl" : "ltr"}>
-        <div className="flex items-start justify-between gap-3">
+      <button
+        type="button"
+        onClick={onClose}
+        className="fixed left-4 top-[max(1rem,env(safe-area-inset-top))] z-10 grid h-12 w-12 place-items-center rounded-full border border-white/15 bg-white/[0.08] text-bone/75 shadow-2xl transition-all hover:bg-white/[0.12] hover:text-bone"
+        aria-label={isArabic ? "إغلاق الأدوات" : "Close tools"}
+      >
+        ×
+      </button>
+      <section className="relative flex h-[calc(100dvh-1rem)] w-full max-w-4xl flex-col overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#0E0D10]/96 p-3 shadow-2xl backdrop-blur-2xl sm:h-[calc(100dvh-2rem)] sm:rounded-[1.5rem] sm:p-4" dir={isArabic ? "rtl" : "ltr"}>
+        <div className="flex shrink-0 items-start justify-between gap-3 pl-14">
           <div className="text-start">
             <p className="ui-kicker text-[#C9A86A]/85">{isArabic ? "القائمة" : "Menu"}</p>
-            <h2 className="mt-1 font-arui text-xl font-semibold text-[#F7F3EC]/92">{isArabic ? "اختر ما تحتاجه الآن" : "Choose what you need now"}</h2>
+            <h2 className="mt-1 font-arui text-base font-semibold leading-6 text-[#F7F3EC]/92 sm:text-xl">{isArabic ? "اختر ما تحتاجه الآن" : "Choose what you need now"}</h2>
           </div>
-          <button type="button" onClick={onClose} className="ui-action rounded-full border border-white/10 px-3 py-2 text-xs text-[#F7F3EC]/60 transition-colors hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
-            {isArabic ? "إغلاق" : "Close"}
-          </button>
         </div>
         <HomeToolTabs language={language} activePanel={activePanel} onSelect={onSelect} />
-        <div className="grid w-full gap-4 pb-2">{children}</div>
+        <div className="mobile-scrollbar-none mt-3 grid min-h-0 w-full flex-1 gap-3 overflow-y-auto overscroll-contain pb-2 [scrollbar-color:rgba(201,168,106,0.45)_transparent] sm:gap-4">{children}</div>
       </section>
     </div>
+  );
+}
+
+function CompactPromptSettings({
+  language,
+  onCommand,
+  onJudge,
+  onStarter,
+}: {
+  language: Language;
+  onCommand: (command: string) => void;
+  onJudge: (text: string, world: WorldId, targetLanguage: Language, personaId: PersonaId) => void;
+  onStarter: (text: string, world: WorldId) => void;
+}) {
+  const isArabic = language === "ar";
+  const commands = isArabic
+    ? [
+        { command: "/عرض", label: "عرض الحكام" },
+        { command: "/بطاقة", label: "بطاقة إثبات" },
+        { command: "/ملخص", label: "ملخص" },
+        { command: "/منشور", label: "منشور" },
+        { command: "/حكاية", label: "حكاية" },
+        { command: "/كبسولة", label: "كبسولة" },
+      ]
+    : [
+        { command: "/judge", label: "Judge" },
+        { command: "/proof", label: "Proof" },
+        { command: "/pitch", label: "Pitch" },
+        { command: "/launch", label: "Launch" },
+        { command: "/story", label: "Story" },
+        { command: "/capsule", label: "Capsule" },
+      ];
+  const scenarios = judgeDemoScenarios[language].slice(0, 3);
+
+  return (
+    <section className="grid gap-3 text-start" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="rounded-2xl border border-cyan-100/20 bg-cyan-100/[0.035] p-2.5 sm:p-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="ui-kicker text-cyan-100/80">{isArabic ? "مفاتيح سريعة" : "Quick keys"}</p>
+          <span className="rounded-full bg-cyan-100/10 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-cyan-100">tap</span>
+        </div>
+        <div className="mt-2 grid grid-cols-3 gap-1.5 sm:gap-2">
+          {commands.map((item) => (
+            <button key={item.command} type="button" onClick={() => onCommand(item.command)} className="rounded-xl border border-white/10 bg-black/18 px-2 py-1.5 text-start transition-colors hover:border-cyan-100/45 hover:bg-cyan-100/10 sm:px-2.5 sm:py-2">
+              <span className="block font-mono text-[11px] text-cyan-100" dir="ltr">{item.command}</span>
+              <span className="mt-0.5 block truncate font-arsans text-[11px] text-[#F7F3EC]/72">{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
+        <div className="rounded-2xl border border-[#C9A86A]/22 bg-[#C9A86A]/[0.055] p-2.5 sm:p-3">
+          <p className="ui-kicker text-[#C9A86A]/85">{isArabic ? "بدايات" : "Starters"}</p>
+          <div className="mt-2 grid gap-1.5 sm:gap-2">
+            {starterMoments[language].map((moment) => (
+              <button key={moment.label} type="button" onClick={() => onStarter(moment.text, moment.world)} className="min-h-9 rounded-xl border border-white/10 bg-black/16 px-2 py-1.5 text-start transition-colors hover:border-[#C9A86A]/45 hover:bg-[#C9A86A]/10 sm:min-h-10 sm:px-3 sm:py-2">
+                <span className="block truncate font-arsans text-[11px] text-[#F7F3EC]/84 sm:text-xs">{moment.label}</span>
+                <span className="block truncate font-arsans text-[9px] text-[#C9A86A]/70 sm:text-[10px]">{worldLabels[moment.world][language]}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-2.5 sm:p-3">
+          <p className="ui-kicker text-[#F7F3EC]/62">{isArabic ? "لقطات الحكام" : "Judge shots"}</p>
+          <div className="mt-2 grid gap-1.5 sm:gap-2">
+            {scenarios.map((scenario) => (
+              <button key={scenario.label} type="button" onClick={() => onJudge(scenario.text, scenario.world, scenario.targetLanguage, scenario.personaId)} className="min-h-9 rounded-xl border border-white/10 bg-black/16 px-2 py-1.5 text-start transition-colors hover:border-[#C9A86A]/45 hover:bg-[#C9A86A]/10 sm:min-h-10 sm:px-3 sm:py-2">
+                <span className="block truncate font-arsans text-[11px] text-[#F7F3EC]/84 sm:text-xs">{scenario.label}</span>
+                <span className="block truncate font-arsans text-[9px] text-[#C9A86A]/70 sm:text-[10px]">{scenario.companion} · {worldLabels[scenario.world][language]}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CompactSessionSettings({
+  accessState,
+  language,
+  onNewSession,
+  onOpenSession,
+  onRefresh,
+  onSaveSession,
+  onSignIn,
+  sessions,
+  status,
+}: {
+  accessState: AccessState;
+  language: Language;
+  sessions: ChatSessionSummary[];
+  status: "idle" | "saving" | "saved" | "loading" | "error";
+  onNewSession: () => void;
+  onSaveSession: () => void;
+  onRefresh: () => void;
+  onOpenSession: (session: ChatSessionSummary) => void;
+  onSignIn: () => void;
+}) {
+  const isArabic = language === "ar";
+  const visibleSessions = sessions.slice(0, 3);
+  const statusLabel = status === "loading" ? (isArabic ? "تحميل" : "Loading") : status === "saving" ? (isArabic ? "حفظ" : "Saving") : status === "saved" ? (isArabic ? "تم" : "Saved") : status === "error" ? (isArabic ? "تعذر" : "Error") : isArabic ? "جاهز" : "Ready";
+
+  if (accessState === "anonymous") {
+    return (
+      <section className="rounded-2xl border border-[#C9A86A]/25 bg-[#C9A86A]/[0.055] p-3 text-start" dir={isArabic ? "rtl" : "ltr"}>
+        <p className="ui-kicker text-[#C9A86A]/85">{isArabic ? "سجل الجلسات" : "Session history"}</p>
+        <h3 className="mt-1 font-arui text-lg font-semibold text-[#F7F3EC]/92">{isArabic ? "سجّل دخولك لحفظ الجلسات" : "Sign in to keep sessions"}</h3>
+        <button type="button" onClick={onSignIn} className="ui-action mt-3 w-full rounded-xl bg-[#C9A86A] px-4 py-3 text-sm font-semibold text-[#0E0D10] transition hover:bg-[#F7F3EC]">
+          {isArabic ? "تسجيل الدخول" : "Sign in"}
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-3 text-start" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="ui-kicker text-[#C9A86A]/85">{isArabic ? "سجل الجلسات" : "Session history"}</p>
+          <h3 className="mt-1 font-arui text-lg font-semibold text-[#F7F3EC]/92">{isArabic ? "آخر الجلسات فقط" : "Latest sessions only"}</h3>
+        </div>
+        <span className="rounded-full border border-white/10 px-2.5 py-1 font-arsans text-[11px] text-[#F7F3EC]/50">{statusLabel}</span>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2">
+        <button type="button" onClick={onNewSession} className="ui-action rounded-xl bg-[#C9A86A] px-2 py-2.5 text-xs font-semibold text-[#0E0D10] transition hover:bg-[#F7F3EC]">
+          {isArabic ? "جديدة" : "New"}
+        </button>
+        <button type="button" onClick={onSaveSession} className="ui-action rounded-xl border border-emerald-200/30 px-2 py-2.5 text-xs text-emerald-200 transition hover:bg-emerald-200 hover:text-[#0E0D10]">
+          {isArabic ? "حفظ" : "Save"}
+        </button>
+        <button type="button" onClick={onRefresh} className="ui-action rounded-xl border border-white/10 px-2 py-2.5 text-xs text-[#F7F3EC]/70 transition hover:border-[#C9A86A]/45 hover:text-[#C9A86A]">
+          {isArabic ? "تحديث" : "Refresh"}
+        </button>
+      </div>
+      <div className="mt-3 grid gap-1.5 sm:gap-2">
+        {visibleSessions.length > 0 ? visibleSessions.map((sessionItem) => (
+          <button key={sessionItem.sessionId} type="button" onClick={() => onOpenSession(sessionItem)} className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-xl border border-white/10 bg-black/16 px-3 py-2 text-start transition-colors hover:border-[#C9A86A]/45 hover:bg-[#C9A86A]/10">
+            <span className="min-w-0">
+              <span className="block truncate font-arsans text-xs text-[#F7F3EC]/84" dir="auto">{sessionItem.title}</span>
+              <span className="mt-0.5 block truncate font-mono text-[9px] uppercase tracking-[0.08em] text-[#F7F3EC]/35" dir="ltr">
+                {sessionItem.messageCount ?? sessionItem.messages.length} messages · {sessionItem.updatedAt ? new Date(sessionItem.updatedAt).toLocaleDateString(isArabic ? "ar-EG" : "en-US") : "local"}
+              </span>
+            </span>
+            <span className="rounded-full border border-white/10 px-2 py-1 font-arsans text-[10px] text-[#C9A86A]">{isArabic ? "فتح" : "Open"}</span>
+          </button>
+        )) : (
+          <p className="rounded-xl border border-dashed border-white/12 bg-black/14 px-3 py-3 text-center font-arsans text-xs text-[#F7F3EC]/48">
+            {isArabic ? "لا توجد جلسات محفوظة بعد." : "No saved sessions yet."}
+          </p>
+        )}
+      </div>
+      {sessions.length > visibleSessions.length ? (
+        <p className="mt-2 text-center font-arsans text-[10px] text-[#F7F3EC]/38">
+          {isArabic ? `يعرض آخر ${visibleSessions.length} من ${sessions.length}` : `Showing latest ${visibleSessions.length} of ${sessions.length}`}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function CompactPlanSettings({ language, loading, status, onUpgrade }: { language: Language; loading: boolean; status: "idle" | "error" | "paused"; onUpgrade: () => void }) {
+  const isArabic = language === "ar";
+  const freeFeatures = isArabic ? ["رفيق أساسي", "نبض اليوم", "حفظ محدود"] : ["Core companion", "Daily check-in", "Limited saves"];
+  const plusFeatures = isArabic ? ["متابعة أعمق", "رفيق مخصص", "حفظ أوسع"] : ["Deeper continuity", "Custom companion", "Expanded archive"];
+
+  return (
+    <section className="rounded-2xl border border-[#C9A86A]/25 bg-[#C9A86A]/[0.055] p-3 text-start" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="ui-kicker text-[#C9A86A]/85">{isArabic ? "خطط فضفضة" : "FadFada plans"}</p>
+          <h3 className="mt-1 font-arui text-lg font-semibold text-[#F7F3EC]/92">{isArabic ? "مجاني الآن، وبلس للعمق" : "Free now, Plus for depth"}</h3>
+        </div>
+        <span className="rounded-full border border-[#C9A86A]/35 bg-black/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[#C9A86A]">Plus</span>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {[{ title: isArabic ? "مجاني" : "Free", price: "$0", features: freeFeatures }, { title: isArabic ? "بلس" : "Plus", price: "$4.99", features: plusFeatures }].map((plan) => (
+          <div key={plan.title} className="rounded-xl border border-white/10 bg-black/16 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-arsans text-sm font-semibold text-[#F7F3EC]/90">{plan.title}</p>
+              <p className="font-mono text-sm text-[#C9A86A]">{plan.price}</p>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {plan.features.map((feature) => (
+                <span key={feature} className="rounded-full border border-white/10 bg-white/[0.045] px-2 py-1 font-arsans text-[10px] text-[#F7F3EC]/62">{feature}</span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      {status !== "idle" ? (
+        <p className="mt-3 rounded-lg border border-red-200/25 bg-red-200/10 px-3 py-2 font-arsans text-xs leading-5 text-red-100">
+          {status === "paused" ? (isArabic ? "الدفع يحتاج إعداد Stripe في Vercel." : "Payment needs Stripe env setup in Vercel.") : (isArabic ? "تعذر فتح الدفع. جرّب مرة أخرى." : "Could not open checkout. Try again.")}
+        </p>
+      ) : null}
+      <button type="button" onClick={onUpgrade} disabled={loading} className="ui-action mt-3 w-full rounded-xl bg-[#C9A86A] px-4 py-3 text-sm font-semibold text-[#0E0D10] transition-colors hover:bg-[#F7F3EC] disabled:animate-pulse disabled:opacity-70">
+        {loading ? (isArabic ? "جار فتح الدفع" : "Opening checkout") : isArabic ? "افتح الدفع الآمن" : "Open secure checkout"}
+      </button>
+    </section>
+  );
+}
+
+function CompactAboutSettings({ language, value, status, onChange, onSubmit }: { language: Language; value: string; status: "idle" | "saving" | "saved" | "error"; onChange: (value: string) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
+  const isArabic = language === "ar";
+  const steps = isArabic ? ["اكتب", "اختر الرفيق", "احفظ أو شارك"] : ["Write", "Pick companion", "Save or share"];
+  const features = isArabic ? ["عربي / English", "شخصيات", "Gemini", "أطفال", "والد", "أدمن"] : ["Arabic / English", "Personas", "Gemini", "Child", "Parent", "Admin"];
+
+  return (
+    <section className="grid gap-3 text-start" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+        <p className="ui-kicker text-[#C9A86A]/85">{isArabic ? "عن فضفضة" : "About FadFada"}</p>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          {steps.map((step, index) => (
+            <div key={step} className="rounded-xl border border-white/10 bg-black/16 p-2 text-center">
+              <span className="mx-auto grid h-7 w-7 place-items-center rounded-lg bg-[#C9A86A]/15 font-arui text-xs font-semibold text-[#C9A86A]">{index + 1}</span>
+              <p className="mt-1 truncate font-arsans text-[11px] text-[#F7F3EC]/75">{step}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {features.map((feature) => (
+            <span key={feature} className="rounded-full border border-white/10 bg-white/[0.045] px-2 py-1 font-arsans text-[10px] text-[#F7F3EC]/62">{feature}</span>
+          ))}
+        </div>
+      </div>
+      <form onSubmit={onSubmit} className="rounded-2xl border border-[#C9A86A]/20 bg-[#C9A86A]/[0.045] p-3">
+        <p className="ui-kicker text-[#C9A86A]/85">{isArabic ? "رأيك" : "Feedback"}</p>
+        <textarea value={value} onChange={(event) => onChange(event.target.value)} rows={3} maxLength={500} placeholder={isArabic ? "اكتب ملاحظة قصيرة..." : "Write a short note..."} className="mt-2 min-h-20 w-full rounded-xl border border-white/10 bg-black/24 px-3 py-2 font-arsans text-sm text-[#F7F3EC]/88 outline-none placeholder:text-[#F7F3EC]/30 focus:border-[#C9A86A]/55" />
+        <button type="submit" disabled={!value.trim() || status === "saving"} className="ui-action mt-2 w-full rounded-xl border border-[#C9A86A]/35 bg-[#C9A86A]/10 px-3 py-2.5 font-arsans text-xs text-[#C9A86A] transition-colors hover:bg-[#C9A86A] hover:text-[#0E0D10] disabled:opacity-45">
+          {status === "saving" ? (isArabic ? "جار الحفظ" : "Saving") : status === "saved" ? (isArabic ? "تم الحفظ" : "Saved") : isArabic ? "أرسل" : "Send"}
+        </button>
+      </form>
+    </section>
   );
 }
 
@@ -7761,70 +8283,94 @@ function UserFlowGuide({ language }: { language: Language }) {
 function BottomNav({
   language,
   onHome,
-  onChat,
+  onLearn,
   onBreathe,
-  onPersona,
+  onDraw,
   onStories,
-  onMenu,
+  onSing,
+  isChildWorkspace,
 }: {
   language: Language;
   onHome: () => void;
-  onChat: () => void;
+  onLearn: () => void;
   onBreathe?: () => void;
-  onPersona?: () => void;
+  onDraw: () => void;
   onStories?: () => void;
-  onMenu: () => void;
+  onSing: () => void;
+  isChildWorkspace: boolean;
 }) {
   const isArabic = language === "ar";
-  const itemClass = "flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-bone/62 transition-colors hover:bg-white/[0.05] hover:text-[#C9A86A]";
-  const labelClass = `${isArabic ? "font-arsans" : "font-ensans"} text-[10px] leading-none`;
-  const gridColsClass = onPersona && onStories && onBreathe
-    ? "grid-cols-6"
-    : onPersona && onStories
-      ? "grid-cols-5"
-      : onPersona && onBreathe
-        ? "grid-cols-5"
-        : onStories && onBreathe
-          ? "grid-cols-5"
-          : onPersona || onStories || onBreathe
-            ? "grid-cols-4"
-            : "grid-cols-3";
+  const navShellClass = "fixed inset-x-0 bottom-0 z-[90] border-t border-white/10 bg-[#0E0D10]/95 shadow-[0_-18px_54px_rgba(0,0,0,0.38)] backdrop-blur-xl safe-area-bottom";
+  const navInnerClass = "mx-auto flex max-w-lg items-center justify-around px-2 py-1.5";
+  const itemClass = "group flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1.5 py-1.5 text-bone/40 transition-all duration-200 hover:bg-white/[0.045] hover:text-bone/72 active:scale-95";
+  const labelClass = `${isArabic ? "font-arsans" : "font-ensans"} text-[10px] font-medium leading-tight`;
+
+  function NavItem({ icon, label, onClick }: { icon: BottomNavIconName; label: string; onClick: () => void }) {
+    return (
+      <button type="button" onClick={onClick} className={itemClass}>
+        <span className="relative text-amber-200/82 transition-colors group-hover:text-amber-200">
+          <BottomNavIcon name={icon} className="h-5 w-5 transition-transform duration-200 group-hover:scale-105" />
+          <span className="absolute -bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-amber-200/0 transition-colors group-hover:bg-amber-200/70" aria-hidden="true" />
+        </span>
+        <span className={labelClass}>{label}</span>
+      </button>
+    );
+  }
+
+  if (isChildWorkspace) {
+    return (
+      <nav className={navShellClass} dir={isArabic ? "rtl" : "ltr"} aria-label={isArabic ? "تنقل التطبيق" : "App navigation"}>
+        <div className={navInnerClass}>
+          <NavItem icon="home" label={isArabic ? "الرئيسية" : "Home"} onClick={onHome} />
+          <NavItem icon="school" label={isArabic ? "نتعلم" : "Learn"} onClick={onLearn} />
+          {onBreathe ? (
+          <NavItem icon="spa" label={isArabic ? "تنفس" : "Breathe"} onClick={onBreathe} />
+          ) : null}
+          <NavItem icon="draw" label={isArabic ? "نرسم" : "Draw"} onClick={onDraw} />
+          {onStories ? (
+          <NavItem icon="stories" label={isArabic ? "نلعب" : "Play"} onClick={onStories} />
+          ) : null}
+          <NavItem icon="music" label={isArabic ? "نغني" : "Sing"} onClick={onSing} />
+        </div>
+      </nav>
+    );
+  }
 
   return (
-    <nav className="relative z-20 mx-auto mt-4 w-full max-w-[42rem] px-2 pb-2" dir={isArabic ? "rtl" : "ltr"} aria-label={isArabic ? "تنقل التطبيق" : "App navigation"}>
-      <div className={`grid ${gridColsClass} gap-1 rounded-2xl border border-white/10 bg-[#0E0D10]/94 p-1 shadow-[0_18px_54px_rgba(0,0,0,0.34)] backdrop-blur-2xl`}>
-        <button type="button" onClick={onHome} className={itemClass}>
-          <HomeIcon />
-          <span className={labelClass}>{isArabic ? "الرئيسية" : "Home"}</span>
-        </button>
-        <button type="button" onClick={onChat} className={itemClass}>
-          <ChatIcon />
-          <span className={labelClass}>{isArabic ? "المحادثة" : "Chat"}</span>
-        </button>
-        {onBreathe ? (
-        <button type="button" onClick={onBreathe} className={itemClass}>
-          <BreatheIcon />
-          <span className={labelClass}>{isArabic ? "تنفس" : "Breathe"}</span>
-        </button>
-        ) : null}
-        {onPersona ? (
-        <button type="button" onClick={onPersona} className={itemClass}>
-          <PersonaIcon />
-          <span className={labelClass}>{isArabic ? "الرفيق" : "Persona"}</span>
-        </button>
-        ) : null}
+    <nav className={navShellClass} dir={isArabic ? "rtl" : "ltr"} aria-label={isArabic ? "تنقل التطبيق" : "App navigation"}>
+      <div className={navInnerClass}>
+        <NavItem icon="home" label={isArabic ? "الرئيسية" : "Home"} onClick={onHome} />
+        <NavItem icon="chat" label={isArabic ? "المحادثة" : "Chat"} onClick={onLearn} />
         {onStories ? (
-        <button type="button" onClick={onStories} className={itemClass}>
-          <StoryIcon />
-          <span className={labelClass}>{isArabic ? "قصص" : "Stories"}</span>
-        </button>
+        <NavItem icon="stories" label={isArabic ? "القصص" : "Stories"} onClick={onStories} />
         ) : null}
-        <button type="button" onClick={onMenu} className={itemClass}>
-          <MenuIcon />
-          <span className={labelClass}>{isArabic ? "القائمة" : "Menu"}</span>
-        </button>
+        {onBreathe ? (
+        <NavItem icon="spa" label={isArabic ? "تنفس" : "Breathe"} onClick={onBreathe} />
+        ) : null}
+        <NavItem icon="settings" label={isArabic ? "الإعدادات" : "Settings"} onClick={onSing} />
       </div>
     </nav>
+  );
+}
+
+type BottomNavIconName = "home" | "chat" | "stories" | "spa" | "settings" | "school" | "draw" | "music";
+
+function BottomNavIcon({ name, className }: { name: BottomNavIconName; className: string }) {
+  const paths: Record<BottomNavIconName, string> = {
+    home: "M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z",
+    chat: "M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z",
+    stories: "M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z",
+    spa: "M15.49 9.63c-.18-2.79-1.31-5.51-3.43-7.63a12.188 12.188 0 0 0-3.55 7.63c1.28.68 2.46 1.56 3.49 2.63 1.03-1.06 2.21-1.94 3.49-2.63zm-6.5 2.65c-.14-.1-.3-.19-.45-.29a9.762 9.762 0 0 0-2.81-2.07c-.16.56-.33 1.13-.51 1.72-.43 1.43-.87 2.89-.87 4.36 0 1.27.37 2.23 1.1 2.86.73-.63 1.1-1.59 1.1-2.86 0-.6-.14-1.22-.41-1.87-.25-.6-.55-1.18-.85-1.74l-.04-.07c.18-.1.37-.19.55-.29.55-.32 1.18-.67 1.88-1.13.71-.47 1.49-1.06 2.33-1.82.84.76 1.62 1.35 2.33 1.82.7.46 1.33.81 1.88 1.13.18.1.37.19.55.29l-.04.07c-.3.56-.6 1.14-.85 1.74-.27.65-.41 1.27-.41 1.87 0 1.27.37 2.23 1.1 2.86.73-.63 1.1-1.59 1.1-2.86 0-1.47-.44-2.93-.87-4.36-.18-.59-.35-1.16-.51-1.72a9.762 9.762 0 0 0-2.81-2.07c-.15.1-.31.19-.45.29z",
+    settings: "M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 15.6 12 3.611 3.611 0 0 1 12 15.6z",
+    school: "M12 3 1 9l11 6 9-4.91V17h2V9L12 3zm0 13.25L5 12.43V16c0 1.66 3.13 3 7 3s7-1.34 7-3v-3.57l-7 3.82z",
+    draw: "M7 16.5 3.5 20l.9-4.85L15.55 4a2.2 2.2 0 0 1 3.1 3.1L7.5 18.25 7 16.5zm10.1-11L18.5 4.1 19.9 5.5 18.5 6.9 17.1 5.5z",
+    music: "M12 3v11.5A3.5 3.5 0 1 1 10 11.34V6h8V3h-6z",
+  };
+
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+      <path d={paths[name]} />
+    </svg>
   );
 }
 
@@ -7898,27 +8444,9 @@ function SymbolIcon({ name, className = "h-5 w-5" }: { name: string; className?:
   }
 }
 
-function HomeIcon() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M4.75 11.25 12 5l7.25 6.25v7A1.75 1.75 0 0 1 17.5 20h-11a1.75 1.75 0 0 1-1.75-1.75v-7Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-      <path d="M9.5 20v-5.25h5V20" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function ChatIcon() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M6.5 17.5h-.75A2.75 2.75 0 0 1 3 14.75v-6A2.75 2.75 0 0 1 5.75 6h12.5A2.75 2.75 0 0 1 21 8.75v6a2.75 2.75 0 0 1-2.75 2.75H11l-4.5 3v-3Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-      <path d="M7.5 10h9M7.5 13h5.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function StoryIcon() {
   return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M5.25 5.5A2.25 2.25 0 0 1 7.5 3.25H19v14.5H7.5a2.25 2.25 0 0 0-2.25 2.25V5.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
       <path d="M5.25 20A2.25 2.25 0 0 1 7.5 17.75H19" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
       <path d="M9 7.5h6M9 10.5h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
@@ -7926,42 +8454,6 @@ function StoryIcon() {
   );
 }
 
-function EndIcon() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 4.75v11.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      <path d="m6.75 11.75 5.25 5.25 5.25-5.25" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M6 20h12" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function BreatheIcon() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 5.5c-2.6 0-4.75 2.15-4.75 4.75S9.4 15 12 15s4.75-2.15 4.75-4.75S14.6 5.5 12 5.5Z" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M5.5 18c1.1-1.8 3.2-3 6.5-3s5.4 1.2 6.5 3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      <path d="M12 3v2.5M12 18.5V21" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function PersonaIcon() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 12.25a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M5.75 20.25a6.25 6.25 0 0 1 12.5 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function MenuIcon() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 function ProductPositioning({ language, open, onToggle }: { language: Language; open: boolean; onToggle: () => void }) {
   const isArabic = language === "ar";
@@ -8870,11 +9362,11 @@ function ThinkingShimmer({ language, personaName }: { language: Language; person
 
   return (
     <div className="animate-rise-in rounded-2xl border border-white/10 bg-white/[0.025] p-4" dir={isArabic ? "rtl" : "ltr"}>
-      <p className="font-arsans text-sm text-[#F7F3EC]/45">{isArabic ? `${personaName} يحضّر الرد...` : `${personaName} is preparing your reply...`}</p>
-      <div className="mt-4 space-y-2">
-        <span className="block h-3 w-11/12 animate-pulse rounded-full bg-[#F7F3EC]/10" />
-        <span className="block h-3 w-9/12 animate-pulse rounded-full bg-[#F7F3EC]/10 [animation-delay:120ms]" />
-        <span className="block h-3 w-7/12 animate-pulse rounded-full bg-[#C9A86A]/15 [animation-delay:240ms]" />
+      <p className="font-arsans text-sm text-[#F7F3EC]/65">{isArabic ? `${personaName} يحضّر الرد` : `${personaName} is preparing your reply`}</p>
+      <div className="mt-3 flex items-center gap-1.5" aria-hidden="true">
+        <span className="block h-2 w-2 animate-bounce-dots rounded-full bg-[#C9A86A]/60 [animation-delay:0ms]" />
+        <span className="block h-2 w-2 animate-bounce-dots rounded-full bg-[#C9A86A]/60 [animation-delay:200ms]" />
+        <span className="block h-2 w-2 animate-bounce-dots rounded-full bg-[#C9A86A]/60 [animation-delay:400ms]" />
       </div>
     </div>
   );
@@ -8885,6 +9377,7 @@ function PaywallCard({
   accessState,
   remainingReflections,
   configuration,
+  discountCode,
   loading,
   onCheckout,
   onSignIn,
@@ -8894,6 +9387,7 @@ function PaywallCard({
   accessState: AccessState;
   remainingReflections: number;
   configuration: typeof defaultExperienceConfiguration;
+  discountCode: string;
   loading: boolean;
   onCheckout: () => void;
   onSignIn: () => void;
@@ -8929,6 +9423,12 @@ function PaywallCard({
               ? "لا نريد قطع الفضفضة فجأة. بلس يحفظ الرحلة ويفتح متابعة أعمق عندما تكون جاهزاً تكمل هذا الخيط بجدية."
               : "We will not cut the reflection abruptly. Plus saves the journey and unlocks deeper continuity when you are ready to keep this thread seriously alive."}
         </p>
+        {!isAnonymous && discountCode ? (
+          <div className="mt-4 rounded-xl border border-sky-200/24 bg-sky-200/[0.08] px-3 py-2">
+            <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-sky-100/62">{isArabic ? "كود الإطلاق جاهز" : "Launch code ready"}</p>
+            <p className="mt-1 font-mono text-lg font-bold tracking-[0.08em] text-sky-100" dir="ltr">{discountCode}</p>
+          </div>
+        ) : null}
         <div className="mt-4 grid gap-2">
           {gains.map((gain) => (
             <p key={gain} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 font-arsans text-xs text-[#F7F3EC]/70">
@@ -8945,6 +9445,24 @@ function PaywallCard({
       </div>
     </div>
   );
+}
+
+function pickChildEmoji(text: string): string {
+  const t = text.toLowerCase();
+  if (/learn|تعلم|ادرس|study|read|اقرأ|كتاب|book/i.test(t)) return "📖";
+  if (/play|game|لعب|لعبة|gaming/i.test(t)) return "🎮";
+  if (/draw|رسم|color|لون|colour/i.test(t)) return "🎨";
+  if (/sing|song|غني|أغنية|موسيقى|music/i.test(t)) return "🎵";
+  if (/story|قصة|حكاية/i.test(t)) return "📚";
+  if (/math|حساب|عدد|رقم/i.test(t)) return "🔢";
+  if (/science|علم/i.test(t)) return "🔬";
+  if (/animal|حيوان|حيوانات/i.test(t)) return "🐾";
+  if (/dance|رقص/i.test(t)) return "💃";
+  if (/cook|طبخ|أكل|اكل|food/i.test(t)) return "🍳";
+  if (/sport|رياضة/i.test(t)) return "⚽";
+  if (/space|فضاء|كوكب|planet/i.test(t)) return "🚀";
+  if (/garden|زرع|نبات|plant|flower/i.test(t)) return "🌱";
+  return "✨";
 }
 
 function getClientDeviceType() {

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, buildGeographicRegionFromHeaders, type FadFadaSessionUser } from "../../../lib/auth";
 import { createGeminiClient, getGeminiModel, getGeminiProvider, isGeminiConfigured } from "../../../lib/gemini";
+import { callGroqChat, isGroqConfigured } from "../../../lib/huggingface";
 import { hasLifetimePlusAccess } from "../../../lib/lifetimeAccess";
 import { reflectLocally, type ReflectInput } from "../../../lib/localReflect";
 import { prisma } from "../../../lib/prisma";
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
   let responseText = fallback.replyText;
   let cadence = buildCadence(effectiveWorld);
   let mediaIntent: ReturnType<typeof normalizeMediaIntent>;
-  let responseSource: "gemini" | "fallback" = "fallback";
+  let responseSource: "gemini" | "huggingface" | "fallback" = "fallback";
   let aiStatus = "not_attempted";
   const geminiDisabled = process.env.GEMINI_DISABLED === "true";
 
@@ -275,7 +276,73 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Reflect route Gemini fallback", error);
     aiStatus = getGeminiErrorStatus(error);
-    responseText = ensureDirectionFriendlyText(fallback.replyText, currentLanguage);
+
+    try {
+      if (!isGroqConfigured()) throw new Error("Groq not configured.");
+
+      aiStatus = "requesting_groq";
+      const personaBlock = personaSystemPrompt
+        ? `COMPANION PERSONA IDENTITY:\n${personaSystemPrompt}\nStay in this persona's voice.`
+        : null;
+
+      const groqSystemInstructions = [
+        "You are FadFada | فضفضة, a bilingual wellbeing companion.",
+        personaBlock,
+        `Respond in ${currentLanguage === "ar" ? "Arabic" : "English"}.`,
+        "Return ONLY valid JSON. No markdown. No explanation outside JSON.",
+        'JSON shape: { "text": string, "world": "calm"|"story"|"faith"|"build"|"learning"|"celebration"|"grief", "emotionalCadence": { "speed": "slow_reflective"|"steady_calm"|"rapid_energetic", "typewriterIntervalMs": number, "particleVelocity": number }, "mediaIntent": { "kind": "none"|"image"|"video", "confidence": number, "prompt": string } }',
+      ];
+
+      if (identity.isChildWorkspace) {
+        groqSystemInstructions.push(
+          "You are speaking to a CHILD. These rules are mandatory:",
+          "- Never say NO to a child's request. Say YES, redirect playfully, or ask them to show you.",
+          '- Never dismiss what a child chooses ("this is not for you", "too young", "not your level"). Always celebrate their choice.',
+          '- Never use repeated pet names like "ya habibi" in every message. Use the child\'s name or simple Arabic.',
+          "- Never generate mediaIntent (image or video) unless the child explicitly asks for a picture or video.",
+          "- Keep sentences short. Max 2 sentences per response.",
+          "- If the child asks for something unsafe, redirect to a fun alternative instead of saying no.",
+        );
+      } else {
+        groqSystemInstructions.push(
+          userDisplayName ? `You are speaking to ${userDisplayName}.` : "You are speaking to an adult user.",
+        );
+      }
+
+      const groqResult = await callGroqChat([
+        {
+          role: "system",
+          content: groqSystemInstructions.filter(Boolean).join("\n"),
+        },
+        {
+          role: "user",
+          content: messageText,
+        },
+      ]);
+
+      const groqParsed = parseGeminiJson<ReflectGeminiPayload>(groqResult);
+      if (identity.isChildWorkspace && isGroqChildUnsafe(groqParsed?.text || groqResult)) {
+        console.warn("Groq response flagged as unsafe for child, using fallback");
+        responseText = ensureDirectionFriendlyText(fallback.replyText, currentLanguage);
+        responseSource = "fallback";
+        aiStatus = "groq_unsafe_fallback";
+      } else if (groqParsed?.text) {
+        responseText = ensureDirectionFriendlyText(groqParsed.text, currentLanguage);
+        cadence = normalizeCadence(groqParsed.emotionalCadence, effectiveWorld);
+        mediaIntent = normalizeMediaIntent(groqParsed.mediaIntent);
+        responseSource = "huggingface";
+        aiStatus = "groq_json";
+      } else if (groqResult) {
+        responseText = ensureDirectionFriendlyText(groqResult, currentLanguage);
+        responseSource = "huggingface";
+        aiStatus = "groq_text";
+      }
+    } catch (groqError) {
+      console.error("Reflect route Groq fallback also failed", groqError);
+      if (!responseText) {
+        responseText = ensureDirectionFriendlyText(fallback.replyText, currentLanguage);
+      }
+    }
   }
 
   return NextResponse.json(
@@ -407,11 +474,33 @@ function normalizeCadence(value: ReflectGeminiPayload["emotionalCadence"] | unde
   };
 }
 
+const childUnsafePatterns = [
+  /ليس\s+(ل|من\s+)?(لصغار|لطفال|لعيال)/i,
+  /مش\s+(لطفل|للصغار|لعيال)/i,
+  /لا\s+(تنفع|تصلح|تليق|تناسب)/i,
+  /too\s+(young|small|little)\s+for/i,
+  /not\s+(for|meant\s+for|appropriate\s+for)\s+(children|kids|you)/i,
+];
+
+function isGroqChildUnsafe(text: string | null | undefined): boolean {
+  if (!text) return false;
+  return childUnsafePatterns.some((pattern) => pattern.test(text));
+}
+
 function parseGeminiJson<T>(text: string): T | null {
   try {
     const cleaned = text.trim().replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
     return JSON.parse(cleaned) as T;
   } catch {
+    try {
+      const firstBrace = text.indexOf("{");
+      const lastBrace = text.lastIndexOf("}");
+      if (firstBrace !== -1 && lastBrace > firstBrace) {
+        return JSON.parse(text.slice(firstBrace, lastBrace + 1)) as T;
+      }
+    } catch {
+      return null;
+    }
     return null;
   }
 }

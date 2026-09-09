@@ -107,11 +107,11 @@ export default function DemoEvidencePage() {
   const demoHref = useMemo(() => `/?demoCommand=${encodeURIComponent(demoCommand)}&lang=${demoLanguage}&persona=${demoPersona}`, [demoCommand, demoLanguage, demoPersona]);
 
   return (
-    <main className="min-h-screen bg-ink px-5 pb-16 pt-24 text-bone/90">
+    <main className="min-h-screen overflow-x-clip bg-ink px-3 pb-16 pt-24 text-bone/90 sm:px-5">
       <section className="mx-auto max-w-6xl">
         <div className="border-b border-white/10 pb-8">
           <p className="ui-kicker text-gold">FadFada evidence room</p>
-          <h1 className="mt-3 max-w-4xl font-arserif text-5xl text-bone/95">A calm Arabic-first product, with depth hidden one layer below the chat.</h1>
+          <h1 className="mt-3 max-w-4xl font-arserif text-4xl leading-tight text-bone/95 sm:text-5xl">A calm Arabic-first product, with depth hidden one layer below the chat.</h1>
           <p className="mt-4 max-w-2xl font-arsans text-sm leading-7 text-bone/60">This page is a compact judge view of the product: what works, where the modules live, and how to demo the strongest flows without crowding the main interface.</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/" className="ui-action bg-gold px-4 py-3 text-ink hover:bg-bone">Open app</Link>
@@ -121,7 +121,7 @@ export default function DemoEvidencePage() {
           </div>
         </div>
 
-        <section className="grid gap-4 border-b border-white/10 py-8 md:grid-cols-4">
+        <section className="grid gap-3 border-b border-white/10 py-8 min-[520px]:grid-cols-2 lg:grid-cols-4">
           {evidenceCards.map((card) => (
             <article key={card.label} className="border border-white/10 bg-white/[0.025] p-4">
               <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-gold/70">{card.label}</p>
@@ -131,15 +131,15 @@ export default function DemoEvidencePage() {
           ))}
         </section>
 
-        <section id="gemini-stack" className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.8fr_1.2fr]">
+        <section id="gemini-stack" className="grid gap-5 border-b border-white/10 py-8 md:grid-cols-[0.8fr_1.2fr] md:gap-10 md:py-10">
           <div>
             <p className="ui-kicker text-cyan-100">Gemini multimodal proof</p>
-            <h2 className="mt-2 font-arserif text-4xl text-bone/92">Not only chat: text, image, video, persona, and voice.</h2>
+            <h2 className="mt-2 font-arserif text-3xl text-bone/92 sm:text-4xl">Not only chat: text, image, video, persona, and voice.</h2>
             <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">This is the judge-facing map for the Google Gemini requirement. Each card names the capability, what FadFada already does with it, and the fastest proof path.</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 min-[560px]:grid-cols-2">
             {geminiCapabilities.map((capability) => (
-              <Link key={capability.label} href={capability.href} className="group flex min-h-56 flex-col border border-cyan-100/15 bg-cyan-100/[0.035] p-4 transition-colors hover:border-cyan-100/45 hover:bg-cyan-100/[0.07]">
+              <Link key={capability.label} href={capability.href} className="group flex min-h-48 flex-col border border-cyan-100/15 bg-cyan-100/[0.035] p-4 transition-colors hover:border-cyan-100/45 hover:bg-cyan-100/[0.07] sm:min-h-56">
                 <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-cyan-100/70">{capability.label}</span>
                 <h3 className="mt-3 font-arserif text-2xl text-bone/92">{capability.value}</h3>
                 <p className="mt-3 font-arsans text-sm leading-6 text-bone/58">{capability.detail}</p>
@@ -150,18 +150,18 @@ export default function DemoEvidencePage() {
           </div>
         </section>
 
-        <section className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.8fr_1.2fr]">
+        <section className="grid gap-5 border-b border-white/10 py-8 md:grid-cols-[0.8fr_1.2fr] md:gap-10 md:py-10">
           <div>
             <p className="ui-kicker text-gold">Companion system</p>
-            <h2 className="mt-2 font-arserif text-4xl text-bone/92">Companions are roles, and family mode is a separate product layer.</h2>
+            <h2 className="mt-2 font-arserif text-3xl text-bone/92 sm:text-4xl">Companions are roles, and family mode is a separate product layer.</h2>
             <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">The roster is split between listening companions and builders, while the child workspace filters into child-safe companions only. Every assistant message preserves the companion/avatar/world used when it was created.</p>
-                  <section className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.8fr_1.2fr]">
+                  <section className="grid gap-5 border-b border-white/10 py-8 md:grid-cols-[0.8fr_1.2fr] md:gap-10 md:py-10">
                     <div>
                       <p className="ui-kicker text-emerald-100">Trust + family proof</p>
-                      <h2 className="mt-2 font-arserif text-4xl text-bone/92">Judges can verify safety boundaries without reading code.</h2>
+                      <h2 className="mt-2 font-arserif text-3xl text-bone/92 sm:text-4xl">Judges can verify safety boundaries without reading code.</h2>
                       <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">The latest build adds a visible Trust Mode card plus parent/child workspace proof: server-verified parent return, safe session storage, and child-safe tools with a parent timeline.</p>
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-3 min-[560px]:grid-cols-2">
                       {[
                         { title: 'Trust Mode', detail: 'Evidence Room now exposes live trust signals from the running build.' },
                         { title: 'Parent Copilot Timeline', detail: 'Profile now summarizes the last 7 days per child and suggests one next move.' },
@@ -177,22 +177,22 @@ export default function DemoEvidencePage() {
                   </section>
 
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 min-[520px]:grid-cols-3">
             <EvidenceStat label="Total personas" value={String(personas.length)} />
             <EvidenceStat label="Free" value={String(freeCount)} />
             <EvidenceStat label="Plus" value={String(plusCount)} />
           </div>
         </section>
 
-        <section className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.8fr_1.2fr]">
+        <section className="grid gap-5 border-b border-white/10 py-8 md:grid-cols-[0.8fr_1.2fr] md:gap-10 md:py-10">
           <div>
             <p className="ui-kicker text-gold">Guided autopilot</p>
-            <h2 className="mt-2 font-arserif text-4xl text-bone/92">A clean route through the whole product.</h2>
+            <h2 className="mt-2 font-arserif text-3xl text-bone/92 sm:text-4xl">A clean route through the whole product.</h2>
             <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">Browsers should not auto-drive private interactions, so this gives presenters a one-click sequence that stays controlled and demo-safe.</p>
           </div>
           <div className="space-y-3">
             {guidedSequence.map((item) => (
-              <Link key={item.step} href={item.href} className="grid gap-3 border border-white/10 bg-white/[0.025] p-4 transition-colors hover:border-gold/45 sm:grid-cols-[3rem_1fr_auto]">
+              <Link key={item.step} href={item.href} className="grid gap-3 border border-white/10 bg-white/[0.025] p-4 transition-colors hover:border-gold/45 min-[560px]:grid-cols-[3rem_1fr_auto]">
                 <span className="font-enserif text-3xl italic text-gold">{item.step}</span>
                 <span>
                   <span className="block font-arserif text-2xl text-bone/90">{item.title}</span>
@@ -204,16 +204,16 @@ export default function DemoEvidencePage() {
           </div>
         </section>
 
-        <section id="snapshot" className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.8fr_1.2fr]">
+        <section id="snapshot" className="grid gap-5 border-b border-white/10 py-8 md:grid-cols-[0.8fr_1.2fr] md:gap-10 md:py-10">
           <div>
             <p className="ui-kicker text-gold">Judge snapshot</p>
-            <h2 className="mt-2 font-arserif text-4xl text-bone/92">One page of proof when time is short.</h2>
+            <h2 className="mt-2 font-arserif text-3xl text-bone/92 sm:text-4xl">One page of proof when time is short.</h2>
             <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">This section prints cleanly as the lightweight investor or judge leave-behind.</p>
           </div>
-          <div className="border border-gold/20 bg-gold/[0.025] p-5">
+          <div className="border border-gold/20 bg-gold/[0.025] p-4 sm:p-5">
             <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-gold/70">FadFada / فضفضة</p>
             <h3 className="mt-3 font-arserif text-3xl text-bone/92">Calm Arabic AI for reflection, growth, and emotional artifacts.</h3>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="mt-5 grid gap-3 min-[560px]:grid-cols-2">
               {snapshotFacts.map((fact) => (
                 <p key={fact} className="border border-white/10 bg-black/10 p-3 font-arsans text-sm leading-6 text-bone/62">{fact}</p>
               ))}
@@ -221,15 +221,15 @@ export default function DemoEvidencePage() {
           </div>
         </section>
 
-        <section className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.8fr_1.2fr]">
+        <section className="grid gap-5 border-b border-white/10 py-8 md:grid-cols-[0.8fr_1.2fr] md:gap-10 md:py-10">
           <div>
             <p className="ui-kicker text-gold">Founder mode</p>
-            <h2 className="mt-2 font-arserif text-4xl text-bone/92">Pitch rehearsal without opening another doc.</h2>
+            <h2 className="mt-2 font-arserif text-3xl text-bone/92 sm:text-4xl">Pitch rehearsal without opening another doc.</h2>
             <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">A compact presenter script for the moments before a judge, investor, or teammate asks, “what is this really?”</p>
           </div>
           <div className="space-y-3">
             {pitchBeats.map((beat) => (
-              <article key={beat.label} className="grid gap-3 border border-white/10 bg-white/[0.025] p-4 sm:grid-cols-[7rem_1fr]">
+              <article key={beat.label} className="grid gap-3 border border-white/10 bg-white/[0.025] p-4 min-[560px]:grid-cols-[7rem_1fr]">
                 <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-gold/70">{beat.label}</p>
                 <p className="font-arsans text-sm leading-6 text-bone/65">{beat.text}</p>
               </article>
@@ -237,14 +237,14 @@ export default function DemoEvidencePage() {
           </div>
         </section>
 
-        <section className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.8fr_1.2fr]">
+        <section className="grid gap-5 border-b border-white/10 py-8 md:grid-cols-[0.8fr_1.2fr] md:gap-10 md:py-10">
           <div>
             <p className="ui-kicker text-gold">Shareable demo link</p>
-            <h2 className="mt-2 font-arserif text-4xl text-bone/92">Build the exact route you want to show.</h2>
+            <h2 className="mt-2 font-arserif text-3xl text-bone/92 sm:text-4xl">Build the exact route you want to show.</h2>
             <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">Choose a command, language, and persona. The app opens with the command staged so the presenter presses Enter. For Dual Mirror, open the app and tap the judge-callout button inside chat.</p>
           </div>
-          <div className="border border-gold/20 bg-gold/[0.025] p-5">
-            <div className="grid gap-3 sm:grid-cols-3">
+          <div className="border border-gold/20 bg-gold/[0.025] p-4 sm:p-5">
+            <div className="grid gap-3 min-[560px]:grid-cols-3">
               <DemoSelect label="Command" value={demoCommand} onChange={setDemoCommand} options={flows.map((flow) => flow.command)} />
               <DemoSelect label="Language" value={demoLanguage} onChange={setDemoLanguage} options={["ar", "en"]} />
               <DemoSelect label="Persona" value={demoPersona} onChange={setDemoPersona} options={["rawi", "omar", "malek", "mentor"]} />
@@ -257,13 +257,13 @@ export default function DemoEvidencePage() {
           </div>
         </section>
 
-        <section className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.8fr_1.2fr]">
+        <section className="grid gap-5 border-b border-white/10 py-8 md:grid-cols-[0.8fr_1.2fr] md:gap-10 md:py-10">
           <div>
             <p className="ui-kicker text-gold">Demo keys</p>
-            <h2 className="mt-2 font-arserif text-4xl text-bone/92">A judge can see the magic without hunting for it.</h2>
+            <h2 className="mt-2 font-arserif text-3xl text-bone/92 sm:text-4xl">A judge can see the magic without hunting for it.</h2>
             <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">Each button opens the app and stages the command in chat. The presenter only presses Enter.</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 min-[560px]:grid-cols-2">
             {flows.map((flow) => (
               <article key={flow.command} className="border border-white/10 bg-white/[0.025] p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -280,10 +280,10 @@ export default function DemoEvidencePage() {
           </div>
         </section>
 
-        <section className="grid gap-10 py-10 md:grid-cols-[0.8fr_1.2fr]">
+        <section className="grid gap-5 py-8 md:grid-cols-[0.8fr_1.2fr] md:gap-10 md:py-10">
           <div>
             <p className="ui-kicker text-gold">Where the depth lives</p>
-            <h2 className="mt-2 font-arserif text-4xl text-bone/92">Polish is layered, not piled onto the chat.</h2>
+            <h2 className="mt-2 font-arserif text-3xl text-bone/92 sm:text-4xl">Polish is layered, not piled onto the chat.</h2>
             <p className="mt-4 font-arsans text-sm leading-7 text-bone/58">This is the product structure to explain when someone asks why the interface feels calm while still being full-featured.</p>
           </div>
           <div className="space-y-3">
@@ -304,7 +304,7 @@ function EvidenceStat({ label, value }: { label: string; value: string }) {
   return (
     <article className="border border-gold/20 bg-gold/[0.025] p-4">
       <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35">{label}</p>
-      <p className="mt-3 font-enserif text-5xl italic text-gold">{value}</p>
+      <p className="mt-3 font-enserif text-4xl italic text-gold sm:text-5xl">{value}</p>
     </article>
   );
 }

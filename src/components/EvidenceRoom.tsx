@@ -38,7 +38,7 @@ type VersionSnapshot = {
   };
 };
 
-type EvidencePanel = "why" | "readiness" | "ai" | "trust" | "payment" | "export";
+type EvidencePanel = "why" | "readiness" | "ai" | "trust" | "impact" | "payment" | "export";
 
 export function EvidenceRoom({ language, safetyKeywordCount = 0, sessionCount = 1, transactions = [] }: EvidenceRoomProps) {
   const { data: session } = useSession();
@@ -98,6 +98,12 @@ export function EvidenceRoom({ language, safetyKeywordCount = 0, sessionCount = 
         whyPwa: "Instant link access, installable app behavior, no app-store review delay, easier judge sharing.",
         checkoutStatus: "Paused intentionally for the free demo.",
       },
+      impactModel: {
+        inputs: ["Gemini / Vertex AI", "Arabic-first UX", "parent-child workspace isolation", "child-safe learning tools"],
+        activities: ["reflection chat", "Daily Pulse", "homework transformation", "stories", "drawing", "music"],
+        outputs: { sessionCount, safetyKeywordCount, successfulTransactions: successfulTransactions.length },
+        intendedOutcome: "Families move from stress and unsafe generic AI toward safer expression, learning support, and one clear next step.",
+      },
       pwaCompliance: {
         manifestDetected: true,
         serviceWorkerRegistered: true,
@@ -151,6 +157,7 @@ export function EvidenceRoom({ language, safetyKeywordCount = 0, sessionCount = 
               { id: "readiness", ar: "جاهزية", en: "Readiness" },
               { id: "ai", ar: "الذكاء", en: "AI" },
               { id: "trust", ar: "الثقة", en: "Trust" },
+              { id: "impact", ar: "الأثر", en: "Impact" },
               { id: "payment", ar: "الدفع", en: "Payment" },
               { id: "export", ar: "التصدير", en: "Export" },
             ] as const).map((panel) => {
@@ -236,6 +243,53 @@ export function EvidenceRoom({ language, safetyKeywordCount = 0, sessionCount = 
           </section>
           ) : null}
 
+          {activePanel === "impact" ? (
+          <section className="mt-10 space-y-4">
+            <div>
+              <p className="ui-kicker">{isArabic ? "نموذج الأثر" : "Impact logic model"}</p>
+              <p className="mt-2 font-arsans text-sm leading-7 text-[#F7F3EC]/58">
+                {isArabic
+                  ? "هذه اللوحة تربط مميزات فضفضة بما تقيسه: من المدخلات إلى الأنشطة، ثم المخرجات والنتائج والأثر العائلي المقصود."
+                  : "This panel connects FadFada features to what they measure: inputs, activities, outputs, outcomes, and intended family impact."}
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <ImpactCard
+                title={isArabic ? "المدخلات" : "Inputs"}
+                items={isArabic
+                  ? ["Gemini / Vertex AI", "واجهة عربية ثنائية اللغة", "فصل مساحة الوالد والطفل", "أدوات تعلم آمنة للطفل"]
+                  : ["Gemini / Vertex AI", "Arabic-first bilingual UX", "parent-child workspace isolation", "child-safe learning tools"]}
+              />
+              <ImpactCard
+                title={isArabic ? "الأنشطة" : "Activities"}
+                items={isArabic
+                  ? ["محادثة انعكاس", "نبض اليوم", "تحويل الواجب", "قصص", "رسم", "موسيقى"]
+                  : ["reflection chat", "Daily Pulse", "homework transformation", "stories", "drawing", "music"]}
+              />
+              <ImpactCard
+                title={isArabic ? "المخرجات المقاسة" : "Measured outputs"}
+                items={isArabic
+                  ? [`جلسات العرض: ${sessionCount}`, `كلمات أمان مرصودة: ${safetyKeywordCount}`, `مدفوعات ناجحة: ${successfulTransactions.length}`]
+                  : [`demo sessions: ${sessionCount}`, `safety keywords observed: ${safetyKeywordCount}`, `successful payments: ${successfulTransactions.length}`]}
+              />
+              <ImpactCard
+                title={isArabic ? "النتائج" : "Outcomes"}
+                items={isArabic
+                  ? ["خطوة صغيرة بعد الفضفضة", "واجب أقل توتراً", "مساحة طفل محمية", "اطمئنان ولي الأمر بدون خلط السياق"]
+                  : ["one small next step after reflection", "less homework friction", "protected child workspace", "parent confidence without context mixing"]}
+              />
+            </div>
+            <div className="border border-[#C9A86A]/24 bg-[#C9A86A]/[0.055] p-4">
+              <p className="ui-kicker text-[#C9A86A]">{isArabic ? "الأثر المقصود" : "Intended impact"}</p>
+              <p className="mt-2 font-arsans text-sm leading-7 text-[#F7F3EC]/70">
+                {isArabic
+                  ? "تساعد فضفضة العائلات على الانتقال من الضغط واستخدام الذكاء الاصطناعي العام غير الآمن إلى تعبير آمن، دعم تعلم واضح، وحدود موثوقة بين مساحة الوالد والطفل."
+                  : "FadFada helps families move from stress and unsafe generic AI use toward safer expression, clearer learning support, and trusted boundaries between parent and child spaces."}
+              </p>
+            </div>
+          </section>
+          ) : null}
+
           {activePanel === "payment" ? (
           <section className="mt-10 space-y-4">
             <p className="ui-kicker">{isArabic ? "حالة الدفع" : "Payment status"}</p>
@@ -285,6 +339,21 @@ function EvidenceLine({ label, active = true }: { label: string; active?: boolea
     <p className={`font-arsans text-sm ${active ? "text-[#F7F3EC]/70" : "text-[#F7F3EC]/42"}`}>
       <span className={active ? "text-emerald-300" : "text-amber-300"}>{active ? "✓" : "~"}</span> {label}
     </p>
+  );
+}
+
+function ImpactCard({ title, items }: { title: string; items: string[] }) {
+  return (
+    <article className="border border-white/10 bg-white/[0.035] p-4">
+      <h3 className="font-arsans text-sm font-semibold text-[#F7F3EC]/82">{title}</h3>
+      <div className="mt-3 space-y-2">
+        {items.map((item) => (
+          <p key={item} className="font-arsans text-xs leading-5 text-[#F7F3EC]/58">
+            <span className="text-[#C9A86A]">•</span> {item}
+          </p>
+        ))}
+      </div>
+    </article>
   );
 }
 

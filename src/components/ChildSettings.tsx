@@ -69,7 +69,7 @@ export function ChildSettings({
               key={avatar}
               type="button"
               onClick={() => onUpdateAvatar(avatar)}
-              className={`h-14 w-14 overflow-hidden rounded-xl border-2 transition-all ${
+              className={`h-16 w-16 overflow-hidden rounded-xl border-2 transition-all sm:h-20 sm:w-20 ${
                 avatar === avatarPath
                   ? "border-amber-200 bg-amber-200/20 scale-110"
                   : "border-white/15 bg-white/[0.04] hover:border-white/30"

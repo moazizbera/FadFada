@@ -30,6 +30,9 @@ model User {
   lemonSubscriptionId String?
   lemonSubscriptionStatus String?
   lemonCustomerPortalUrl String? @db.Text
+  revenuecatAppUserId String?
+  revenuecatEntitlementId String?
+  revenuecatExpiresAt DateTime?
   currentLanguage   String           @default("ar")
   activeTier        SubscriptionTier @default(FREE)
   tokenBalance      Int              @default(3)

@@ -88,12 +88,13 @@ export function BreathingExercise({ language, onClose }: BreathingExerciseProps)
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#0E0D10]/98 backdrop-blur-lg">
+    <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-[#0E0D10]/98 px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-lg" role="dialog" aria-modal="true" aria-label={isArabic ? "تمرين التنفس" : "Breathing exercise"} dir={isArabic ? "rtl" : "ltr"}>
       {/* Close button */}
       <button
         type="button"
         onClick={onClose}
-        className="absolute left-4 top-4 z-10 grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-bone/60 transition-all hover:bg-white/[0.12] hover:text-bone"
+        className="fixed left-4 top-[max(1rem,env(safe-area-inset-top))] z-10 grid h-12 w-12 place-items-center rounded-full border border-white/15 bg-white/[0.08] text-bone/75 shadow-2xl transition-all hover:bg-white/[0.12] hover:text-bone"
+        aria-label={isArabic ? "إغلاق تمرين التنفس" : "Close breathing exercise"}
       >
         ✕
       </button>

@@ -179,7 +179,7 @@ type AdminDashboardClientProps = {
 };
 
 type AdminTab = "dashboard" | "configuration" | "users" | "personas" | "families" | "offers" | "sessions";
-type DashboardPanel = "overview" | "acquisition" | "engagement" | "business";
+type DashboardPanel = "overview" | "acquisition" | "engagement" | "impact" | "business";
 
 const copy = {
   ar: {
@@ -235,6 +235,9 @@ const copy = {
       contextSafetyKicker: "حماية وضع الطفل",
       contextSafetyTitle: "تنبيهات عزل السياق",
       contextSafetyDescription: "أي قيمة أعلى من صفر تعني أن الحماية اكتشفت محاولة خلط سياق الوالد/الطفل وتم احتواؤها تلقائياً.",
+      impactKicker: "قياس الأثر",
+      impactTitle: "نموذج أثر فضفضة حسب المميزات",
+      impactDescription: "يربط مميزات فضفضة بإشارات قابلة للقياس: تعبير، تعلم، أمان الطفل، وثقة ولي الأمر.",
       auditKicker: "تصدير المراجعة",
       auditTitle: "تصدير لقطة مشفرة",
       auditDescription: "ملف مراجعة مشفر للزوار والتسجيلات وتوزيع الخطط.",
@@ -310,6 +313,9 @@ const copy = {
       contextSafetyKicker: "Child mode safety",
       contextSafetyTitle: "Context isolation guard alerts",
       contextSafetyDescription: "Any non-zero value means protection caught a parent/child context-mix attempt and auto-contained it.",
+      impactKicker: "Impact measurement",
+      impactTitle: "FadFada feature-based impact model",
+      impactDescription: "Connects FadFada features to measurable signals: expression, learning, child safety, and parent confidence.",
       auditKicker: "Audit export",
       auditTitle: "Export encrypted snapshot",
       auditDescription: "Encrypted audit snapshot for visitors, registrations, and plan distribution.",
@@ -358,6 +364,7 @@ export function AdminDashboardClient({ data: rawData, auditHref }: AdminDashboar
     && data.interactionTotals.pwaInstalls === 0;
   const conversionRate = data.totalVisitors > 0 ? `${Math.round((data.registeredUsers / data.totalVisitors) * 100)}%` : "0%";
   const healthScore = buildAdminHealthScore(data, language);
+  const impactStats = buildImpactStats(data, language, locale);
   const metricRows = [
     [
       { label: labels.metrics.trackedVisits, value: formatNumber(data.totalVisitors, locale) },
@@ -423,11 +430,11 @@ export function AdminDashboardClient({ data: rawData, auditHref }: AdminDashboar
   }, [router]);
 
   return (
-    <main className="min-h-screen bg-ink px-5 pb-14 pt-24 text-bone/90" dir={direction}>
+    <main className="min-h-screen overflow-x-clip bg-ink px-3 pb-14 pt-24 text-bone/90 sm:px-5" dir={direction}>
       <section className="mx-auto max-w-5xl">
         <div className="border-b border-white/10 pb-8">
           <p className="ui-kicker text-gold">{labels.eyebrow}</p>
-          <h1 className="mt-3 font-arserif text-5xl text-bone/95">{labels.title}</h1>
+          <h1 className="mt-3 font-arserif text-4xl text-bone/95 sm:text-5xl">{labels.title}</h1>
           <p className="mt-4 max-w-2xl font-arsans text-sm leading-7 text-bone/60">{labels.intro}</p>
           <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="ltr">
             {labels.autoRefreshLabel} · {labels.lastUpdatedLabel}: {lastRefreshedAt ? formatTime(lastRefreshedAt, locale) : "--:--:--"}
@@ -443,11 +450,12 @@ export function AdminDashboardClient({ data: rawData, auditHref }: AdminDashboar
 
         {activeTab === "dashboard" ? (
           <>
-        <div className="mt-6 flex flex-wrap gap-2" role="tablist" aria-label={language === "ar" ? "أقسام لوحة القياس" : "Dashboard sections"}>
+        <div className="mt-6 grid grid-cols-2 gap-2 min-[520px]:grid-cols-4" role="tablist" aria-label={language === "ar" ? "أقسام لوحة القياس" : "Dashboard sections"}>
           {([
             { id: "overview", ar: "ملخص", en: "Overview" },
             { id: "acquisition", ar: "الزوار", en: "Acquisition" },
             { id: "engagement", ar: "التفاعل", en: "Engagement" },
+            { id: "impact", ar: "الأثر", en: "Impact" },
             { id: "business", ar: "الأعمال", en: "Business" },
           ] as const).map((panel) => {
             const active = activeDashboardPanel === panel.id;
@@ -458,7 +466,7 @@ export function AdminDashboardClient({ data: rawData, auditHref }: AdminDashboar
                 role="tab"
                 aria-selected={active}
                 onClick={() => setActiveDashboardPanel(panel.id)}
-                className={`ui-action border px-3 py-2 text-xs transition-colors ${active ? "border-gold/55 bg-gold text-ink" : "border-white/10 text-bone/72 hover:border-gold/35 hover:text-gold"}`}
+                className={`ui-action min-h-10 border px-3 py-2 text-xs transition-colors ${active ? "border-gold/55 bg-gold text-ink" : "border-white/10 text-bone/72 hover:border-gold/35 hover:text-gold"}`}
               >
                 {language === "ar" ? panel.ar : panel.en}
               </button>
@@ -468,13 +476,13 @@ export function AdminDashboardClient({ data: rawData, auditHref }: AdminDashboar
 
         {activeDashboardPanel === "overview" ? (
           <>
-        <section className="grid gap-4 border-b border-gold/20 py-8 md:grid-cols-[0.7fr_1.3fr]">
-          <div className="border border-gold/25 bg-gold/[0.035] p-5">
+        <section className="grid gap-4 border-b border-gold/20 py-6 md:grid-cols-[0.7fr_1.3fr] md:py-8">
+          <div className="border border-gold/25 bg-gold/[0.035] p-4 sm:p-5">
             <p className="ui-kicker text-gold">{language === "ar" ? "صحة المنتج" : "Product health"}</p>
-            <p className="mt-3 font-enserif text-6xl italic text-gold">{healthScore.score}</p>
+            <p className="mt-3 font-enserif text-5xl italic text-gold sm:text-6xl">{healthScore.score}</p>
             <p className="mt-2 font-arsans text-sm text-bone/58">{healthScore.label}</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 min-[520px]:grid-cols-3">
             {healthScore.signals.map((signal) => (
               <article key={signal.label} className="border border-white/10 bg-white/[0.025] p-4">
                 <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35">{signal.label}</p>
@@ -485,7 +493,7 @@ export function AdminDashboardClient({ data: rawData, auditHref }: AdminDashboar
         </section>
 
         <DashboardListSection kicker={labels.sections.liveKicker} title={labels.sections.liveTitle} description={labels.sections.liveDescription}>
-          <div className="grid gap-3 md:grid-cols-4">
+          <div className="grid gap-3 min-[520px]:grid-cols-2 lg:grid-cols-4">
             <LiveRoomTile label={labels.metrics.trackedVisits} value={formatNumber(data.totalVisitors, locale)} accent="bg-gold" />
             <LiveRoomTile label={labels.metrics.registeredMembers} value={formatNumber(data.registeredUsers, locale)} accent="bg-emerald-300" />
             <LiveRoomTile label={labels.metrics.visitorComments} value={formatNumber(data.interactionTotals.visitorComments, locale)} accent="bg-dusk" />
@@ -493,7 +501,7 @@ export function AdminDashboardClient({ data: rawData, auditHref }: AdminDashboar
             <LiveRoomTile label={labels.metrics.pwaInstalls} value={formatNumber(data.interactionTotals.pwaInstalls, locale)} accent="bg-cyan-200" />
             <LiveRoomTile label={labels.metrics.childContextLeakGuards24h} value={formatNumber(data.interactionTotals.childContextLeakGuards24h, locale)} accent={data.interactionTotals.childContextLeakGuards24h > 0 ? "bg-red-300" : "bg-emerald-300"} />
           </div>
-          <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <div className="mt-5 grid gap-3 min-[520px]:grid-cols-3">
             <LiveSignal label={language === "ar" ? "آخر عضو" : "Latest member"} value={cappedRecentUsers[0]?.name || cappedRecentUsers[0]?.email || labels.unnamedProfile} detail={cappedRecentUsers[0] ? `${formatTier(cappedRecentUsers[0].activeTier, language)} · ${formatDate(cappedRecentUsers[0].createdAt, locale)}` : labels.emptySignups} />
             <LiveSignal label={language === "ar" ? "آخر تعليق" : "Latest comment"} value={cappedVisitorComments[0]?.comment || labels.emptyComments} detail={cappedVisitorComments[0] ? formatDate(cappedVisitorComments[0].createdAt, locale) : ""} />
             <LiveSignal label={language === "ar" ? "آخر جلسة" : "Latest session"} value={data.chatSessions[0]?.title || (language === "ar" ? "لا توجد جلسات" : "No sessions yet")} detail={data.chatSessions[0] ? `${data.chatSessions[0].userLabel} · ${formatNumber(data.chatSessions[0].messageCount, locale)} ${language === "ar" ? "رسائل" : "messages"}` : ""} />
@@ -509,7 +517,7 @@ export function AdminDashboardClient({ data: rawData, auditHref }: AdminDashboar
         </DashboardListSection>
 
         {metricRows.map((row, index) => (
-          <section key={index} className="grid gap-4 border-b border-white/10 py-8 sm:grid-cols-3">
+          <section key={index} className="grid gap-3 border-b border-white/10 py-6 min-[520px]:grid-cols-3 sm:gap-4 sm:py-8">
             {row.map((metric) => <MetricCard key={metric.label} label={metric.label} value={metric.value} />)}
           </section>
         ))}
@@ -562,6 +570,52 @@ export function AdminDashboardClient({ data: rawData, auditHref }: AdminDashboar
               </div>
             )) : <EmptyMetric label={labels.emptySignups} />}
             <RenderLimitHint language={language} shown={cappedRecentUsers.length} total={data.recentUsers.length} />
+          </div>
+        </DashboardListSection>
+          </>
+        ) : null}
+
+        {activeDashboardPanel === "impact" ? (
+          <>
+        <DashboardListSection kicker={labels.sections.impactKicker} title={labels.sections.impactTitle} description={labels.sections.impactDescription}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {impactStats.map((stat) => (
+              <article key={stat.title} className="border border-white/10 bg-white/[0.025] p-4">
+                <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-gold/70">{stat.kicker}</p>
+                <h3 className="mt-2 font-arsans text-sm font-semibold text-bone/88">{stat.title}</h3>
+                <p className="mt-3 font-enserif text-4xl italic text-bone/95" dir="ltr">{stat.value}</p>
+                <p className="mt-3 font-arsans text-xs leading-6 text-bone/52">{stat.description}</p>
+              </article>
+            ))}
+          </div>
+        </DashboardListSection>
+
+        <DashboardListSection
+          kicker={language === "ar" ? "من الميزة إلى الأثر" : "Feature to impact"}
+          title={language === "ar" ? "كيف تتحول مميزات فضفضة إلى نتائج" : "How FadFada features become outcomes"}
+          description={language === "ar" ? "هذه الخريطة تساعد الفريق يشرح للحكام ماذا نقيس ولماذا هذه الإشارات مهمة." : "This map helps the team explain to judges what is measured and why those signals matter."}
+        >
+          <div className="space-y-3">
+            <ImpactPathRow
+              feature={language === "ar" ? "محادثة + نبض اليوم" : "Chat + Daily Pulse"}
+              output={language === "ar" ? "ضغطات بداية، لحظات محفوظة، ردود مفيدة" : "starter taps, saved moments, helpful replies"}
+              outcome={language === "ar" ? "تعبير آمن وخطوة صغيرة بعد الفضفضة" : "safer expression and one small next step"}
+            />
+            <ImpactPathRow
+              feature={language === "ar" ? "محول الواجب ومساحة الطفل" : "Homework transformer and child workspace"}
+              output={language === "ar" ? "أطفال، جلسات طفل، أنشطة واجب" : "children, child sessions, homework activities"}
+              outcome={language === "ar" ? "تعلم أقل توتراً وحدود أوضح للطفل" : "less homework friction and clearer child boundaries"}
+            />
+            <ImpactPathRow
+              feature={language === "ar" ? "كود الرجوع وحارس السياق" : "Return code and context guard"}
+              output={language === "ar" ? "تنبيهات تسرب سياق خلال 24 ساعة" : "context leak guard alerts in 24h"}
+              outcome={language === "ar" ? "ثقة ولي الأمر في فصل مساحات الذكاء الاصطناعي" : "parent confidence in separated AI spaces"}
+            />
+            <ImpactPathRow
+              feature={language === "ar" ? "تقييم الرفاق وتعليقات الزوار" : "Companion ratings and visitor comments"}
+              output={language === "ar" ? "تقييمات، تعليقات، إشارات جودة" : "ratings, comments, quality signals"}
+              outcome={language === "ar" ? "تحسين الرفاق حسب استخدام العائلات الحقيقي" : "companions improve from real family use"}
+            />
           </div>
         </DashboardListSection>
           </>
@@ -935,7 +989,7 @@ function ConfigurationPanel({ language, configuration }: { language: Locale; con
   }
 
   return (
-    <section className="grid gap-8 py-10 md:grid-cols-[0.8fr_1.2fr]">
+    <section className="grid gap-5 py-8 md:grid-cols-[0.8fr_1.2fr] md:gap-8 md:py-10">
       <SectionIntro kicker={isArabic ? "قواعد التجربة" : "Experience rules"} title={isArabic ? "إعدادات الحدود والهدايا" : "Limits and gift configuration"} description={isArabic ? "اضبط الفرق بين الزائر، الحساب المجاني، وبلس بدون تعديل الكود." : "Control visitor, signed-in, and Plus thresholds without code edits."} />
       <form onSubmit={submit} className="rounded-2xl border border-gold/20 bg-gold/[0.045] p-4">
         <label className="mb-3 flex items-start justify-between gap-4 rounded-xl border border-emerald-200/25 bg-emerald-200/[0.06] p-3">
@@ -1176,7 +1230,7 @@ function UsersGiftPanel({ language, locale, users }: { language: Locale; locale:
                 : "When you add a gift, we increase the user's database token balance. The chat reads that balance and treats it as a longer signed-in session than the normal gift. If the user already has the app open, a refresh shows the new balance."}
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
+          <div className="grid gap-3 min-[520px]:grid-cols-[1fr_7rem]">
             <select value={selectedUserId} onChange={(event) => setSelectedUserId(event.target.value)} className="rounded-lg border border-white/10 bg-[#0E0D10] px-3 py-3 font-arsans text-sm text-bone/90 outline-none focus:border-gold/60">
               {localUsers.map((user) => <option key={user.id} value={user.id}>{user.email || user.name || user.id}</option>)}
             </select>
@@ -1193,7 +1247,7 @@ function UsersGiftPanel({ language, locale, users }: { language: Locale; locale:
               {isArabic ? "اختر المستخدم والرفيق. بعد الحفظ، يظهر الرفيق لهذا المستخدم حتى لو لم يكن ضمن حد الرفقاء المجاني." : "Choose a user and a persona. After saving, that companion unlocks for this user even if it is outside the normal free companion limit."}
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 min-[520px]:grid-cols-2">
             <select value={selectedUserId} onChange={(event) => setSelectedUserId(event.target.value)} className="rounded-lg border border-white/10 bg-[#0E0D10] px-3 py-3 font-arsans text-sm text-bone/90 outline-none focus:border-sky-200/60">
               {localUsers.map((user) => <option key={user.id} value={user.id}>{user.email || user.name || user.id}</option>)}
             </select>
@@ -1206,7 +1260,7 @@ function UsersGiftPanel({ language, locale, users }: { language: Locale; locale:
           </button>
           <p className={`mt-2 font-arsans text-xs ${personaGrantStatus === "error" ? "text-red-200" : "text-bone/45"}`}>{personaGrantStatus === "saved" ? (isArabic ? "تم فتح الرفيق للمستخدم." : "Persona allowed for this user.") : isArabic ? "سيحتاج المستخدم تحديث الصفحة إذا كان التطبيق مفتوحاً." : "If the user already has the app open, they may need to refresh."}</p>
         </form>
-        <div className="max-h-[34rem] space-y-3 overflow-y-auto pr-2 [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
+        <div className="max-h-[34rem] space-y-3 overflow-y-auto pr-1 sm:pr-2 [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
           {localUsers.map((user) => (
             <article key={user.id} className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.025] p-4 sm:grid-cols-[1fr_auto]">
               <div className="min-w-0">
@@ -1234,15 +1288,28 @@ function UsersGiftPanel({ language, locale, users }: { language: Locale; locale:
 function DiscountPanel({ language, locale, offers }: { language: Locale; locale: string; offers: AdminDashboardData["discountOffers"] }) {
   const isArabic = language === "ar";
   const [localOffers, setLocalOffers] = useState(offers);
-  const [code, setCode] = useState("EARLYPLUS");
-  const [label, setLabel] = useState(isArabic ? "خصم المؤمنين الأوائل" : "Early believer discount");
+  const discountPresets = [
+    { code: "AMANIQ7K4", percentOff: 50, labelAr: "خصم خاص للأهالي", labelEn: "Private family discount", tone: "border-sky-200/24 bg-sky-200/[0.055] text-sky-100" },
+    { code: "NOURL8M2", percentOff: 75, labelAr: "منحة داعمين خاصة", labelEn: "Private supporter grant", tone: "border-emerald-200/24 bg-emerald-200/[0.055] text-emerald-100" },
+    { code: "SAKINAHR6T9", percentOff: 90, labelAr: "منحة وصول محدود", labelEn: "Limited access grant", tone: "border-gold/30 bg-gold/[0.07] text-gold" },
+    { code: "HIBAZ3P7", percentOff: 100, labelAr: "هدية فضفضة خاصة", labelEn: "Private FadFada gift", tone: "border-red-200/24 bg-red-200/[0.055] text-red-100" },
+  ];
+  const [code, setCode] = useState("FADA30");
+  const [label, setLabel] = useState(isArabic ? "عرض إطلاق فضفضة" : "FadFada launch offer");
   const [percentOff, setPercentOff] = useState(30);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   function getShareUrl(discountCode: string) {
     const origin = typeof window === "undefined" ? "https://fad-fada.vercel.app" : window.location.origin;
-    return `${origin}/?discount=${encodeURIComponent(discountCode)}`;
+    return `${origin}/pricing?discount=${encodeURIComponent(discountCode)}`;
+  }
+
+  function applyPreset(preset: typeof discountPresets[number]) {
+    setCode(preset.code);
+    setPercentOff(preset.percentOff);
+    setLabel(isArabic ? preset.labelAr : preset.labelEn);
+    setStatus("idle");
   }
 
   async function copyOffer(offer: AdminDashboardData["discountOffers"][number]) {
@@ -1290,19 +1357,43 @@ function DiscountPanel({ language, locale, offers }: { language: Locale; locale:
   }
 
   return (
-    <section className="grid gap-8 py-10 md:grid-cols-[0.8fr_1.2fr]">
+    <section className="grid gap-5 py-8 md:grid-cols-[0.8fr_1.2fr] md:gap-8 md:py-10">
       <SectionIntro kicker={isArabic ? "العروض" : "Offers"} title={isArabic ? "خصومات Lemon Squeezy" : "Lemon Squeezy discounts"} description={isArabic ? "أنشئ نفس الكود داخل Lemon Squeezy أولاً، ثم استخدمه هنا للتتبع والمشاركة. سنرسل الكود إلى Lemon عند الدفع." : "Create the same code in Lemon Squeezy first, then use it here for tracking and sharing. Checkout sends the code to Lemon."} />
       <div className="space-y-5">
         <form onSubmit={submit} className="rounded-2xl border border-sky-300/20 bg-sky-300/[0.045] p-4">
           <p className="mb-3 rounded-xl border border-sky-200/20 bg-sky-200/10 px-3 py-2 font-arsans text-xs leading-5 text-sky-100/80">
             {isArabic ? "مهم: لوحة فضفضة لا تنشئ الخصم داخل Lemon Squeezy. يجب إنشاء الكود في Lemon بنفس الاسم حتى يقبله الدفع." : "Important: FadFada does not create the discount inside Lemon Squeezy. Create the same code in Lemon so checkout can apply it."}
           </p>
-          <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
+          <div className="mb-3 rounded-2xl border border-white/10 bg-black/18 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-sky-100/62">{isArabic ? "كلمات الخصم الجاهزة" : "Ready discount words"}</p>
+                <p className="mt-1 font-arsans text-xs leading-5 text-bone/50">
+                  {isArabic ? "اضغط نسبة لتعبئة كلمة خاصة غير سهلة التخمين. أنشئ نفس الكود داخل Lemon Squeezy أيضاً." : "Tap a percentage to fill a private, harder-to-guess word. Create the same code inside Lemon Squeezy too."}
+                </p>
+              </div>
+              <span className="rounded-full border border-white/10 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-bone/45">{isArabic ? "شاركها مع الشخص فقط" : "share one-to-one"}</span>
+            </div>
+            <div className="mt-3 grid gap-2 min-[520px]:grid-cols-4">
+              {discountPresets.map((preset) => (
+                <button key={preset.code} type="button" onClick={() => applyPreset(preset)} className={`rounded-xl border p-3 text-start transition-colors hover:bg-white/10 ${preset.tone}`}>
+                  <span className="block font-enserif text-2xl italic">{preset.percentOff}%</span>
+                  <span className="mt-1 block font-mono text-[10px] uppercase tracking-[0.08em]" dir="ltr">{preset.code}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-3 min-[520px]:grid-cols-[1fr_8rem]">
             <input value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} className="rounded-lg border border-white/10 bg-[#0E0D10] px-3 py-3 font-mono text-sm text-bone/90 outline-none focus:border-sky-200/60" />
-            <input type="number" min={1} max={90} value={percentOff} onChange={(event) => setPercentOff(Number(event.target.value))} className="rounded-lg border border-white/10 bg-[#0E0D10] px-3 py-3 font-mono text-sm text-bone/90 outline-none focus:border-sky-200/60" />
+            <input type="number" min={1} max={100} value={percentOff} onChange={(event) => setPercentOff(Number(event.target.value))} className="rounded-lg border border-white/10 bg-[#0E0D10] px-3 py-3 font-mono text-sm text-bone/90 outline-none focus:border-sky-200/60" />
           </div>
           <input value={label} onChange={(event) => setLabel(event.target.value)} className="mt-3 w-full rounded-lg border border-white/10 bg-[#0E0D10] px-3 py-3 font-arsans text-sm text-bone/90 outline-none focus:border-sky-200/60" />
-          <button type="submit" disabled={status === "saving"} className="mt-3 w-full rounded-full bg-sky-200 px-4 py-3 font-arsans text-ink transition hover:bg-bone disabled:opacity-60">{status === "saving" ? (isArabic ? "جار الإنشاء..." : "Creating...") : isArabic ? "إنشاء عرض" : "Create offer"}</button>
+          <button type="submit" disabled={status === "saving"} className="mt-3 w-full rounded-full bg-sky-200 px-4 py-3 font-arsans text-ink transition hover:bg-bone disabled:opacity-60">{status === "saving" ? (isArabic ? "جار التفعيل..." : "Activating...") : isArabic ? "تفعيل كلمة الخصم" : "Activate discount word"}</button>
+          {status !== "idle" ? (
+            <p className={`mt-2 font-arsans text-xs ${status === "error" ? "text-red-100" : "text-sky-100/70"}`}>
+              {status === "saved" ? (isArabic ? "تم حفظ كلمة الخصم في لوحة فضفضة. لا تنس إنشاء نفس الكود داخل Lemon Squeezy." : "Discount word saved in FadFada admin. Remember to create the same code in Lemon Squeezy.") : status === "error" ? (isArabic ? "تعذر حفظ الخصم." : "Could not save discount.") : ""}
+            </p>
+          ) : null}
         </form>
         <div className="space-y-3">
           {localOffers.length > 0 ? localOffers.map((offer) => (
@@ -1313,7 +1404,7 @@ function DiscountPanel({ language, locale, offers }: { language: Locale; locale:
               </div>
               <p className="mt-1 font-arsans text-sm text-bone/72">{offer.label}</p>
               <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35" dir="ltr">{offer.appliesTo} · {offer.maxRedemptions ? `${offer.maxRedemptions} max` : "unlimited"} · {formatDate(offer.createdAt, locale)}</p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+              <div className="mt-3 grid gap-2 min-[520px]:grid-cols-[1fr_auto]">
                 <p className="truncate rounded-lg border border-white/10 bg-black/20 px-3 py-2 font-mono text-[10px] text-sky-100/75" dir="ltr">{getShareUrl(offer.code)}</p>
                 <button type="button" onClick={() => void copyOffer(offer)} className="rounded-lg border border-sky-200/35 px-3 py-2 font-arsans text-xs text-sky-100 transition-colors hover:bg-sky-100 hover:text-ink">
                   {copiedCode === offer.code ? (isArabic ? "تم النسخ" : "Copied") : isArabic ? "نسخ المشاركة" : "Copy share"}
@@ -1330,9 +1421,9 @@ function DiscountPanel({ language, locale, offers }: { language: Locale; locale:
 function SessionsPanel({ language, locale, sessions }: { language: Locale; locale: string; sessions: AdminDashboardData["chatSessions"] }) {
   const isArabic = language === "ar";
   return (
-    <section className="grid gap-8 py-10 md:grid-cols-[0.8fr_1.2fr]">
+    <section className="grid gap-5 py-8 md:grid-cols-[0.8fr_1.2fr] md:gap-8 md:py-10">
       <SectionIntro kicker={isArabic ? "الجلسات" : "Sessions"} title={isArabic ? "سجل جلسات المستخدمين" : "Signed-user session history"} description={isArabic ? "جلسات الشات محفوظة للمستخدمين المسجلين هنا بدون خلطها مع قائمة الشات العامة." : "Saved signed-user chat sessions stay visible here without mixing admin controls into the public chat menu."} />
-      <div className="max-h-[34rem] space-y-3 overflow-y-auto pr-2 [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
+      <div className="max-h-[34rem] space-y-3 overflow-y-auto pr-1 sm:pr-2 [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
         {sessions.length > 0 ? sessions.map((session) => (
           <article key={session.id} className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
             <div className="flex items-start justify-between gap-3">
@@ -1365,7 +1456,7 @@ function SectionIntro({ kicker, title, description }: { kicker: string; title: s
   return (
     <div>
       <p className="ui-kicker text-bone/40">{kicker}</p>
-      <h2 className="mt-3 font-arserif text-3xl text-bone/90">{title}</h2>
+      <h2 className="mt-3 font-arserif text-2xl text-bone/90 sm:text-3xl">{title}</h2>
       <p className="mt-2 font-arsans text-sm leading-7 text-bone/45">{description}</p>
     </div>
   );
@@ -1373,7 +1464,7 @@ function SectionIntro({ kicker, title, description }: { kicker: string; title: s
 
 function DashboardListSection({ kicker, title, description, children }: { kicker: string; title: string; description: string; children: React.ReactNode }) {
   return (
-    <section className="grid gap-10 border-b border-white/10 py-10 md:grid-cols-[0.85fr_1.15fr]">
+    <section className="grid gap-5 border-b border-white/10 py-8 md:grid-cols-[0.85fr_1.15fr] md:gap-10 md:py-10">
       <SectionIntro kicker={kicker} title={title} description={description} />
       <div className="space-y-4">{children}</div>
     </section>
@@ -1382,19 +1473,19 @@ function DashboardListSection({ kicker, title, description, children }: { kicker
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-white/10 bg-white/[0.03] px-4 py-5">
+    <div className="border border-white/10 bg-white/[0.03] px-3 py-4 sm:px-4 sm:py-5">
       <p className="font-arsans text-sm text-bone/70">{label}</p>
-      <p className="mt-3 font-enserif text-3xl italic text-bone/95">{value}</p>
+      <p className="mt-3 font-enserif text-2xl italic text-bone/95 sm:text-3xl">{value}</p>
     </div>
   );
 }
 
 function LiveRoomTile({ label, value, accent }: { label: string; value: string; accent: string }) {
   return (
-    <article className="border border-white/10 bg-white/[0.025] p-4">
+    <article className="border border-white/10 bg-white/[0.025] p-3 sm:p-4">
       <span className={`block h-1 w-10 ${accent}`} />
       <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35">{label}</p>
-      <p className="mt-2 font-enserif text-4xl italic text-bone/92">{value}</p>
+      <p className="mt-2 font-enserif text-3xl italic text-bone/92 sm:text-4xl">{value}</p>
     </article>
   );
 }
@@ -1425,6 +1516,25 @@ function LiveTimelineItem({ item }: { item: LiveTimelineEntry }) {
         <span className="mt-1 block truncate font-arsans text-xs text-bone/42" dir="auto">{item.detail}</span>
       </span>
       <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35">{item.type}</span>
+    </article>
+  );
+}
+
+function ImpactPathRow({ feature, output, outcome }: { feature: string; output: string; outcome: string }) {
+  return (
+    <article className="grid gap-3 border border-white/10 bg-black/12 p-4 md:grid-cols-[0.8fr_1fr_1fr]">
+      <div>
+        <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-gold/65">Feature</p>
+        <p className="mt-1 font-arsans text-sm text-bone/82">{feature}</p>
+      </div>
+      <div>
+        <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-bone/35">Output</p>
+        <p className="mt-1 font-arsans text-xs leading-5 text-bone/55">{output}</p>
+      </div>
+      <div>
+        <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-emerald-200/70">Outcome</p>
+        <p className="mt-1 font-arsans text-xs leading-5 text-bone/62">{outcome}</p>
+      </div>
     </article>
   );
 }
@@ -1479,6 +1589,41 @@ function buildAdminHealthScore(data: AdminDashboardData, language: Locale) {
       { label: isArabic ? "تثبيت" : "Install", value: String(installSignal) },
     ],
   };
+}
+
+function buildImpactStats(data: AdminDashboardData, language: Locale, locale: string) {
+  const isArabic = language === "ar";
+  const reflectionOutputs = data.interactionTotals.starterTaps + data.interactionTotals.savedMoments + data.interactionTotals.helpful + data.interactionTotals.softer;
+  const familyOutputs = data.parentChildSummaries.reduce((sum, summary) => sum + summary.childCount + summary.parentSessionCount + summary.childSessionCount, 0);
+  const childProfiles = data.parentChildSummaries.reduce((sum, summary) => sum + summary.childCount, 0);
+  const qualityOutputs = data.avatarRatings.reduce((sum, rating) => sum + rating.ratingCount, 0) + data.interactionTotals.visitorComments;
+
+  return [
+    {
+      kicker: isArabic ? "تعبير" : "Expression",
+      title: isArabic ? "إشارات الفضفضة والخطوة التالية" : "Reflection and next-step signals",
+      value: formatNumber(reflectionOutputs, locale),
+      description: isArabic ? "يجمع ضغطات البداية، اللحظات المحفوظة، الردود المفيدة، وطلبات الرد الألطف." : "Combines starter taps, saved moments, helpful feedback, and softer-response requests.",
+    },
+    {
+      kicker: isArabic ? "تعلم عائلي" : "Family learning",
+      title: isArabic ? "مخرجات مساحة الوالد والطفل" : "Parent and child workspace outputs",
+      value: formatNumber(familyOutputs, locale),
+      description: isArabic ? `يتضمن ${formatNumber(childProfiles, locale)} ملفات أطفال مع جلسات الوالد والطفل.` : `Includes ${formatNumber(childProfiles, locale)} child profiles plus parent and child sessions.`,
+    },
+    {
+      kicker: isArabic ? "أمان" : "Safety",
+      title: isArabic ? "حارس عزل السياق" : "Context isolation guard",
+      value: formatNumber(data.interactionTotals.childContextLeakGuards24h, locale),
+      description: isArabic ? "كل إشارة تعني أن النظام اكتشف محاولة خلط سياق الوالد والطفل واحتواها." : "Each signal means the system detected and contained a parent/child context-mix attempt.",
+    },
+    {
+      kicker: isArabic ? "جودة" : "Quality",
+      title: isArabic ? "تغذية راجعة لتحسين الرفاق" : "Feedback for companion improvement",
+      value: formatNumber(qualityOutputs, locale),
+      description: isArabic ? "يجمع تقييمات صور الرفاق وتعليقات الزوار كإشارات لتحسين التجربة." : "Combines companion avatar ratings and visitor comments as product improvement signals.",
+    },
+  ];
 }
 
 function sanitizeDashboardData(input: AdminDashboardData): AdminDashboardData {
@@ -1572,7 +1717,7 @@ function EmptyMetric({ label }: { label: string }) {
 
 function ProgressRow({ label, value, width, color, locale }: { label: string; value: number; width: number; color: string; locale: string }) {
   return (
-    <div className="grid grid-cols-[minmax(5rem,10rem)_1fr_4rem] items-center gap-4 font-ensans text-sm text-bone/80" dir="ltr">
+    <div className="grid grid-cols-[minmax(4.25rem,7rem)_1fr_3.25rem] items-center gap-2 font-ensans text-sm text-bone/80 sm:grid-cols-[minmax(5rem,10rem)_1fr_4rem] sm:gap-4" dir="ltr">
       <span className="truncate text-left font-mono text-xs uppercase text-gold">{label}</span>
       <span className="h-px bg-white/10">
         <span className={`block h-px ${color}`} style={{ width: `${width}%` }} />

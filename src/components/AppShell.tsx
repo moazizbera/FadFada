@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { SessionProvider, signOut, useSession } from "next-auth/react";
 import { createContext, type ChangeEvent, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { NEW_CHILDREN_ROSTER } from "../lib/personas";
 import { NotificationCenter } from "./NotificationCenter";
 import { PwaUpdateManager } from "./PwaUpdateManager";
 
@@ -18,6 +19,7 @@ type ParentChildProfile = {
   id: string;
   nickname: string;
   ageBand: "under_8" | "8_to_10" | "11_to_12" | "13_plus";
+  avatarPreference?: string;
 };
 
 type HomeworkActivity = {
@@ -223,6 +225,10 @@ function GlobalHeader() {
   const { data: session, status, update: updateSession } = useSession();
   const [accountOpen, setAccountOpen] = useState(false);
   const [activitiesOpen, setActivitiesOpen] = useState(false);
+  const [childrenOpen, setChildrenOpen] = useState(false);
+  const [headerChildProfiles, setHeaderChildProfiles] = useState<ParentChildProfile[]>([]);
+  const [childrenLoadStatus, setChildrenLoadStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [childSwitchingId, setChildSwitchingId] = useState("");
   const [activeParentTool, setActiveParentTool] = useState<ParentTool | null>(null);
   const [accountProfile, setAccountProfile] = useState<AccountProfile | null>(null);
   const [activeAdminTab, setActiveAdminTab] = useState("dashboard");
@@ -233,6 +239,7 @@ function GlobalHeader() {
   const [, setEscapePressCount] = useState(0);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const activitiesMenuRef = useRef<HTMLDivElement | null>(null);
+  const childrenMenuRef = useRef<HTMLDivElement | null>(null);
   const isArabic = language === "ar";
   const nextLanguageLabel = isArabic ? "EN" : "AR";
   const authenticatedImage = accountProfile?.image || session?.user?.image;
@@ -273,12 +280,14 @@ function GlobalHeader() {
   function openParentTool(tool: ParentTool) {
     setActivitiesOpen(false);
     setAccountOpen(false);
+    setChildrenOpen(false);
     setActiveParentTool(tool);
   }
 
   function runHeaderAction(action: HomeHeaderAction) {
     setAccountOpen(false);
     setActivitiesOpen(false);
+    setChildrenOpen(false);
     if (typeof window === "undefined") return;
 
     if (window.location.pathname !== "/") {
@@ -287,6 +296,29 @@ function GlobalHeader() {
     }
 
     window.dispatchEvent(new CustomEvent(fadfadaHomeActionEventName, { detail: { action } }));
+  }
+
+  async function openChildWorkspaceFromHeader(childProfileId: string) {
+    if (childSwitchingId) return;
+
+    setChildSwitchingId(childProfileId);
+    try {
+      const nextSession = await updateSession({ childProfileId, activeChildProfileId: childProfileId });
+      const nextWorkspaceMode = nextSession?.user && "workspaceMode" in nextSession.user ? nextSession.user.workspaceMode : null;
+      const nextChildProfileId = nextSession?.user && "childProfileId" in nextSession.user ? nextSession.user.childProfileId : null;
+
+      if (nextWorkspaceMode !== "child" || nextChildProfileId !== childProfileId) {
+        setChildSwitchingId("");
+        window.location.assign("/profile#child-profiles");
+        return;
+      }
+
+      setChildrenOpen(false);
+      window.location.assign("/");
+    } catch {
+      setChildSwitchingId("");
+      window.location.assign("/profile#child-profiles");
+    }
   }
 
   function openParentReturnGate() {
@@ -332,7 +364,7 @@ function GlobalHeader() {
         setParentReturnStatus("error");
         return;
       }
-      window.location.assign("/profile#child-profiles");
+      window.location.assign("/profile");
     } catch {
       setParentReturnStatus("error");
     }
@@ -453,9 +485,54 @@ function GlobalHeader() {
     };
   }, [activitiesOpen]);
 
+  useEffect(() => {
+    if (status !== "authenticated" || isChildWorkspace || isAdminArea || !childrenOpen) return;
+
+    let active = true;
+    setChildrenLoadStatus("loading");
+    fetch("/api/parent/child", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() as Promise<{ childProfiles?: ParentChildProfile[] }> : Promise.reject(new Error(String(response.status))))
+      .then((data) => {
+        if (!active) return;
+        setHeaderChildProfiles(Array.isArray(data.childProfiles) ? data.childProfiles : []);
+        setChildrenLoadStatus("idle");
+      })
+      .catch(() => {
+        if (!active) return;
+        setChildrenLoadStatus("error");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [childrenOpen, isAdminArea, isChildWorkspace, status]);
+
+  useEffect(() => {
+    if (!childrenOpen) return;
+
+    function closeChildrenMenuOnOutsidePointer(event: MouseEvent | TouchEvent) {
+      const target = event.target;
+      if (!(target instanceof Node) || childrenMenuRef.current?.contains(target)) return;
+      setChildrenOpen(false);
+    }
+
+    function closeChildrenMenuOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setChildrenOpen(false);
+    }
+
+    document.addEventListener("mousedown", closeChildrenMenuOnOutsidePointer);
+    document.addEventListener("touchstart", closeChildrenMenuOnOutsidePointer);
+    document.addEventListener("keydown", closeChildrenMenuOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeChildrenMenuOnOutsidePointer);
+      document.removeEventListener("touchstart", closeChildrenMenuOnOutsidePointer);
+      document.removeEventListener("keydown", closeChildrenMenuOnEscape);
+    };
+  }, [childrenOpen]);
+
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#0E0D10]/78 text-bone/90 shadow-2xl backdrop-blur-xl" dir={direction}>
-      <div className={`mx-auto flex h-16 items-center justify-between gap-1.5 px-2 sm:gap-2 sm:px-4 ${isAdminArea ? "max-w-6xl" : "max-w-5xl"}`}>
+      <div className={`mx-auto flex min-h-16 items-center justify-between gap-1.5 px-2 py-2 sm:gap-2 sm:px-4 ${isAdminArea ? "max-w-6xl" : "max-w-5xl"}`}>
       <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
         <button
           type="button"
@@ -474,7 +551,7 @@ function GlobalHeader() {
             <span className="hidden px-3 py-1.5 font-arsans text-xs text-bone/55 sm:inline">{isArabic ? "ملف الحساب" : "Account"}</span>
           </nav>
         ) : isAdminArea ? (
-          <nav className="flex min-w-0 items-center gap-1 overflow-x-auto rounded-full border border-gold/20 bg-gold/[0.06] p-1 shadow-xl backdrop-blur-xl [scrollbar-width:none]" aria-label={isArabic ? "تبويبات الإدارة" : "Admin tabs"}>
+          <nav className="mobile-scrollbar-none flex min-w-0 items-center gap-1 overflow-x-auto rounded-full border border-gold/20 bg-gold/[0.06] p-1 shadow-xl backdrop-blur-xl sm:flex-wrap sm:overflow-visible" aria-label={isArabic ? "تبويبات الإدارة" : "Admin tabs"}>
             {adminTabs.map((tab) => {
               const active = activeAdminTab === tab.id;
               return (
@@ -491,7 +568,7 @@ function GlobalHeader() {
             })}
           </nav>
         ) : (
-          <nav className="flex min-w-0 items-center gap-1 overflow-x-auto rounded-full border border-white/10 bg-white/[0.035] p-1 shadow-xl backdrop-blur-xl [scrollbar-width:none]" aria-label={isArabic ? "اختصارات فضفضة الرئيسية" : "FadFada quick actions"}>
+          <nav className="mobile-scrollbar-none flex min-w-0 items-center gap-1 overflow-x-auto rounded-full border border-white/10 bg-white/[0.035] p-1 shadow-xl backdrop-blur-xl sm:flex-wrap sm:overflow-visible" aria-label={isArabic ? "اختصارات فضفضة الرئيسية" : "FadFada quick actions"}>
             {headerActions.map((item) => (
               <button
                 key={item.action}
@@ -524,6 +601,7 @@ function GlobalHeader() {
                 onClick={() => {
                   setActivitiesOpen((open) => !open);
                   setAccountOpen(false);
+                  setChildrenOpen(false);
                 }}
                 className="inline-flex h-10 w-10 items-center justify-center gap-1.5 rounded-full border border-gold/30 bg-gold/[0.09] font-arsans text-xs text-gold shadow-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-gold hover:text-ink sm:w-auto sm:px-3"
                 aria-haspopup="menu"
@@ -535,7 +613,7 @@ function GlobalHeader() {
                 <span className="sr-only sm:not-sr-only">{isArabic ? "الأنشطة" : "Activities"}</span>
               </button>
               {activitiesOpen ? (
-                <div className={`absolute top-11 z-50 w-[min(16rem,calc(100vw-1.5rem))] border border-gold/28 bg-[#0E0D10] p-2 shadow-2xl shadow-black/60 ${activitiesMenuAlignmentClass}`} role="menu" dir={direction}>
+                <div className={`absolute top-11 z-50 w-[min(16rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1rem)] border border-gold/28 bg-[#0E0D10] p-2 shadow-2xl shadow-black/60 ${activitiesMenuAlignmentClass}`} role="menu" dir={direction}>
                   <p className="px-2 py-1 font-arsans text-[11px] font-semibold uppercase tracking-[0.08em] text-gold/78">{isArabic ? "وصول سريع" : "Fast access"}</p>
                   <div className="mt-1 grid gap-1">
                     {parentActivityLinks.map((link) => (
@@ -548,10 +626,55 @@ function GlobalHeader() {
                 </div>
               ) : null}
             </div>
-            <Link href="/profile#child-profiles" className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-cyan-200/24 bg-cyan-200/10 font-arsans text-xs text-cyan-100 shadow-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-cyan-200 hover:text-ink sm:w-auto sm:px-3" aria-label={isArabic ? "الأطفال" : "Children"} title={isArabic ? "الأطفال" : "Children"}>
-              <ChildrenHeaderIcon />
-              <span className="sr-only sm:not-sr-only sm:ms-1.5">{isArabic ? "الأطفال" : "Children"}</span>
-            </Link>
+            <div ref={childrenMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setChildrenOpen((open) => !open);
+                  setActivitiesOpen(false);
+                  setAccountOpen(false);
+                }}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-cyan-200/24 bg-cyan-200/10 font-arsans text-xs text-cyan-100 shadow-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-cyan-200 hover:text-ink sm:w-auto sm:px-3"
+                aria-haspopup="menu"
+                aria-expanded={childrenOpen}
+                aria-label={isArabic ? "الأطفال" : "Children"}
+                title={isArabic ? "الأطفال" : "Children"}
+              >
+                <ChildrenHeaderIcon />
+                <span className="sr-only sm:not-sr-only sm:ms-1.5">{isArabic ? "الأطفال" : "Children"}</span>
+              </button>
+              {childrenOpen ? (
+                <div className={`absolute top-11 z-50 w-[min(17rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1rem)] border border-cyan-200/24 bg-[#050607] p-2 shadow-2xl shadow-black/70 ${activitiesMenuAlignmentClass}`} role="menu" dir={direction}>
+                  <p className="px-2 py-1 font-arsans text-[11px] font-semibold uppercase tracking-[0.08em] text-cyan-100/78">{isArabic ? "مساحات الأطفال" : "Child spaces"}</p>
+                  <div className="mt-1 grid gap-1">
+                    {childrenLoadStatus === "loading" ? <p className="rounded-xl border border-white/10 bg-[#171A1E] px-2 py-2 font-arsans text-sm text-bone/58">{isArabic ? "تحميل الأطفال..." : "Loading children..."}</p> : null}
+                    {childrenLoadStatus === "error" ? <p className="rounded-xl border border-red-200/18 bg-[#331319] px-2 py-2 font-arsans text-sm text-red-100/86">{isArabic ? "تعذر تحميل ملفات الأطفال." : "Could not load child profiles."}</p> : null}
+                    {childrenLoadStatus !== "loading" && headerChildProfiles.length === 0 ? <p className="rounded-xl border border-white/10 bg-[#171A1E] px-2 py-2 font-arsans text-sm text-bone/58">{isArabic ? "لا توجد ملفات أطفال بعد." : "No child profiles yet."}</p> : null}
+                    {headerChildProfiles.map((child) => {
+                      const persona = NEW_CHILDREN_ROSTER.find((candidate) => candidate.avatar === child.avatarPreference);
+                      const personaName = persona ? (isArabic ? persona.arabicName : persona.name) : child.avatarPreference || (isArabic ? "رفيق الطفل" : "Child persona");
+                      const avatarPath = child.avatarPreference || persona?.avatar || "";
+                      const switching = childSwitchingId === child.id;
+
+                      return (
+                        <button key={child.id} type="button" onClick={() => void openChildWorkspaceFromHeader(child.id)} disabled={Boolean(childSwitchingId)} className="group flex items-center gap-3 rounded-xl border border-white/10 bg-[#15191D] px-2 py-2 text-start font-arsans transition-colors hover:border-cyan-200/35 hover:bg-[#1A2429] disabled:cursor-wait disabled:opacity-65" role="menuitem">
+                          <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-cyan-100/18 bg-[#081014]" aria-hidden="true">
+                            {avatarPath ? <Image src={avatarPath} alt="" fill sizes="40px" className="object-cover" unoptimized /> : <span className="grid h-full w-full place-items-center text-xs font-semibold text-cyan-100">{child.nickname.slice(0, 1).toUpperCase()}</span>}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-semibold text-bone/90 group-hover:text-cyan-100">{child.nickname}</span>
+                            <span className="block truncate text-xs text-bone/48">{switching ? (isArabic ? "جار الفتح..." : "Opening...") : personaName}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                    <Link href="/profile#child-profiles" onClick={() => setChildrenOpen(false)} className="rounded-xl border border-cyan-200/20 bg-[#0B2026] px-2 py-2 text-start font-arsans text-sm font-semibold text-cyan-100 transition-colors hover:bg-cyan-200 hover:text-ink" role="menuitem">
+                      {isArabic ? "عرض كل الملفات" : "View all profiles"}
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </>
         ) : null}
         {status === "loading" ? (
@@ -591,7 +714,7 @@ function GlobalHeader() {
               <TierBadge tier={accountTier} language={language} />
             </button>
             {accountOpen ? (
-              <div className={`absolute top-12 z-50 w-[min(18rem,calc(100vw-1.5rem))] border border-white/14 bg-[#0E0D10] p-3 shadow-2xl shadow-black/60 ${accountMenuAlignmentClass}`} dir={direction}>
+              <div className={`absolute top-12 z-50 w-[min(18rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1rem)] border border-white/14 bg-[#0E0D10] p-3 shadow-2xl shadow-black/60 ${accountMenuAlignmentClass}`} dir={direction}>
                 <p className="truncate font-arsans text-sm text-bone/85">{authenticatedName}</p>
                 <p className="mt-1 truncate font-ensans text-xs text-bone/45" dir="ltr">{authenticatedEmail}</p>
                 <div className="mt-3 flex justify-start">

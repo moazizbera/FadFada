@@ -204,61 +204,17 @@ async function createLemonSqueezyCheckout(request: NextRequest, body: CheckoutRe
 
   if (!response.ok || !checkoutUrl) {
     if (discountCode && isMissingLemonDiscountError(data)) {
-      const retryResponse = await fetch("https://api.lemonsqueezy.com/v1/checkouts", {
-        method: "POST",
-        headers: {
-          "Accept": "application/vnd.api+json",
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/vnd.api+json",
+      return NextResponse.json(
+        {
+          error: "DISCOUNT_NOT_ACTIVE",
+          provider: "lemonsqueezy",
+          mode: lemonMode,
+          discountCode,
+          message: "كود الخصم غير مفعّل داخل Lemon Squeezy بعد. فعّله أولاً حتى لا يدفع المستخدم السعر الكامل.",
+          messageEn: "This discount code is not active in Lemon Squeezy yet. Activate it first so users do not pay full price.",
         },
-        body: JSON.stringify({
-          data: {
-            type: "checkouts",
-            attributes: {
-              checkout_data: {
-                custom: {
-                  userId,
-                  product: body.product || "plus_access",
-                  personaId: body.personaId || "none",
-                  language: body.currentLanguage || body.language || "ar",
-                  mode: lemonMode,
-                  discountCode: "ignored_missing_discount",
-                  ignoredDiscountCode: discountCode,
-                },
-              },
-              checkout_options: {
-                embed: false,
-                media: false,
-              },
-              product_options: {
-                redirect_url: `${appUrl}/?session=success&provider=lemonsqueezy`,
-                receipt_button_text: body.currentLanguage === "ar" || body.language === "ar" ? "العودة إلى فضفضة" : "Return to FadFada",
-                receipt_link_url: appUrl,
-              },
-            },
-            relationships: {
-              store: {
-                data: {
-                  type: "stores",
-                  id: storeId,
-                },
-              },
-              variant: {
-                data: {
-                  type: "variants",
-                  id: variantId,
-                },
-              },
-            },
-          },
-        }),
-      });
-      const retryData = (await retryResponse.json().catch(() => ({}))) as LemonCheckoutResponse;
-      const retryCheckoutUrl = retryData.data?.attributes?.url;
-
-      if (retryResponse.ok && retryCheckoutUrl) {
-        return NextResponse.json({ url: retryCheckoutUrl, provider: "lemonsqueezy", mode: lemonMode, checkoutId: retryData.data?.id, discountIgnored: discountCode }, { status: 200 });
-      }
+        { status: 200 }
+      );
     }
 
     console.error("Lemon Squeezy checkout error", data.errors || data);
@@ -281,7 +237,7 @@ function isMissingLemonDiscountError(data: LemonCheckoutResponse) {
 }
 
 function cleanDiscountCode(value: unknown) {
-  return typeof value === "string" ? value.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 32) : "";
+  return typeof value === "string" ? value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 32) : "";
 }
 
 function getLemonSqueezyMode() {

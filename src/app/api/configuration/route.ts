@@ -19,13 +19,18 @@ const defaultConfiguration = {
 const configurationNumberKeys = ["anonymousReflectionLimit", "signedGiftReflectionLimit", "anonymousPersonaLimit", "signedPersonaLimit"] as const;
 
 export async function GET() {
-  const latestConfigEvent = await prisma.interactionEvent.findFirst({
-    where: { eventType: "admin_app_config" },
-    orderBy: { createdAt: "desc" },
-    select: { metadataJson: true },
-  });
+  try {
+    const latestConfigEvent = await prisma.interactionEvent.findFirst({
+      where: { eventType: "admin_app_config" },
+      orderBy: { createdAt: "desc" },
+      select: { metadataJson: true },
+    });
 
-  return NextResponse.json({ configuration: cleanConfiguration(parseJson(latestConfigEvent?.metadataJson)) });
+    return NextResponse.json({ configuration: cleanConfiguration(parseJson(latestConfigEvent?.metadataJson)) });
+  } catch (error) {
+    console.error("Configuration load fallback", error);
+    return NextResponse.json({ configuration: cleanConfiguration(null), source: "fallback" });
+  }
 }
 
 function parseJson(value: string | null | undefined) {

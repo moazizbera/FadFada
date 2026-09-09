@@ -567,11 +567,11 @@ export function PersonaDrawer({
 
   useEffect(() => () => stopStoryNarration(), []);
 
-  return (
+  const drawer = (
     <div className={`fixed inset-0 z-[75] transition ${open ? "pointer-events-auto" : "pointer-events-none"}`}>
       <button type="button" aria-label="Close persona drawer" onClick={onClose} className={`absolute inset-0 bg-black/65 backdrop-blur-sm transition-opacity ${open ? "opacity-100" : "opacity-0"}`} />
       <section
-        className={`absolute left-1/2 top-1/2 mx-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-2xl -translate-x-1/2 overflow-y-auto rounded-[1.5rem] border border-white/10 bg-[#0E0D10]/96 p-5 pb-8 shadow-2xl backdrop-blur-2xl transition duration-300 [scrollbar-color:rgba(201,168,106,0.45)_transparent] ${
+        className={`mobile-scrollbar-none absolute left-1/2 top-1/2 mx-auto max-h-[calc(100dvh-1rem)] w-[calc(100%-0.75rem)] max-w-2xl -translate-x-1/2 overflow-y-auto rounded-[1.25rem] border border-white/10 bg-[#0E0D10]/96 p-3 pb-6 shadow-2xl backdrop-blur-2xl transition duration-300 sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100%-1.5rem)] sm:rounded-[1.5rem] sm:p-5 sm:pb-8 [scrollbar-color:rgba(201,168,106,0.45)_transparent] ${
           open ? "-translate-y-1/2 scale-100 opacity-100" : "translate-y-[8%] scale-95 opacity-0"
         }`}
         onKeyDown={(event) => {
@@ -593,7 +593,7 @@ export function PersonaDrawer({
           }
         }}
       >
-        <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="mb-4 flex items-start justify-between gap-3 sm:gap-4">
           <div className="min-w-0 text-start">
             <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-lg font-semibold text-bone/92`}>{storiesOnly ? (isArabic ? "قصص الأطفال" : "Children stories") : isArabic ? "اختر رفيقك" : "Choose your companion"}</p>
             <p className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 max-w-md text-xs leading-5 text-bone/42`}>
@@ -611,7 +611,7 @@ export function PersonaDrawer({
               Plus previews
             </span>
           </div>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid gap-2 min-[520px]:grid-cols-3">
             {personaNeedRecommendations.map((item) => {
               const persona = personaSource.find((candidate) => candidate.id === item.id);
               const locked = !unlockedPersonaIds.includes(item.id);
@@ -635,7 +635,7 @@ export function PersonaDrawer({
               <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-sm font-semibold text-bone/90`}>{isArabic ? "مكتبة القصص" : "Story library"}</p>
               <p className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 text-xs leading-5 text-bone/38`}>{isArabic ? "قصص جاهزة ببوسترات جذابة، آمنة ومناسبة للأطفال." : "Ready stories with attractive posters, built for safe child reading."}</p>
             </div>
-            <div className="mb-4 overflow-hidden rounded-[1.35rem] border border-[#C9A86A]/18 bg-[linear-gradient(135deg,rgba(201,168,106,0.16),rgba(18,18,24,0.94)_56%,rgba(74,144,226,0.16))] p-4 shadow-[0_18px_42px_rgba(0,0,0,0.28)]">
+            <div className="mb-4 overflow-hidden rounded-[1.25rem] border border-[#C9A86A]/18 bg-[linear-gradient(135deg,rgba(201,168,106,0.16),rgba(18,18,24,0.94)_56%,rgba(74,144,226,0.16))] p-3 shadow-[0_18px_42px_rgba(0,0,0,0.28)] sm:rounded-[1.35rem] sm:p-4">
               <div className="flex flex-wrap items-start justify-between gap-3 text-start">
                 <div>
                   <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#F7F3EC]/72">{isArabic ? "Story Passport" : "Story Passport"}</p>
@@ -684,13 +684,13 @@ export function PersonaDrawer({
                   </p>
                   <span className="font-mono text-[10px] text-white/48" dir="ltr">5-step view</span>
                 </div>
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+                <div className="mobile-scrollbar-none flex items-center gap-2 overflow-x-auto pb-1 min-[560px]:flex-wrap min-[560px]:overflow-visible">
                   {storyTrail.map(({ story, state }, index) => (
                     <div key={`${story.id}-trail`} className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => setSelectedChildStory(story)}
-                        className={`group flex min-w-[4.75rem] flex-col items-center rounded-2xl border px-2 py-2 text-center transition-colors ${
+                        className={`group flex min-w-[4.5rem] flex-col items-center rounded-2xl border px-2 py-2 text-center transition-colors min-[560px]:min-w-0 ${
                           state === "completed"
                             ? "border-amber-100/28 bg-amber-100/12 text-amber-100"
                             : state === "current"
@@ -721,7 +721,7 @@ export function PersonaDrawer({
                   ))}
                 </div>
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+              <div className="mt-3 grid grid-cols-3 gap-2 min-[520px]:grid-cols-6">
                 {childStories.slice(0, 6).map((story) => {
                   const completed = completedStoryIdSet.has(story.id);
                   const progress = storyProgressById[story.id] || 0;
@@ -734,7 +734,7 @@ export function PersonaDrawer({
                 })}
               </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 min-[560px]:grid-cols-2">
               {childStories.map((story) => (
                 <button
                   key={story.id}
@@ -771,7 +771,7 @@ export function PersonaDrawer({
                 <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-sm font-semibold text-bone/90`}>{isArabic ? label.ar : label.en}</p>
                 <p className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 text-xs leading-5 text-bone/38`}>{isArabic ? label.subAr : label.subEn}</p>
               </div>
-              <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+              <div className="grid grid-cols-2 gap-3 min-[420px]:grid-cols-3 sm:grid-cols-5">
                 {cards.map(({ persona, presentation, displayName, role, locked, selected }) => {
                   return (
                     <button
@@ -819,7 +819,7 @@ export function PersonaDrawer({
         </div>
         ) : null}
 
-        {avatarsOnly && !childrenOnly ? <form onSubmit={submitCustomPersona} className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4" dir={isArabic ? "rtl" : "ltr"}>
+        {avatarsOnly && !childrenOnly ? <form onSubmit={submitCustomPersona} className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4" dir={isArabic ? "rtl" : "ltr"}>
           <div className="mb-3">
             <p className={`${isArabic ? "font-arsans" : "font-ensans"} text-sm font-semibold text-bone/90`}>{isArabic ? "اصنع رفيقك" : "Create your companion"}</p>
             <p className={`${isArabic ? "font-arsans" : "font-ensans"} mt-1 text-xs leading-5 text-bone/45`}>
@@ -828,7 +828,7 @@ export function PersonaDrawer({
                 : "Describe yourself and the companion you want. The first avatar images are free in beta, then this becomes a paid feature."}
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-[0.75fr_1.25fr]">
+          <div className="grid gap-3 min-[560px]:grid-cols-[0.75fr_1.25fr]">
             <input
               value={customName}
               onChange={(event) => setCustomName(event.target.value)}
@@ -874,7 +874,7 @@ export function PersonaDrawer({
               </div>
             </div>
           </div>
-          <div className="mt-3 grid grid-cols-6 gap-2">
+          <div className="mt-3 grid grid-cols-3 gap-2 min-[420px]:grid-cols-6">
             {customAvatarOptions.map((option) => {
               const selected = customAvatarPath === option.path;
               return (
@@ -910,6 +910,17 @@ export function PersonaDrawer({
               }}
               aria-label={isArabic ? "إغلاق القصة" : "Close story"}
             />
+            <button
+              type="button"
+              onClick={() => {
+                stopStoryNarration();
+                setSelectedChildStory(null);
+              }}
+              className="fixed left-4 top-[max(1rem,env(safe-area-inset-top))] z-[142] grid h-12 w-12 place-items-center rounded-full border border-white/25 bg-[#0E0D10]/92 text-2xl leading-none text-[#F7F3EC] shadow-[0_18px_44px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-colors hover:border-[#C9A86A]/60 hover:text-[#C9A86A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A86A]/70"
+              aria-label={isArabic ? "إغلاق القصة" : "Close story"}
+            >
+              ×
+            </button>
             <article className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-[1.35rem] border border-white/12 bg-[#0E0D10] shadow-2xl [scrollbar-color:rgba(201,168,106,0.45)_transparent]">
               <div className={`relative shrink-0 overflow-hidden bg-gradient-to-br ${selectedChildStory.posterClassName} p-5 sm:p-6`}>
                 <span className="absolute inset-0 bg-[radial-gradient(circle_at_24%_18%,rgba(255,255,255,0.32),transparent_18%),radial-gradient(circle_at_76%_24%,rgba(255,255,255,0.18),transparent_16%),linear-gradient(135deg,rgba(255,255,255,0.18),transparent_42%)]" aria-hidden="true" />
@@ -1106,7 +1117,7 @@ export function PersonaDrawer({
                       }}
                       className="ui-action rounded-xl border border-sky-100/22 bg-sky-100/[0.08] px-4 py-3 text-xs text-sky-100 transition-colors hover:bg-sky-100 hover:text-[#0E0D10]"
                     >
-                      {isArabic ? `المغامرة التالية: ${nextAdventureStory.titleAr}` : `Next adventure: ${nextAdventureStory.titleEn}`}
+                      {isArabic ? `المغامرة التالية: ${nextAdventureStory.titleAr}` :`Next adventure: ${nextAdventureStory.titleEn}`}
                     </button>
                   ) : null}
                   <button
@@ -1127,4 +1138,6 @@ export function PersonaDrawer({
       </section>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(drawer, document.body) : drawer;
 }

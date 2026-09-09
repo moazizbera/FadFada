@@ -73,24 +73,24 @@ export function ChildCompanionPicker({
                 }`}
               >
                 {/* Avatar */}
-                <div className="relative h-16 w-16 overflow-hidden rounded-2xl border-2 border-white/20 bg-[#1A171C]">
+                <div className="relative h-20 w-20 overflow-hidden rounded-2xl border-2 border-white/20 bg-[#1A171C] sm:h-24 sm:w-24">
                   <Image
                     src={companion.avatar}
                     alt={companion.nameEn}
-                    width={64}
-                    height={64}
+                    width={96}
+                    height={96}
                     className="h-full w-full object-cover"
                     unoptimized
                   />
                 </div>
 
                 {/* Name */}
-                <span className="font-arsans text-sm font-bold text-bone/90" dir={isArabic ? "rtl" : "ltr"}>
+                <span className="font-arsans text-base font-bold text-bone/90" dir={isArabic ? "rtl" : "ltr"}>
                   {isArabic ? companion.nameAr : companion.nameEn}
                 </span>
 
                 {/* Emoji badge */}
-                <span className="text-lg">{companion.emoji}</span>
+                <span className="text-2xl">{companion.emoji}</span>
 
                 {/* Selected indicator */}
                 {isSelected && (

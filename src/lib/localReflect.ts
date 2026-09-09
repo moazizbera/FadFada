@@ -40,6 +40,27 @@ export function inferWorld(messageText: string, fallback: WorldId): WorldId {
   return fallback || "calm";
 }
 
+function isChildLearningRequest(text: string, topic: string): boolean {
+  const letterPattern = /^(?:حروف|letters|alphabet|الهجاء|القراءة|read|reading|أبجد|هجاء|أقرأ|اقرا)[\s\S]*$/i;
+  const basicSkillPattern = /^(?:أرقام|numbers|جمع|plus|طرح|minus|الألوان|colors)[\s\S]*$/i;
+  const sentencePattern = /(?:ساعدني|عايز|أريد|ابغى|نفسي|learn|study|help).*(?:حروف|letters|alphabet|أقرا|اقرا|أرقام|جمع|طرح|الألوان)[\s\S]*$/i;
+  return letterPattern.test(topic) || basicSkillPattern.test(topic) || sentencePattern.test(text);
+}
+
+function buildChildLearningReply(text: string, topic: string, language: "ar" | "en"): string {
+  const isLetters = /حروف|letters|alphabet|هجاء|أبجد|أقرأ|اقرا|read/i.test(text) || /^(?:حروف|letters|alphabet|هجاء|reading)/i.test(topic);
+  if (language === "ar") {
+    if (isLetters) {
+      return "تمام! الحروف العربية عندها 28 حرفًا، وكل حرف له شكل في أول الكلمة ووسطها وآخرها. ابدأ بالحروف اللي تنطق من الفم زي 'ب' و 'م' و 'ف'. جرّب تقول كل حرف مع حركة الفتحة (بَ، مَ، فَ) قدام المراية. بعدين هات ورقة وارسم الحرف كبير ولوّنه. خلّي الحصة 5 دقايق بس عشان عقلك الصغير يشتاق يزيد.";
+    }
+    return "تمام! خلينا نبدأ بجزء صغير. قول الاسم، ارسم الشكل، وبعدين لاقي أمثلة حولك. 5 دقايق بس عشان دماغك تشتاق تزيد بكرة.";
+  }
+  if (isLetters) {
+    return "The Arabic alphabet has 28 letters, each with a different shape at the start, middle, and end of a word. Start with sounds you can feel at your lips: baa, meem, faa. Try saying each letter with the short vowel (ba, ma, fa) in front of a mirror. Then grab paper, draw the letter big, and color it. Keep each session to 5 minutes so your brain begs for more tomorrow.";
+  }
+  return "Great! Start with one small piece. Say the name, trace the shape, then find three examples around you. Five minutes is enough for today.";
+}
+
 export function reflectLocally(input: ReflectInput): ReflectOutput {
   const world = inferWorld(input.messageText, input.currentWorld);
   const language = input.currentLanguage;
@@ -144,14 +165,18 @@ export function reflectLocally(input: ReflectInput): ReflectOutput {
   }
 
   if (world === "learning") {
-    const topic = extractTopic(text) || inferPreviousLearningTopic(input.recentMessages) || (language === "ar" ? "الموضوع" : "this topic");
+    const topic = extractTopic(text) || (language === "ar" ? "الموضوع" : "this topic");
+    if (isChildLearningRequest(text, topic)) {
+      return {
+        world,
+        replyText: buildChildLearningReply(text, topic, language),
+      };
+    }
     return {
       world,
-      replyText:
-        language === "ar"
-          ? `خلينا نخلي ${topic} مادة سهلة تمسكها بإيدك: ابدأ بفيديو واحد، ثم اكتب خمس أسئلة تذكّر، وبعدها لخّص الفكرة بصوتك في دقيقة.`
-          : `Let's make ${topic} something you can actually hold: start with one video, write five recall questions, then explain the idea out loud in one minute.`,
-      resources: buildResources(topic),
+      replyText: language === "ar"
+        ? `خلينا نخلي ${topic} مادة سهلة تمسكها بإيدك: ابدأ بفيديو واحد، ثم اكتب خمس أسئلة تذكّر، وبعدها لخّص الفكرة بصوتك في دقيقة.`
+        : `Let's make ${topic} something you can actually hold: start with one video, write five recall questions, then explain the idea out loud in one minute.`,
     };
   }
 
@@ -520,8 +545,19 @@ function mohamedAliStory(language: "ar" | "en") {
 }
 
 function extractTopic(text: string) {
-  const match = text.match(/(?:for|about|study|learn|video|material|resources|عن|لـ|ل)\s+(.{2,60})/i);
-  return match?.[1]?.replace(/[?.!؟]/g, "").trim();
+  const patterns = [
+    /(?:for|about|study|learn|video|material|resources)\s+(.{2,60})/i,
+    /(?:عن|لـ|ل|تعلم|ادرس|اتعلم|أتعلم|أدرس|شرح)\s+(.{2,60})/i,
+    /ساعدني\s+(?:في|على|ب)\s+(.{2,60})/i,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match?.[1]) {
+      const topic = match[1].replace(/[?.!؟،]/g, "").trim();
+      if (topic.length >= 2 && topic.length <= 60) return topic;
+    }
+  }
+  return null;
 }
 
 function buildResources(topic: string) {

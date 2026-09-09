@@ -1,23 +1,26 @@
 # FadFada | فضفضة
 
-FadFada is an Arabic-first bilingual emotional reflection and personal growth PWA. It gives users a calm space to write what they feel, choose the right companion, reflect in Arabic or English, save meaningful moments, and leave with one small practical next step.
+FadFada is a bilingual Arabic-first family AI companion designed for emotional reflection, guided learning support, and safer digital routines for parents and children.
 
 Live app: https://fad-fada.vercel.app
 
-Production snapshot:
-- Latest verified release: `0.1.110-7ed48bd`.
-- Current companion system: adult expert roster plus child-safe companion roster with parent workspace tools.
-- Production AI provider: Vertex AI / Gemini 2.5 Flash when configured, with local fallback behavior.
+## Current status
 
-## Current Status
+FadFada is an early-access product under active development. The product is being shaped by user feedback, safety review, and product validation rather than being positioned as a public beta or a free production service.
 
-FadFada is in public beta. The core experience is free while live checkout configuration, hackathon materials, and early user feedback are finalized.
+Commercial status:
+- Pricing and checkout are still being validated.
+- The product is not represented as a public free service in public-facing materials.
+- Future monetization will depend on pilot feedback, tier design, and operational readiness.
 
-Payment state:
-- Lemon Squeezy Merchant of Record approval is complete and is the recommended live checkout provider.
-- Stripe remains available as a fallback checkout provider.
-- Paddle was integrated and tested, but live checkout was rejected after the product was classified under AI / creative generative AI.
-- Premium checkout requires live Lemon Squeezy product, variant, API key, and webhook secret configuration.
+## Product positioning
+
+FadFada should be described as a family-first wellbeing and learning support platform with Arabic-first and bilingual design. The primary value is guided reflection, age-aware support, safe family workflows, and practical next steps.
+
+Suggested external description:
+> FadFada is an Arabic-first bilingual family AI companion. It helps parents and children reflect, learn, and move forward in a calmer, safer, and more guided digital environment.
+
+FadFada is not a medical, therapeutic, emergency, legal, financial, or crisis-support service.
 
 ## Product Positioning
 FadFada should be described as a wellbeing, journaling, emotional reflection, and personal growth web app. The primary value is guided reflection, emotional organization, cultural fit, and practical next steps.
