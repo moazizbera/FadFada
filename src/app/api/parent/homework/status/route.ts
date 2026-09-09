@@ -20,6 +20,9 @@ type HomeworkAssignmentSummary = {
   missionCompleted: boolean;
   missionCompletedAt: string | null;
   missionPoints: number;
+  correctAnswersCount: number;
+  totalAnswersCount: number;
+  correctnessPercentage: number | null;
 };
 
 type ChildFollowup = {
@@ -30,10 +33,19 @@ type ChildFollowup = {
   pendingAssignments: number;
   completionRate: number;
   totalPoints: number;
+  correctnessPercentage: number | null;
   assignments: HomeworkAssignmentSummary[];
 };
 
 type FollowupRange = "today" | "7d" | "30d" | "all";
+
+type CompletionSummary = {
+  childProfileId: string;
+  completedAt: string;
+  missionPoints: number;
+  correctAnswersCount: number;
+  totalAnswersCount: number;
+};
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
@@ -69,7 +81,7 @@ export async function GET(request: Request) {
   ]);
 
   const childrenById = new Map<string, ChildRow>(children.map((child) => [child.id, child]));
-  const completionByAssignmentId = new Map<string, { completedAt: string; missionPoints: number; childProfileId: string }>();
+  const completionByAssignmentId = new Map<string, CompletionSummary>();
 
   for (const event of events) {
     if (event.eventType !== "child_mission_completion" || !event.metadataJson) continue;
@@ -85,6 +97,8 @@ export async function GET(request: Request) {
         childProfileId,
         completedAt: typeof metadata.completedAt === "string" ? metadata.completedAt : event.createdAt.toISOString(),
         missionPoints: clampMissionPoints(metadata.missionPoints),
+        correctAnswersCount: clampAnswerCount(metadata.correctAnswersCount),
+        totalAnswersCount: clampAnswerCount(metadata.totalAnswersCount),
       });
     } catch {
       continue;
@@ -117,6 +131,11 @@ export async function GET(request: Request) {
         missionCompleted: Boolean(completion),
         missionCompletedAt: completion?.completedAt || null,
         missionPoints: completion?.missionPoints || 0,
+        correctAnswersCount: completion?.correctAnswersCount || 0,
+        totalAnswersCount: completion?.totalAnswersCount || 0,
+        correctnessPercentage: completion && completion.totalAnswersCount > 0
+          ? Math.round((completion.correctAnswersCount / completion.totalAnswersCount) * 100)
+          : null,
       };
 
       if (cutoffDate) {
@@ -142,6 +161,9 @@ export async function GET(request: Request) {
     const completedAssignments = assignments.filter((assignment) => assignment.missionCompleted).length;
     const pendingAssignments = Math.max(0, assignments.length - completedAssignments);
     const totalPoints = assignments.reduce((sum, assignment) => sum + assignment.missionPoints, 0);
+    const measuredAssignments = assignments.filter((assignment) => assignment.totalAnswersCount > 0);
+    const totalCorrectAnswers = measuredAssignments.reduce((sum, assignment) => sum + assignment.correctAnswersCount, 0);
+    const totalAnswers = measuredAssignments.reduce((sum, assignment) => sum + assignment.totalAnswersCount, 0);
 
     return {
       childProfileId: child.id,
@@ -151,6 +173,7 @@ export async function GET(request: Request) {
       pendingAssignments,
       completionRate: assignments.length ? Math.round((completedAssignments / assignments.length) * 100) : 0,
       totalPoints,
+      correctnessPercentage: totalAnswers > 0 ? Math.round((totalCorrectAnswers / totalAnswers) * 100) : null,
       assignments,
     };
   });
@@ -208,4 +231,10 @@ function clampMissionPoints(value: unknown) {
   const points = Number(value);
   if (!Number.isFinite(points)) return 0;
   return Math.max(0, Math.min(20, Math.round(points)));
+}
+
+function clampAnswerCount(value: unknown) {
+  const count = Number(value);
+  if (!Number.isFinite(count)) return 0;
+  return Math.max(0, Math.min(100, Math.round(count)));
 }

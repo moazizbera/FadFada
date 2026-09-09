@@ -50,6 +50,9 @@ type ParentHomeworkAssignmentStatus = {
   missionCompleted: boolean;
   missionCompletedAt: string | null;
   missionPoints: number;
+  correctAnswersCount: number;
+  totalAnswersCount: number;
+  correctnessPercentage: number | null;
 };
 
 type ParentHomeworkChildFollowup = {
@@ -60,6 +63,7 @@ type ParentHomeworkChildFollowup = {
   pendingAssignments: number;
   completionRate: number;
   totalPoints: number;
+  correctnessPercentage: number | null;
   assignments: ParentHomeworkAssignmentStatus[];
 };
 
@@ -1241,6 +1245,7 @@ function ParentHomeworkFollowupPanel({
               <span className="rounded-full border border-amber-100/28 bg-amber-100/12 px-2 py-0.5 text-amber-100">{isArabic ? "غير مكتمل" : "Pending"}: {child.pendingAssignments}</span>
               <span className="rounded-full border border-emerald-100/28 bg-emerald-100/12 px-2 py-0.5 text-emerald-100">{isArabic ? "مكتمل" : "Completed"}: {child.completedAssignments}</span>
               <span className="rounded-full border border-cyan-100/28 bg-cyan-100/12 px-2 py-0.5 text-cyan-100">{isArabic ? "الإنجاز" : "Rate"}: {child.completionRate}%</span>
+              {child.correctnessPercentage !== null ? <span className="rounded-full border border-violet-100/28 bg-violet-100/12 px-2 py-0.5 text-violet-100">{isArabic ? "الإجابات" : "Accuracy"}: {child.correctnessPercentage}%</span> : null}
             </div>
           </div>
 
@@ -1256,7 +1261,7 @@ function ParentHomeworkFollowupPanel({
                       <p className="mt-1 font-arsans text-[11px] text-bone/50">{formatParentToolHomeworkSubject(assignment.subject, language)} • {formatFollowupDateLabel(assignment.assignedAt, language)}</p>
                     </div>
                     {assignment.missionCompleted ? (
-                      <span className="rounded-full border border-emerald-100/28 bg-emerald-100/14 px-2 py-0.5 font-arsans text-[10px] text-emerald-100">{isArabic ? "مكتمل" : "Completed"}{assignment.missionPoints > 0 ? ` +${assignment.missionPoints}` : ""}</span>
+                      <span className="rounded-full border border-emerald-100/28 bg-emerald-100/14 px-2 py-0.5 font-arsans text-[10px] text-emerald-100">{isArabic ? "مكتمل" : "Completed"}{assignment.correctnessPercentage !== null ? ` • ${assignment.correctnessPercentage}%` : ""}{assignment.missionPoints > 0 ? ` +${assignment.missionPoints}` : ""}</span>
                     ) : (
                       <span className="rounded-full border border-amber-100/26 bg-amber-100/12 px-2 py-0.5 font-arsans text-[10px] text-amber-100">{isArabic ? "قيد الانتظار" : "Pending"}</span>
                     )}

@@ -110,6 +110,7 @@ type ChatMessage = {
   generatedMedia?: GeneratedMediaAsset;
   challenge?: ChildChallenge;
   childHomeworkActivities?: ChildHomeworkActivity[];
+  childHomeworkAssignmentId?: string;
   suggestions?: string[];
   personaId?: PersonaId;
   personaName?: string;
@@ -1799,12 +1800,18 @@ function ChildHomeworkActivityCards({
   onPlayAction,
   childProfileId,
   childNickname,
+  assignmentId,
+  detectedTask,
+  subject,
 }: {
   activities: ChildHomeworkActivity[];
   language: Language;
   onPlayAction?: () => void;
   childProfileId?: string;
   childNickname?: string | null;
+  assignmentId?: string;
+  detectedTask?: string;
+  subject?: ChildHomeworkAssignment["subject"];
 }) {
   const homeworkResultsStorageKey = "fadfada-child-homework-results";
   const [activeIndex, setActiveIndex] = useState(0);
@@ -1813,6 +1820,8 @@ function ChildHomeworkActivityCards({
   const [closedAfterPlay, setClosedAfterPlay] = useState(false);
   const [savedResultId, setSavedResultId] = useState("");
   const [awardedBadgeLabel, setAwardedBadgeLabel] = useState("");
+    const [missionSynced, setMissionSynced] = useState(false);
+  const [wrongAttemptsByIndex, setWrongAttemptsByIndex] = useState<Record<number, number>>({});
   const hasActivities = activities.length > 0;
   const activitiesSignature = activities.map((activity, index) => `${index}:${activity.title}|${activity.prompt}|${activity.hint}`).join("\n");
   const activeActivity = hasActivities ? activities[Math.min(activeIndex, activities.length - 1)] : null;
@@ -1830,6 +1839,8 @@ function ChildHomeworkActivityCards({
     setClosedAfterPlay(false);
     setSavedResultId("");
     setAwardedBadgeLabel("");
+    setMissionSynced(false);
+    setWrongAttemptsByIndex({});
   }, [activitiesSignature]);
 
   useEffect(() => {
@@ -1866,9 +1877,42 @@ function ChildHomeworkActivityCards({
     }
   }, [activities.length, activitiesSignature, allSolved, childNickname, childProfileId, language, savedResultId, solvedCount]);
 
+  const remediationIndexes = Object.keys(wrongAttemptsByIndex).map(Number).sort((left, right) => left - right);
+  const firstPassCorrectCount = Math.max(0, activities.length - remediationIndexes.length);
+
+  useEffect(() => {
+    if (!allSolved || missionSynced || !assignmentId) return;
+
+    setMissionSynced(true);
+    void fetch("/api/child/missions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        assignmentId,
+        missionPoints: Math.max(1, Math.round((solvedCount / activities.length) * 10)),
+        correctAnswersCount: firstPassCorrectCount,
+        totalAnswersCount: activities.length,
+        detectedTask,
+        subject,
+      }),
+    }).catch(() => {
+      setMissionSynced(false);
+    });
+  }, [activities.length, allSolved, assignmentId, detectedTask, firstPassCorrectCount, missionSynced, subject, solvedCount]);
+
   function resetHomeworkRound() {
     setAnswersByIndex({});
     setActiveIndex(0);
+    setShowCompletionCelebrate(false);
+  }
+
+  function retryMissedActivities() {
+    setAnswersByIndex((current) => {
+      const next = { ...current };
+      remediationIndexes.forEach((index) => delete next[index]);
+      return next;
+    });
+    setActiveIndex(remediationIndexes[0] || 0);
     setShowCompletionCelebrate(false);
   }
 
@@ -1891,6 +1935,9 @@ function ChildHomeworkActivityCards({
           const nowCorrect = isHomeworkAnswerCorrect(activeActivity, activeIndex, value);
           const wasCorrect = isHomeworkAnswerCorrect(activeActivity, activeIndex, previousAnswer);
           setAnswersByIndex((current) => ({ ...current, [activeIndex]: value }));
+            if (!wasCorrect && !nowCorrect) {
+              setWrongAttemptsByIndex((current) => ({ ...current, [activeIndex]: (current[activeIndex] || 0) + 1 }));
+            }
 
           if (!wasCorrect && nowCorrect && activeIndex < activities.length - 1) {
             window.setTimeout(() => {
@@ -1922,6 +1969,20 @@ function ChildHomeworkActivityCards({
             {language === "ar" ? "تم حفظ النتيجة تلقائياً" : "Result saved automatically"}
             {awardedBadgeLabel ? ` • ${awardedBadgeLabel}` : ""}
           </p>
+          {remediationIndexes.length ? (
+            <div className="mt-3 rounded-xl border border-amber-100/24 bg-amber-100/[0.08] px-3 py-2">
+              <p className="font-arsans text-xs leading-5 text-amber-50/86">
+                {language === "ar" ? `احتجت إلى محاولة إضافية في ${remediationIndexes.length} سؤال. لنراجعها معاً.` : `You needed another attempt on ${remediationIndexes.length} question${remediationIndexes.length === 1 ? "" : "s"}. Let’s practice those together.`}
+              </p>
+              <button
+                type="button"
+                onClick={retryMissedActivities}
+                className="ui-action mt-2 rounded-xl border border-amber-100/32 bg-amber-100/12 px-3 py-2 font-arsans text-xs font-semibold text-amber-50 hover:bg-amber-100 hover:text-[#0E0D10]"
+              >
+                {language === "ar" ? "تدريب على الأسئلة الصعبة" : "Practice the tricky questions"}
+              </button>
+            </div>
+          ) : null}
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -3940,6 +4001,7 @@ export function ChatWindow() {
           pointsReward: 3,
         },
         childHomeworkActivities: firstActivities,
+          childHomeworkAssignmentId: assignment.id,
         suggestions: suggestions.length ? suggestions : [assignment.detectedTask],
         personaId: activePersona.id,
         personaName: language === "ar" ? activePersona.nameAr : activePersona.nameEn,
@@ -4964,6 +5026,8 @@ export function ChatWindow() {
                       onPlayAction={startChildTapGame}
                       childProfileId={activeChildProfileId}
                       childNickname={activeChildNickname}
+                      assignmentId={message.childHomeworkAssignmentId}
+                      detectedTask={message.childHomeworkAssignmentId ? messageText : undefined}
                     />
                   ) : null}
                   <TypewriterSync

@@ -10,6 +10,8 @@ type CompleteMissionRequest = {
   missionPoints?: unknown;
   detectedTask?: unknown;
   subject?: unknown;
+  correctAnswersCount?: unknown;
+  totalAnswersCount?: unknown;
 };
 
 export async function POST(request: NextRequest) {
@@ -67,6 +69,8 @@ export async function POST(request: NextRequest) {
 
   const missionPoints = clampMissionPoints(payload?.missionPoints);
   const nowIso = new Date().toISOString();
+  const totalAnswersCount = clampAnswerCount(payload?.totalAnswersCount);
+  const correctAnswersCount = Math.min(totalAnswersCount, clampAnswerCount(payload?.correctAnswersCount));
 
   await prisma.$transaction([
     prisma.interactionEvent.create({
@@ -78,6 +82,8 @@ export async function POST(request: NextRequest) {
           childProfileId: childContext.childProfileId,
           assignmentId,
           missionPoints,
+          correctAnswersCount,
+          totalAnswersCount,
           detectedTask: typeof payload?.detectedTask === "string" ? payload.detectedTask.slice(0, 180) : "",
           subject: typeof payload?.subject === "string" ? payload.subject.slice(0, 40) : "mixed",
           completedAt: nowIso,
@@ -102,6 +108,8 @@ export async function POST(request: NextRequest) {
     assignmentId,
     duplicate: false,
     missionPoints,
+    correctAnswersCount,
+    totalAnswersCount,
     completedAt: nowIso,
   });
 }
@@ -110,4 +118,10 @@ function clampMissionPoints(value: unknown) {
   const points = Number(value);
   if (!Number.isFinite(points)) return 8;
   return Math.max(1, Math.min(20, Math.round(points)));
+}
+
+function clampAnswerCount(value: unknown) {
+  const count = Number(value);
+  if (!Number.isFinite(count)) return 0;
+  return Math.max(0, Math.min(100, Math.round(count)));
 }
