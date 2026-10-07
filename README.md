@@ -806,6 +806,42 @@ Core Prisma models:
 - `Transaction`: internal payment webhook ledger, not the revenue source of truth.
 - `MomentCapsule`: saved capsule/print fulfillment scaffold.
 
+## Family Flow Architecture (Amazon Alexa+ submission)
+
+`Parent UI` and an `Alexa+ MCP client` are two independent callers of the same parent-scoped workflow. Both go through the deterministic Family Flow engine; routine state is persisted as append-only events, and the child workspace only ever receives explicitly approved output.
+
+```mermaid
+flowchart LR
+    subgraph Parent["Parent side"]
+        PANEL[Family Flow Panel<br/>src/components/FamilyFlowPanel.tsx]
+        PAPI[/api/parent/family-flow<br/>create | reschedule | approve | complete_step/]
+    end
+    subgraph Alexa["Alexa+ side"]
+        MCP[Streamable HTTP MCP server<br/>/api/mcp/family-flow<br/>protocol 2025-11-25]
+        TOOL[Tools<br/>get / create / reschedule / approve]
+    end
+    subgraph Core["Routine core"]
+        ENGINE[familyFlow.ts<br/>deterministic, approval-gated]
+        STORE[(InteractionEvent<br/>append-only events)]
+    end
+    subgraph Child["Child workspace"]
+        CHILD[Child-safe practice UI]
+    end
+    PANEL --> PAPI --> ENGINE --> STORE
+    MCP --> TOOL --> ENGINE
+    ENGINE -- approved handoff only --> CHILD
+```
+
+Flow for a demo turn:
+
+1. The parent or an Alexa+ caller asks for "25 minutes of math before bedtime".
+2. `create_family_routine` builds a three-step routine (settle / practice / parent review) in `awaiting_parent_approval` state.
+3. If the parent changes the constraint, `reschedule_family_routine` rebuilds the steps, keeps completed steps, and returns the routine to `awaiting_parent_approval`.
+4. `approve_family_routine` records the explicit parent approval that authorizes a child-facing handoff.
+5. `get_family_routine` reads the latest routine for one child. Routines never contain child answers or child conversations.
+
+This is the module submitted for the Alexa+ track of the Amazon Developer Hackathon. Live endpoint, verified handshake, and full lifecycle evidence are recorded in the submission notes.
+
 ## Payments
 
 Payment provider behavior is selected by environment variables.
