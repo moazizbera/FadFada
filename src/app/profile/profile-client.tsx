@@ -5,6 +5,7 @@ import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { useAppLocale } from "../../components/AppShell";
+import { FamilyFlowPanel } from "../../components/FamilyFlowPanel";
 import { configureRevenueCat, getFirstPurchaseablePackage, isRevenueCatAvailable, purchaseRevenueCatPackage } from "../../lib/revenuecat";
 
 type SavedMoment = {
@@ -117,6 +118,7 @@ type VoiceDialect = "ar-EG" | "ar-SA" | "ar-AE" | "ar-LB";
 type ProfileTabId = "account-details" | "child-profiles" | "journey-map" | "saved-library";
 type ChildProfilesPanelId = "overview" | "insights" | "tools" | "profiles";
 type ParentToolDialog = "homework" | "playbook" | null;
+type ChildSetupStep = 1 | 2 | 3;
 
 type ChildProfile = {
   id: string;
@@ -193,6 +195,27 @@ type WeeklyParentReport = {
     highRiskChildren: number;
   };
   children: WeeklyReportChild[];
+};
+
+type ParentHomeworkFollowup = {
+  childProfileId: string;
+  childNickname: string;
+  totalAssignments: number;
+  completedAssignments: number;
+  pendingAssignments: number;
+  completionRate: number;
+  correctnessPercentage: number | null;
+  assignments: Array<{
+    id: string;
+    detectedTask: string;
+    missionCompleted: boolean;
+    correctnessPercentage: number | null;
+    remediationCount: number;
+  }>;
+};
+
+type ParentHomeworkFollowupResponse = {
+  children: ParentHomeworkFollowup[];
 };
 
 type HomeworkActivity = {
@@ -321,12 +344,16 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
   const [activeChildPanel, setActiveChildPanel] = useState<ChildProfilesPanelId>("overview");
   const [childProfilesExpanded, setChildProfilesExpanded] = useState(true);
   const [childFormOpen, setChildFormOpen] = useState(false);
+  const [childSetupStep, setChildSetupStep] = useState<ChildSetupStep>(1);
   const [childProfileLimit, setChildProfileLimit] = useState(profile.activeTier === "PLUS" || profile.activeTier === "BUSINESS" ? 5 : 1);
   const [childProfileTier, setChildProfileTier] = useState(profile.activeTier === "PLUS" || profile.activeTier === "BUSINESS" ? "PLUS" : "FREE");
   const [childPulse, setChildPulse] = useState<ChildPulseSummary[]>([]);
   const [weeklyReport, setWeeklyReport] = useState<WeeklyParentReport | null>(null);
   const [weeklyReportStatus, setWeeklyReportStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [weeklyReportMessage, setWeeklyReportMessage] = useState("");
+  const [homeworkFollowup, setHomeworkFollowup] = useState<ParentHomeworkFollowup[]>([]);
+  const [homeworkFollowupStatus, setHomeworkFollowupStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [learningSnapshotFeedback, setLearningSnapshotFeedback] = useState<"idle" | "helpful" | "needs_work">("idle");
   const [homeworkImage, setHomeworkImage] = useState<File | null>(null);
   const [homeworkImagePreviewUrl, setHomeworkImagePreviewUrl] = useState("");
   const [homeworkHint, setHomeworkHint] = useState("");
@@ -455,6 +482,19 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("setup") !== "child") return;
+
+    setActiveProfileTab("child-profiles");
+    setActiveChildPanel("profiles");
+    setChildSetupStep(1);
+    setChildFormOpen(true);
+    params.delete("setup");
+    const query = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}#child-profiles`);
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (homeworkImagePreviewUrl) URL.revokeObjectURL(homeworkImagePreviewUrl);
     };
@@ -508,6 +548,26 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
     void loadWeeklyParentReport();
   }, [activeProfileTab, language]);
 
+  useEffect(() => {
+    let active = true;
+    setHomeworkFollowupStatus("loading");
+
+    fetch("/api/parent/homework/status?range=30d", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() as Promise<ParentHomeworkFollowupResponse> : null)
+      .then((data) => {
+        if (!active) return;
+        setHomeworkFollowup(Array.isArray(data?.children) ? data.children : []);
+        setHomeworkFollowupStatus("ready");
+      })
+      .catch(() => {
+        if (!active) return;
+        setHomeworkFollowup([]);
+        setHomeworkFollowupStatus("error");
+      });
+
+    return () => { active = false; };
+  }, []);
+
   async function loadWeeklyParentReport() {
     setWeeklyReportStatus("loading");
     setWeeklyReportMessage("");
@@ -539,11 +599,38 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
     window.history.replaceState(null, "", tool === "homework" ? "#homework-transformer" : "#parent-playbook");
   }
 
+  function openHomeworkReview(childProfileId: string) {
+    const child = childProfiles.find((profile) => profile.id === childProfileId);
+    setHomeworkChildProfileId(childProfileId);
+    setHomeworkAgeBand(child?.ageBand || "unknown");
+    setHomeworkHint(isArabic ? "أنشئ مراجعة قصيرة للأسئلة التي احتاجت محاولة إضافية." : "Create a short review of the questions that needed another attempt.");
+    setHomeworkImage(null);
+    setHomeworkImagePreviewUrl("");
+    setHomeworkStatus("idle");
+    setHomeworkMessage("");
+    setHomeworkResult(null);
+    openParentToolDialog("homework");
+  }
+
   function closeParentToolDialog() {
     setActiveParentToolDialog(null);
     if (window.location.hash === "#homework-transformer" || window.location.hash === "#parent-playbook") {
       window.history.replaceState(null, "", "#child-profiles");
     }
+  }
+
+  async function submitLearningSnapshotFeedback(value: "helpful" | "needs_work") {
+    if (learningSnapshotFeedback !== "idle") return;
+    setLearningSnapshotFeedback(value);
+    await fetch("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventType: value === "helpful" ? "learning_snapshot_helpful" : "learning_snapshot_needs_work",
+        metadata: { language, childCount: homeworkFollowup.length },
+      }),
+      keepalive: true,
+    }).catch(() => undefined);
   }
 
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
@@ -573,6 +660,10 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
 
   async function createChildProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (childSetupStep < 3) {
+      setChildSetupStep((childSetupStep + 1) as ChildSetupStep);
+      return;
+    }
     setChildStatus("saving");
     setChildMessage("");
 
@@ -607,8 +698,23 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
     setChildProfiles((current) => [...current, data.childProfile as ChildProfile]);
     setChildForm(defaultChildForm);
     setChildFormOpen(false);
+    setChildSetupStep(1);
     setChildProfilesExpanded(true);
+    setHomeworkChildProfileId(data.childProfile.id);
+    setActiveChildPanel("tools");
+    setActiveParentToolDialog("homework");
+    window.history.replaceState(null, "", "#homework-transformer");
     setChildStatus("saved");
+    setHomeworkFollowup((current) => [...current, {
+      childProfileId: data.childProfile!.id,
+      childNickname: data.childProfile!.nickname,
+      totalAssignments: 0,
+      completedAssignments: 0,
+      pendingAssignments: 0,
+      completionRate: 0,
+      correctnessPercentage: null,
+      assignments: [],
+    }]);
     setChildMessage(isArabic ? "تم إنشاء ملف الطفل وظهر في القائمة. دخول الطفل يتم من حساب الوالد بزر فتح فقط، بدون اسم مستخدم أو كلمة مرور منفصلة." : "Child profile created and added to the list. The child enters through the parent account with Open, without a separate username or password.");
   }
 
@@ -1049,7 +1155,7 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
               <button type="button" onClick={() => void loadWeeklyParentReport()} disabled={weeklyReportStatus === "loading"} className="ui-action border border-gold/25 px-3 py-2 text-xs text-gold/82 hover:bg-gold hover:text-ink disabled:cursor-wait disabled:opacity-60">
                 {weeklyReportStatus === "loading" ? (isArabic ? "يبني التقرير..." : "Building report...") : isArabic ? "تقرير أسبوعي" : "Weekly report"}
               </button>
-              <button type="button" onClick={childProfiles.length >= childProfileLimit && childProfileTier !== "PLUS" ? () => void startPlusCheckout() : () => setChildFormOpen(true)} disabled={childProfiles.length >= childProfileLimit && childProfileTier === "PLUS"} className="ui-action bg-cyan-200 px-3 py-2 text-xs text-ink hover:bg-bone disabled:opacity-60">
+              <button type="button" onClick={childProfiles.length >= childProfileLimit && childProfileTier !== "PLUS" ? () => void startPlusCheckout() : () => { setChildSetupStep(1); setChildFormOpen(true); }} disabled={childProfiles.length >= childProfileLimit && childProfileTier === "PLUS"} className="ui-action bg-cyan-200 px-3 py-2 text-xs text-ink hover:bg-bone disabled:opacity-60">
                 {childProfiles.length >= childProfileLimit ? (childProfileTier === "PLUS" ? (isArabic ? "اكتمل العدد" : "Limit reached") : isArabic ? "ترقية لبلس" : "Upgrade to Plus") : isArabic ? "إضافة طفل" : "Add child"}
               </button>
             </div>
@@ -1112,6 +1218,41 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
               <span className="mt-1 block font-arsans text-[11px] leading-5 text-bone/48">{isArabic ? "اختصار ولي الأمر: Escape ثلاث مرات. لا يظهر للطفل." : "Parent shortcut: press Escape three times. Not shown to child."}</span>
             </div>
           </div>
+          <div className="mt-4 border border-emerald-200/18 bg-emerald-200/[0.04] p-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="font-arsans text-xs font-semibold text-emerald-100/88">{isArabic ? "لقطة تعلم الطفل" : "Child learning snapshot"}</p>
+                <p className="mt-1 font-arsans text-[11px] leading-5 text-bone/50">{isArabic ? "آخر ٣٠ يوماً: الإكمال والفهم من المحاولة الأولى، بدون إظهار الإجابات للطفل." : "Last 30 days: completion and first-pass understanding, without exposing answers to the child."}</p>
+              </div>
+              <button type="button" onClick={() => openParentToolDialog("homework")} className="ui-action border border-emerald-200/35 px-3 py-2 text-xs text-emerald-100 hover:bg-emerald-200 hover:text-ink">
+                {isArabic ? "إضافة واجب" : "Add homework"}
+              </button>
+            </div>
+            {homeworkFollowupStatus === "loading" ? <p className="mt-3 font-arsans text-xs text-bone/50">{isArabic ? "جار تحميل تقدم التعلم..." : "Loading learning progress..."}</p> : null}
+            {homeworkFollowupStatus === "ready" && homeworkFollowup.length > 0 ? (
+              <div className="mt-3 grid gap-2 md:grid-cols-2">
+                {homeworkFollowup.map((child) => {
+                  const latestAssignment = child.assignments[0];
+                  const needsPractice = child.correctnessPercentage !== null && child.correctnessPercentage < 80;
+                  return (
+                    <article key={child.childProfileId} className="border border-white/10 bg-black/18 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate font-arsans text-sm font-semibold text-bone/90" dir="auto">{child.childNickname}</p>
+                        <span className={`font-arsans text-[11px] ${needsPractice ? "text-amber-100" : "text-emerald-100"}`}>{child.totalAssignments === 0 ? (isArabic ? "جاهز للبداية" : "Ready to begin") : child.correctnessPercentage === null ? (isArabic ? "بانتظار الإكمال" : "Awaiting completion") : `${child.correctnessPercentage}% ${isArabic ? "من أول مرة" : "first pass"}`}</span>
+                      </div>
+                      <p className="mt-2 font-arsans text-xs text-bone/58">{isArabic ? "الواجبات المكتملة" : "Homework completed"}: {child.completedAssignments}/{child.totalAssignments}{child.pendingAssignments > 0 ? ` · ${child.pendingAssignments} ${isArabic ? "بانتظار الطفل" : "pending"}` : ""}</p>
+                      <p className="mt-1 truncate font-arsans text-[11px] text-bone/42">{latestAssignment ? `${isArabic ? "الأحدث" : "Latest"}: ${latestAssignment.detectedTask}` : (isArabic ? "أضف واجباً قصيراً لتظهر المتابعة هنا." : "Add a short homework task to see follow-up here.")}</p>
+                      {latestAssignment?.remediationCount ? <div className="mt-2 flex flex-wrap items-center gap-2"><p className="font-arsans text-[11px] text-amber-100/82">{isArabic ? `${latestAssignment.remediationCount} سؤال احتاج محاولة إضافية.` : `${latestAssignment.remediationCount} question${latestAssignment.remediationCount === 1 ? "" : "s"} needed another attempt.`}</p><button type="button" onClick={() => openHomeworkReview(child.childProfileId)} className="ui-action border border-amber-100/30 px-2.5 py-1.5 font-arsans text-[11px] text-amber-100 hover:bg-amber-100 hover:text-ink">{isArabic ? "إنشاء مراجعة قصيرة" : "Create short review"}</button></div> : needsPractice ? <p className="mt-2 font-arsans text-[11px] text-amber-100/82">{isArabic ? "يستفيد من مراجعة قصيرة للأسئلة الصعبة." : "A short review of tricky questions would help."}</p> : null}
+                    </article>
+                  );
+                })}
+              </div>
+            ) : null}
+            {homeworkFollowupStatus === "ready" && homeworkFollowup.length === 0 ? <p className="mt-3 font-arsans text-xs text-bone/50">{isArabic ? "أنشئ مساحة طفل أولاً، ثم أضف واجباً قصيراً لتحصل على متابعة واضحة." : "Create a child space, then add a short homework task for clear follow-up."}</p> : null}
+            {homeworkFollowupStatus === "error" ? <p className="mt-3 font-arsans text-xs text-bone/50">{isArabic ? "تعذر تحميل تقدم الواجب الآن." : "Homework progress could not be loaded right now."}</p> : null}
+            {homeworkFollowupStatus === "ready" && homeworkFollowup.length > 0 ? <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/10 pt-3"><span className="font-arsans text-[11px] text-bone/55">{isArabic ? "هل هذا الملخص مفيد؟" : "Was this snapshot useful?"}</span>{learningSnapshotFeedback === "idle" ? <><button type="button" onClick={() => void submitLearningSnapshotFeedback("helpful")} className="ui-action border border-emerald-200/28 px-2.5 py-1.5 font-arsans text-[11px] text-emerald-100 hover:bg-emerald-200 hover:text-ink">{isArabic ? "نعم" : "Yes"}</button><button type="button" onClick={() => void submitLearningSnapshotFeedback("needs_work")} className="ui-action border border-white/15 px-2.5 py-1.5 font-arsans text-[11px] text-bone/65 hover:border-amber-100/40 hover:text-amber-100">{isArabic ? "يحتاج تحسين" : "Needs work"}</button></> : <span className="font-arsans text-[11px] text-emerald-100/80">{isArabic ? "شكراً، سنستخدم ملاحظتك لتحسين المتابعة." : "Thank you. Your feedback will improve follow-up."}</span>}</div> : null}
+          </div>
+          <FamilyFlowPanel children={childProfiles.map((child) => ({ id: child.id, nickname: child.nickname }))} language={language} />
           <div className="mt-4 border border-cyan-200/12 bg-black/12 p-3">
             <p className="font-arsans text-xs font-semibold text-cyan-100/80">{isArabic ? "ملخص ولي الأمر اليومي" : "Parent pulse snapshot"}</p>
             {childPulse.length > 0 ? (
@@ -1698,31 +1839,15 @@ export function ProfileClient({ initialProfile }: { initialProfile: Profile }) {
                     <p className="ui-kicker text-cyan-100">{isArabic ? "إضافة طفل" : "Add child"}</p>
                     <h3 className="mt-2 font-arserif text-2xl text-bone/90">{isArabic ? "ملف آمن بدون حساب منفصل" : "Safe profile without a separate login"}</h3>
                   </div>
-                  <button type="button" onClick={() => setChildFormOpen(false)} className="ui-action border border-white/10 px-3 py-2 text-xs text-bone/60 hover:border-bone/35 hover:text-bone">
+                  <button type="button" onClick={() => { setChildFormOpen(false); setChildSetupStep(1); }} className="ui-action border border-white/10 px-3 py-2 text-xs text-bone/60 hover:border-bone/35 hover:text-bone">
                     {isArabic ? "إغلاق" : "Close"}
                   </button>
                 </div>
-                <ProfileInput label={isArabic ? "اسم مختصر للطفل" : "Child safe nickname"} value={childForm.nickname} onChange={(value) => setChildForm((current) => ({ ...current, nickname: value }))} />
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <ProfileInput label={isArabic ? "سنة الميلاد" : "Birth year"} value={childForm.birthYear} onChange={(value) => setChildForm((current) => ({ ...current, birthYear: value }))} dir="ltr" />
-                  <ProfileInput label={isArabic ? "الحد اليومي بالدقائق" : "Daily limit in minutes"} value={childForm.dailyTimeLimitMinutes} onChange={(value) => setChildForm((current) => ({ ...current, dailyTimeLimitMinutes: value }))} dir="ltr" />
-                </div>
-                <div>
-                  <p className="mb-3 font-arsans text-sm text-bone/65">{isArabic ? "اختر رفيق البداية" : "Choose a starter companion"}</p>
-                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-                    {childAvatarOptions.map((option) => (
-                      <button key={option.avatar} type="button" onClick={() => setChildForm((current) => ({ ...current, avatarPreference: option.avatar }))} className={`border p-2 transition-colors ${childForm.avatarPreference === option.avatar ? "border-cyan-200/70 bg-cyan-200/10" : "border-white/10 bg-black/10 hover:border-cyan-200/35"}`}>
-                        <span className="relative block aspect-square overflow-hidden rounded-full bg-cyan-200/10">
-                          <Image src={option.avatar} alt={isArabic ? option.ar : option.en} fill sizes="64px" className="object-cover" unoptimized />
-                        </span>
-                        <span className="mt-2 block truncate font-arsans text-[11px] text-bone/60">{isArabic ? option.ar : option.en}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <button type="submit" disabled={childStatus === "saving" || childProfiles.length >= childProfileLimit} className="ui-action w-full bg-cyan-200 px-4 py-3 text-ink transition-colors hover:bg-bone disabled:opacity-60">
-                  {childStatus === "saving" ? (isArabic ? "جار إنشاء الملف..." : "Creating profile...") : childProfiles.length >= childProfileLimit ? (isArabic ? "وصلت للحد الأقصى" : "Profile limit reached") : isArabic ? "إضافة ملف طفل" : "Add child profile"}
-                </button>
+                <div className="flex gap-2" aria-label={isArabic ? "خطوات الإعداد" : "Setup steps"}>{([1, 2, 3] as ChildSetupStep[]).map((step) => <span key={step} className={`h-1.5 flex-1 ${step <= childSetupStep ? "bg-cyan-200" : "bg-white/15"}`} />)}</div>
+                {childSetupStep === 1 ? <ProfileInput label={isArabic ? "اسم مختصر للطفل" : "Child safe nickname"} value={childForm.nickname} onChange={(value) => setChildForm((current) => ({ ...current, nickname: value }))} /> : null}
+                {childSetupStep === 2 ? <div className="grid gap-3 sm:grid-cols-2"><ProfileInput label={isArabic ? "سنة الميلاد" : "Birth year"} value={childForm.birthYear} onChange={(value) => setChildForm((current) => ({ ...current, birthYear: value }))} dir="ltr" /><ProfileInput label={isArabic ? "الحد اليومي بالدقائق" : "Daily limit in minutes"} value={childForm.dailyTimeLimitMinutes} onChange={(value) => setChildForm((current) => ({ ...current, dailyTimeLimitMinutes: value }))} dir="ltr" /></div> : null}
+                {childSetupStep === 3 ? <div><p className="mb-3 font-arsans text-sm text-bone/65">{isArabic ? "اختر رفيق البداية" : "Choose a starter companion"}</p><div className="grid grid-cols-3 gap-2 sm:grid-cols-6">{childAvatarOptions.map((option) => <button key={option.avatar} type="button" onClick={() => setChildForm((current) => ({ ...current, avatarPreference: option.avatar }))} className={`border p-2 transition-colors ${childForm.avatarPreference === option.avatar ? "border-cyan-200/70 bg-cyan-200/10" : "border-white/10 bg-black/10 hover:border-cyan-200/35"}`}><span className="relative block aspect-square overflow-hidden rounded-full bg-cyan-200/10"><Image src={option.avatar} alt={isArabic ? option.ar : option.en} fill sizes="64px" className="object-cover" unoptimized /></span><span className="mt-2 block truncate font-arsans text-[11px] text-bone/60">{isArabic ? option.ar : option.en}</span></button>)}</div></div> : null}
+                <div className="flex gap-2"><button type="button" onClick={() => setChildSetupStep((Math.max(1, childSetupStep - 1)) as ChildSetupStep)} disabled={childSetupStep === 1 || childStatus === "saving"} className="ui-action border border-white/15 px-4 py-3 text-xs text-bone/70 disabled:opacity-40">{isArabic ? "رجوع" : "Back"}</button><button type="submit" disabled={childStatus === "saving" || childProfiles.length >= childProfileLimit || (childSetupStep === 1 && !childForm.nickname.trim())} className="ui-action flex-1 bg-cyan-200 px-4 py-3 text-ink transition-colors hover:bg-bone disabled:opacity-60">{childSetupStep < 3 ? (isArabic ? "التالي" : "Next") : childStatus === "saving" ? (isArabic ? "جار إنشاء الملف..." : "Creating profile...") : childProfiles.length >= childProfileLimit ? (isArabic ? "وصلت للحد الأقصى" : "Profile limit reached") : isArabic ? "إنشاء مساحة الطفل" : "Create child space"}</button></div>
               </form>
             </div>
           ) : null}

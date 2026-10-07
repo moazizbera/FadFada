@@ -42,6 +42,11 @@ export type AdminDashboardData = {
     nameOnlyVisitors: number;
     pwaInstalls: number;
     childContextLeakGuards24h: number;
+    familyChildProfilesCreated: number;
+    homeworkAssignments: number;
+    homeworkCompletions: number;
+    learningSnapshotHelpful: number;
+    learningSnapshotNeedsWork: number;
   };
   visitorsByRegion: Array<{ location: string; count: number }>;
   registrationsByRegion: Array<{ location: string; count: number }>;
@@ -200,6 +205,11 @@ const copy = {
       nameOnlyVisitors: "زوار باسم فقط",
       pwaInstalls: "تثبيتات التطبيق",
       childContextLeakGuards24h: "تنبيهات تسرب السياق (24س)",
+      familyChildProfilesCreated: "مساحات أطفال منشأة",
+      homeworkAssignments: "واجبات مرسلة",
+      homeworkCompletions: "واجبات مكتملة",
+      learningSnapshotHelpful: "ملخصات مفيدة",
+      learningSnapshotNeedsWork: "ملخصات تحتاج تحسين",
     },
     sections: {
       visitorsKicker: "سجل الزوار",
@@ -278,6 +288,11 @@ const copy = {
       nameOnlyVisitors: "Name-only visitors",
       pwaInstalls: "PWA installs",
       childContextLeakGuards24h: "Context leak guards (24h)",
+      familyChildProfilesCreated: "Child spaces created",
+      homeworkAssignments: "Homework assigned",
+      homeworkCompletions: "Homework completed",
+      learningSnapshotHelpful: "Helpful snapshots",
+      learningSnapshotNeedsWork: "Snapshots needing work",
     },
     sections: {
       visitorsKicker: "Total visitors ledger",
@@ -385,6 +400,15 @@ export function AdminDashboardClient({ data: rawData, auditHref }: AdminDashboar
       { label: labels.metrics.visitorComments, value: formatNumber(data.interactionTotals.visitorComments, locale) },
       { label: labels.metrics.pwaInstalls, value: formatNumber(data.interactionTotals.pwaInstalls, locale) },
       { label: labels.metrics.childContextLeakGuards24h, value: formatNumber(data.interactionTotals.childContextLeakGuards24h, locale) },
+    ],
+    [
+      { label: labels.metrics.familyChildProfilesCreated, value: formatNumber(data.interactionTotals.familyChildProfilesCreated, locale) },
+      { label: labels.metrics.homeworkAssignments, value: formatNumber(data.interactionTotals.homeworkAssignments, locale) },
+      { label: labels.metrics.homeworkCompletions, value: formatNumber(data.interactionTotals.homeworkCompletions, locale) },
+    ],
+    [
+      { label: labels.metrics.learningSnapshotHelpful, value: formatNumber(data.interactionTotals.learningSnapshotHelpful, locale) },
+      { label: labels.metrics.learningSnapshotNeedsWork, value: formatNumber(data.interactionTotals.learningSnapshotNeedsWork, locale) },
     ],
   ];
   const narrativeTimeline = buildNarrativeTimeline(
@@ -1648,6 +1672,11 @@ function sanitizeDashboardData(input: AdminDashboardData): AdminDashboardData {
       nameOnlyVisitors: toCount(input.interactionTotals?.nameOnlyVisitors),
       pwaInstalls: toCount(input.interactionTotals?.pwaInstalls),
       childContextLeakGuards24h: toCount(input.interactionTotals?.childContextLeakGuards24h),
+      familyChildProfilesCreated: toCount(input.interactionTotals?.familyChildProfilesCreated),
+      homeworkAssignments: toCount(input.interactionTotals?.homeworkAssignments),
+      homeworkCompletions: toCount(input.interactionTotals?.homeworkCompletions),
+      learningSnapshotHelpful: toCount(input.interactionTotals?.learningSnapshotHelpful),
+      learningSnapshotNeedsWork: toCount(input.interactionTotals?.learningSnapshotNeedsWork),
     },
     visitorsByRegion: (input.visitorsByRegion || []).map((entry) => ({
       location: entry.location || "unknown",

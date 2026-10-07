@@ -12,6 +12,7 @@ type CompleteMissionRequest = {
   subject?: unknown;
   correctAnswersCount?: unknown;
   totalAnswersCount?: unknown;
+  remediationCount?: unknown;
 };
 
 export async function POST(request: NextRequest) {
@@ -71,6 +72,7 @@ export async function POST(request: NextRequest) {
   const nowIso = new Date().toISOString();
   const totalAnswersCount = clampAnswerCount(payload?.totalAnswersCount);
   const correctAnswersCount = Math.min(totalAnswersCount, clampAnswerCount(payload?.correctAnswersCount));
+  const remediationCount = Math.min(totalAnswersCount, clampAnswerCount(payload?.remediationCount));
 
   await prisma.$transaction([
     prisma.interactionEvent.create({
@@ -84,6 +86,7 @@ export async function POST(request: NextRequest) {
           missionPoints,
           correctAnswersCount,
           totalAnswersCount,
+          remediationCount,
           detectedTask: typeof payload?.detectedTask === "string" ? payload.detectedTask.slice(0, 180) : "",
           subject: typeof payload?.subject === "string" ? payload.subject.slice(0, 40) : "mixed",
           completedAt: nowIso,
@@ -110,6 +113,7 @@ export async function POST(request: NextRequest) {
     missionPoints,
     correctAnswersCount,
     totalAnswersCount,
+    remediationCount,
     completedAt: nowIso,
   });
 }

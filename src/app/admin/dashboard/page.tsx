@@ -147,7 +147,7 @@ async function buildDashboardData() {
   monthStart.setUTCHours(0, 0, 0, 0);
   const childContextLeakWindowStart = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  const [totalVisitors, registeredUsers, interactionCounts, visitorsByRegion, registrationsByRegionRaw, recentUsers, tierCounts, monthlyTransactions, visibleVisitorCommentCount, visiblePwaInstallCount, recentCommentEvents, nameOnlyVisitorEvents, pwaInstallEvents, avatarRatingEvents, adminNotifications, adminConfigEvents, adminGiftEvents, adminPersonaGrantEvents, adminPersonaGrantSetEvents, adminDiscountEvents, chatSessionEvents, childProfiles, childConversationEvents, childContextLeakEvents24h] = await Promise.all([
+  const [totalVisitors, registeredUsers, interactionCounts, visitorsByRegion, registrationsByRegionRaw, recentUsers, tierCounts, monthlyTransactions, visibleVisitorCommentCount, visiblePwaInstallCount, recentCommentEvents, nameOnlyVisitorEvents, pwaInstallEvents, avatarRatingEvents, adminNotifications, adminConfigEvents, adminGiftEvents, adminPersonaGrantEvents, adminPersonaGrantSetEvents, adminDiscountEvents, chatSessionEvents, childProfiles, childConversationEvents, childContextLeakEvents24h, familyChildProfilesCreated, homeworkAssignments, homeworkCompletions, learningSnapshotHelpful, learningSnapshotNeedsWork] = await Promise.all([
     prisma.visitorLog.count(),
     prisma.user.count({ where: registeredUserWhere }),
     prisma.interactionEvent.groupBy({
@@ -329,6 +329,11 @@ async function buildDashboardData() {
         createdAt: true,
       },
     }),
+    prisma.interactionEvent.count({ where: { eventType: "family_child_profile_created" } }),
+    prisma.interactionEvent.count({ where: { eventType: "child_homework_assignment" } }),
+    prisma.interactionEvent.count({ where: { eventType: "child_mission_completion" } }),
+    prisma.interactionEvent.count({ where: { eventType: "learning_snapshot_helpful" } }),
+    prisma.interactionEvent.count({ where: { eventType: "learning_snapshot_needs_work" } }),
   ]);
 
   const monthlyRevenueByTier = monthlyTransactions.reduce<Record<string, { amount: number; currency: string }>>((accumulator, transaction) => {
@@ -364,6 +369,11 @@ async function buildDashboardData() {
     nameOnlyVisitors: interactionCounts.find((entry) => entry.eventType === "visitor_name_register")?._count._all ?? 0,
     pwaInstalls: visiblePwaInstallCount,
     childContextLeakGuards24h: childContextLeakEvents24h.length,
+    familyChildProfilesCreated,
+    homeworkAssignments,
+    homeworkCompletions,
+    learningSnapshotHelpful,
+    learningSnapshotNeedsWork,
   };
   const childContextLeakReasonCounts = Object.values(
     childContextLeakEvents24h.reduce<Record<string, { reason: string; count: number }>>((accumulator, event) => {

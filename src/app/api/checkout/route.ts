@@ -115,9 +115,16 @@ export async function POST(request: NextRequest) {
       locale,
     };
 
+    const trialDays = getStripeTrialDays();
+    if (mode === "subscription" && trialDays > 0) {
+      sessionParams.subscription_data = {
+        trial_period_days: trialDays,
+      };
+    }
+
     const session = await stripe.checkout.sessions.create(sessionParams);
 
-    return NextResponse.json({ url: session.url }, { status: 200 });
+    return NextResponse.json({ url: session.url, provider: "stripe", trialDays: mode === "subscription" ? trialDays : 0 }, { status: 200 });
   } catch (error) {
     console.error("Checkout error", error);
     return NextResponse.json({ error: "CHECKOUT_FAILED" }, { status: 500 });
@@ -250,6 +257,12 @@ function getStripeCheckoutMode(product?: string): Stripe.Checkout.SessionCreateP
   const configuredMode = process.env.STRIPE_CHECKOUT_MODE?.toLowerCase();
   if (configuredMode === "payment" || configuredMode === "subscription") return configuredMode;
   return product === "persona_unlock" ? "payment" : "subscription";
+}
+
+function getStripeTrialDays() {
+  const value = Number(process.env.STRIPE_TRIAL_DAYS);
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(30, Math.round(value)));
 }
 
 async function createPaddleCheckout(request: NextRequest, body: CheckoutRequest, userId: string) {

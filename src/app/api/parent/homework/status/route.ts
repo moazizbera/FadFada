@@ -22,6 +22,7 @@ type HomeworkAssignmentSummary = {
   missionPoints: number;
   correctAnswersCount: number;
   totalAnswersCount: number;
+  remediationCount: number;
   correctnessPercentage: number | null;
 };
 
@@ -45,6 +46,7 @@ type CompletionSummary = {
   missionPoints: number;
   correctAnswersCount: number;
   totalAnswersCount: number;
+  remediationCount: number;
 };
 
 export async function GET(request: Request) {
@@ -99,6 +101,7 @@ export async function GET(request: Request) {
         missionPoints: clampMissionPoints(metadata.missionPoints),
         correctAnswersCount: clampAnswerCount(metadata.correctAnswersCount),
         totalAnswersCount: clampAnswerCount(metadata.totalAnswersCount),
+        remediationCount: clampAnswerCount(metadata.remediationCount),
       });
     } catch {
       continue;
@@ -133,6 +136,7 @@ export async function GET(request: Request) {
         missionPoints: completion?.missionPoints || 0,
         correctAnswersCount: completion?.correctAnswersCount || 0,
         totalAnswersCount: completion?.totalAnswersCount || 0,
+        remediationCount: completion?.remediationCount || 0,
         correctnessPercentage: completion && completion.totalAnswersCount > 0
           ? Math.round((completion.correctAnswersCount / completion.totalAnswersCount) * 100)
           : null,

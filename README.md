@@ -1,32 +1,24 @@
 # FadFada | فضفضة
 
-FadFada is a bilingual Arabic-first family AI companion designed for emotional reflection, guided learning support, and safer digital routines for parents and children.
+FadFada is an Arabic-first bilingual family homework companion. It helps parents turn homework into age-aware guided practice, then follow completion and review needs without exposing a child&apos;s answers.
 
 Live app: https://fad-fada.vercel.app
 
 ## Current status
 
-FadFada is an early-access product under active development. The product is being shaped by user feedback, safety review, and product validation rather than being positioned as a public beta or a free production service.
+FadFada is an early-access product under active development. It is being shaped through family feedback, safety review, and product validation rather than being positioned as a finished paid service.
 
 Commercial status:
-- Pricing and checkout are still being validated.
-- The product is not represented as a public free service in public-facing materials.
-- Future monetization will depend on pilot feedback, tier design, and operational readiness.
+- Core family workflows are available during early-access validation.
+- Paid subscriptions and trials are intentionally disabled.
+- Future monetization depends on pilot feedback, a clear family value proposition, and verified billing operations.
 
 ## Product positioning
 
-FadFada should be described as a family-first wellbeing and learning support platform with Arabic-first and bilingual design. The primary value is guided reflection, age-aware support, safe family workflows, and practical next steps.
+FadFada should be described as a family-first homework support product with Arabic-first and bilingual design. The primary value is parent-led homework transformation, age-aware child practice, safe family workflows, and clear follow-up.
 
 Suggested external description:
-> FadFada is an Arabic-first bilingual family AI companion. It helps parents and children reflect, learn, and move forward in a calmer, safer, and more guided digital environment.
-
-FadFada is not a medical, therapeutic, emergency, legal, financial, or crisis-support service.
-
-## Product Positioning
-FadFada should be described as a wellbeing, journaling, emotional reflection, and personal growth web app. The primary value is guided reflection, emotional organization, cultural fit, and practical next steps.
-
-Suggested external description:
-> FadFada is an Arabic-first bilingual emotional reflection PWA. It helps users write what they feel, choose a companion style, complete check-ins, save meaningful moments, and turn reflection into one small next step.
+> FadFada is an Arabic-first bilingual family homework companion. A parent turns a worksheet into guided practice, a child completes it in a protected space, and the parent gets a clear follow-up signal without seeing the child&apos;s answers.
 
 FadFada is not a medical, therapeutic, emergency, legal, financial, or crisis-support service.
 
@@ -143,6 +135,18 @@ Parent is the family control workspace. It combines personal reflection plus chi
 	- /api/parent/pulse
 	- /api/parent/weekly-report
 	- /api/parent/return-code
+
+### Family Flow MCP Server
+
+FadFada includes a self-hosted Streamable HTTP MCP endpoint for the Amazon Alexa+ Family Flow submission:
+
+- Endpoint: `POST /api/mcp/family-flow`
+- Protocol: Model Context Protocol Streamable HTTP, served by `@modelcontextprotocol/sdk`.
+- Authentication: `Authorization: Bearer <FAMILY_FLOW_MCP_TOKEN>`.
+- Parent binding: set `FAMILY_FLOW_MCP_PARENT_ID` to the parent account that owns the demo child profiles.
+- Tools: `get_family_routine`, `create_family_routine`, `reschedule_family_routine`, and `approve_family_routine`.
+
+The server is deliberately parent-scoped. It checks every child profile against the configured parent, stores routine transitions as append-only events, never returns child answers or conversations, and never sends a child-facing assignment automatically.
 
 ### Parent UI Surfaces
 
@@ -815,11 +819,9 @@ Current recommended live provider:
 - `LEMONSQUEEZY_PLUS_VARIANT_ID`
 - `LEMONSQUEEZY_WEBHOOK_SECRET`
 
-Lemon Squeezy product positioning:
+Checkout is intentionally paused. Provider support remains documented for later activation only after a sandbox checkout, signed webhook, cancellation, and entitlement downgrade have been verified.
 
-> FadFada Plus is an instant-access digital subscription. After checkout, the buyer receives immediate access to premium in-app features such as longer reflection limits, expanded saved moments, companion personalization, and premium digital companions. No manual service, coaching, therapy, consulting, or custom fulfillment is included.
-
-To activate Lemon Squeezy checkout in production, configure:
+When billing is ready for controlled testing, configure Lemon Squeezy with:
 
 - `PAYMENT_PROVIDER=lemonsqueezy`
 - `LEMONSQUEEZY_MODE=test` while testing; change to `live` only when using live Lemon credentials.
@@ -829,7 +831,7 @@ To activate Lemon Squeezy checkout in production, configure:
 - `LEMONSQUEEZY_WEBHOOK_SECRET`
 - `NEXT_PUBLIC_APP_URL=https://fad-fada.vercel.app`
 
-Stripe fallback can be activated with:
+Stripe fallback can be configured for controlled testing with:
 
 - `PAYMENT_PROVIDER=stripe`
 - `STRIPE_SECRET_KEY`

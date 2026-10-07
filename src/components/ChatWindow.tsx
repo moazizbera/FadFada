@@ -347,6 +347,7 @@ const defaultLaunchDiscountCode = "FADA30";
 const voiceDialectStorageKey = "fadfada-voice-dialect";
 const offlineDraftStorageKey = "fadfada-offline-draft";
 const visitorNameStorageKey = "fadfada-visitor-name";
+const familySetupDismissedStorageKey = "fadfada-family-setup-dismissed";
 const defaultExperienceConfiguration = {
   anonymousReflectionLimit: 5,
   signedGiftReflectionLimit: 15,
@@ -1892,6 +1893,7 @@ function ChildHomeworkActivityCards({
         missionPoints: Math.max(1, Math.round((solvedCount / activities.length) * 10)),
         correctAnswersCount: firstPassCorrectCount,
         totalAnswersCount: activities.length,
+        remediationCount: remediationIndexes.length,
         detectedTask,
         subject,
       }),
@@ -2272,6 +2274,7 @@ export function ChatWindow() {
   const [breathingOpen, setBreathingOpen] = useState(false);
   const [drawingBoardOpen, setDrawingBoardOpen] = useState(false);
   const [musicActivityOpen, setMusicActivityOpen] = useState(false);
+  const [familySetupVisible, setFamilySetupVisible] = useState(false);
   const recorderRef = useRef<ISpeechRecognition | null>(null);
   const keepRecordingRef = useRef(false);
   const recordingRestartCountRef = useRef(0);
@@ -2944,6 +2947,25 @@ export function ChatWindow() {
       active = false;
     };
   }, [sessionUser?.id]);
+
+  useEffect(() => {
+    if (!sessionUser?.id || isChildWorkspace || localStorage.getItem(familySetupDismissedStorageKey) === "true") {
+      setFamilySetupVisible(false);
+      return;
+    }
+
+    let active = true;
+    fetch("/api/parent/child", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() as Promise<{ childProfiles?: unknown[] }> : null)
+      .then((data) => {
+        if (active) setFamilySetupVisible(Array.isArray(data?.childProfiles) && data.childProfiles.length === 0);
+      })
+      .catch(() => {
+        if (active) setFamilySetupVisible(false);
+      });
+
+    return () => { active = false; };
+  }, [isChildWorkspace, sessionUser?.id]);
 
   useEffect(() => {
     if (isChildWorkspace) {
@@ -4810,7 +4832,7 @@ export function ChatWindow() {
         <h1 className="mt-3 text-center font-arui text-2xl font-semibold leading-tight text-[#F7F3EC]/95 min-[360px]:mt-4 min-[360px]:text-3xl">
           {isChildWorkspace
             ? language === "ar" ? `أهلاً ${activeChildNickname || "يا بطل"}` : `Hi ${activeChildNickname || "friend"}`
-            : language === "ar" ? "فضفضة ليست شات عام" : "FadFada is not a generic chat"}
+            : language === "ar" ? "مساعدة عائلتك تبدأ بخطوة واضحة" : "A clearer next step for your family"}
         </h1>
         <p className="mt-2 rounded-full border border-white/16 bg-black/20 px-3 py-1 font-arsans text-[11px] text-[#F7F3EC]/78" dir={language === "ar" ? "rtl" : "ltr"}>
           {isChildWorkspace
@@ -4826,8 +4848,8 @@ export function ChatWindow() {
         ) : (
           <p className="mt-2 max-w-md text-center font-arsans text-base font-medium leading-7 text-[#F7F3EC]/76">
             {language === "ar"
-              ? "مساحة عربية/إنجليزية هادئة: اكتب ما بداخلك، واختر من القائمة عندما تحتاج رفيقًا أو خطوة أو حفظ لحظة."
-              : "A calm Arabic/English space: write what is inside, then open the menu when you need a companion, a step, or a saved moment."}
+              ? "حوّل واجب الطفل إلى نشاط آمن، تابع تقدمه، أو خذ مساحة هادئة للتفكير. أنت تختار البداية."
+              : "Turn a child's homework into a safe activity, follow their progress, or take a calm moment to think. Choose where to begin."}
           </p>
         )}
           {isChildWorkspace ? (
@@ -4851,14 +4873,20 @@ export function ChatWindow() {
           />
         ) : (
           <div className="mt-5 grid w-full max-w-xl gap-2 min-[520px]:grid-cols-3" dir={language === "ar" ? "rtl" : "ltr"}>
+            {accessState === "anonymous" ? (
+              <button type="button" onClick={() => { void trackInteraction("starter_tap", { type: "family_setup_signin", language }); openSignInGift(); }} className="ui-action rounded-xl bg-cyan-100 px-4 py-3 text-[#0E0D10] shadow-[0_14px_34px_rgba(165,243,252,0.18)] transition-colors hover:bg-white">
+                {language === "ar" ? "ابدأ مساحة طفل" : "Set up child space"}
+              </button>
+            ) : (
+              <Link href="/profile?setup=child" onClick={() => { void trackInteraction("starter_tap", { type: "family_setup_profile", language }); }} className="ui-action rounded-xl bg-cyan-100 px-4 py-3 text-center text-[#0E0D10] shadow-[0_14px_34px_rgba(165,243,252,0.18)] transition-colors hover:bg-white">
+                {language === "ar" ? "ابدأ مساحة طفل" : "Set up child space"}
+              </Link>
+            )}
             <button type="button" onClick={focusInput} className="ui-action rounded-xl bg-[#E6C36A] px-4 py-3 text-[#0E0D10] shadow-[0_14px_34px_rgba(230,195,106,0.22)] transition-colors hover:bg-[#F7F3EC]">
-              {language === "ar" ? "ابدأ الفضفضة" : "Start venting"}
+              {language === "ar" ? "خذ لحظة هادئة" : "Take a calm moment"}
             </button>
             <button type="button" onClick={() => setVisitorShowcaseOpen(true)} className="ui-action rounded-xl border border-[#E6C36A]/45 bg-black/24 px-4 py-3 text-[#E6C36A] transition-colors hover:bg-[#E6C36A] hover:text-[#0E0D10]">
-              {language === "ar" ? "استكشف الميزات" : "Explore features"}
-            </button>
-            <button type="button" onClick={() => avatarsEnabled ? openAvatarDrawer() : setToolsOpen(true)} className="ui-action rounded-xl border border-white/18 bg-white/[0.055] px-4 py-3 text-[#F7F3EC]/84 transition-colors hover:border-[#F7F3EC]/45 hover:text-[#F7F3EC]">
-              {language === "ar" ? "اختر رفيق" : "Choose persona"}
+              {language === "ar" ? "كيف يعمل؟" : "How it works"}
             </button>
           </div>
         )}
@@ -4956,6 +4984,25 @@ export function ChatWindow() {
       </section>
 
       {visitorShowcaseDialog}
+
+      {familySetupVisible ? (
+        <section className="relative z-10 mx-auto mt-5 w-full max-w-3xl border border-cyan-100/25 bg-cyan-100/[0.08] p-4 text-start shadow-[0_16px_42px_rgba(14,116,144,0.12)]" dir={language === "ar" ? "rtl" : "ltr"}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="font-arsans text-sm font-semibold text-cyan-50">{language === "ar" ? "هل تستخدم فضفضة مع أطفالك؟" : "Using FadFada with children?"}</p>
+              <p className="mt-1 max-w-xl font-arsans text-xs leading-5 text-cyan-50/76">{language === "ar" ? "أنشئ مساحة طفل منفصلة للأنشطة والواجبات والمتابعة. تستخدم هذه المساحة لقباً فقط، وليس اسماً كاملاً." : "Create a separate child space for activities, homework, and follow-up. It uses a nickname only, never a full name."}</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Link href="/profile?setup=child" onClick={() => { void trackInteraction("starter_tap", { type: "family_setup_reminder", language }); }} className="ui-action rounded-lg bg-cyan-100 px-3 py-2 font-arsans text-xs font-semibold text-[#0E0D10] hover:bg-white">
+                {language === "ar" ? "إعداد مساحة طفل" : "Set up child space"}
+              </Link>
+              <button type="button" onClick={() => { localStorage.setItem(familySetupDismissedStorageKey, "true"); setFamilySetupVisible(false); }} className="ui-action rounded-lg border border-cyan-100/28 px-3 py-2 font-arsans text-xs text-cyan-50/82 hover:border-cyan-100 hover:text-cyan-50">
+                {language === "ar" ? "ليس الآن" : "Not now"}
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section
         ref={chatRef}

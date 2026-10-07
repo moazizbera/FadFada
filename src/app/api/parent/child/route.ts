@@ -220,6 +220,21 @@ export async function POST(request: NextRequest) {
     return buildChildProfileDatabaseErrorResponse(error);
   }
 
+  void prisma.interactionEvent.create({
+    data: {
+      userId: parentContext.userId,
+      eventType: "family_child_profile_created",
+      geographicRegion: "parent_workspace",
+      metadataJson: JSON.stringify({
+        childProfileId: childProfile.id,
+        ageBand: inferChildAgeBand(childProfile.birthYear),
+        dailyTimeLimitMinutes: childProfile.dailyTimeLimitMinutes,
+      }),
+    },
+  }).catch((error) => {
+    console.error("Child profile activation event fallback", error);
+  });
+
   return NextResponse.json({ childProfile: toChildProfileResponse(childProfile, []) }, { status: 201 });
 }
 
