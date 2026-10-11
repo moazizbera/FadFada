@@ -1,173 +1,82 @@
-# Devpost Submission Draft
+# Devpost Submission Draft — Amazon Developer Hackathon 2026
+
+Track: Alexa+ (primary). AWS Builder: NO-GO decided — adding an unverified AWS claim would weaken the entry; submit Alexa+ track only.
 
 ## Project Name
 
-FadFada | فضفضة
+FadFada — Family Flow (Alexa+ homework routine agent)
 
 ## Tagline
 
-Talk freely. Feel understood. Move forward.
+Homework that respects a parent's approval: an Alexa+ routine agent that never talks to a child until a parent says yes.
 
 ## Short Description
 
-FadFada is a bilingual AI wellbeing companion that gives people a private space to talk through text, voice, or video in English or Arabic. As the user shares, the interface shifts into calm, learning, story, faith, build, celebration, or stillness worlds before the reply appears, helping the person feel understood and turning emotional noise into a clear next step. The current product also includes a parent + child workspace layer with child-safe companions, homework transformation, parenting playbooks, and a 7-day Parent Copilot Timeline. It is designed as a PWA so users can access it instantly across phones, laptops, tablets, and shared lab machines.
+FadFada is an Arabic-first family homework companion. Family Flow is the new agentic layer: a parent turns homework into a time-boxed routine, approves the child-facing handoff, changes constraints, and the routine adapts — across sessions, via web UI or over a self-hosted Streamable HTTP MCP server. Parent-only data stays out of the child workspace, by design.
+
+## Links
+
+- Repo: https://github.com/moazizbera/FadFada (public)
+- Live app: https://fad-fada.vercel.app
+- Demo video: <YouTube unlisted link>
+- Change log: `CHANGELOG.md` (root of repo)
+- Friction log: `FRICTION_LOG.md` (root of repo)
 
 ## Inspiration
 
-Many people are not ready for therapy, cannot afford support, feel uncomfortable being judged, or simply need a private first place to speak honestly. FadFada starts from a simple belief: people often need to feel heard before they need advice.
-
-The product is especially focused on Arabic and English users who move between cultures, languages, work pressure, study pressure, family expectations, loneliness, and daily uncertainty. It is not therapy, diagnosis, or emergency care. It is a safe first space for reflection, learning support, and practical life organization.
+Families told us homework support needs a boundary: a child should be able to practice safely, and a parent should see what needs review without reading the child's answers. We built the homework practice loop first; Alexa+ was the natural second surface — a voice agent that proposes, earns approval, and hands off — without ever automating unapproved communication to a child.
 
 ## What It Does
 
-FadFada lets users choose a conversation style, write or record what is on their mind, and receive a warm same-language response with a small practical plan. The experience includes:
-
-- bilingual English and Arabic interface with RTL/LTR switching
-- no mixed Arabic/English screens: each visible surface follows the active language
-- professional full-screen chat with sender and companion bubbles
-- Daily Pulse check-in that turns mood, energy, and need into one useful next step
-- Tiny Plan action that turns any response into saved steps the user can revisit from profile
-- fictional personas with non-real stylized portraits
-- text, voice, and video reflection modes
-- Gemini-powered reflection route on Google Cloud Vertex AI with local fallback
-- adaptive expert routing for wellbeing, learning, career, relationships, health, life organization, celebration, and safety
-- custom companion creation, avatar ratings, public notices, and saved profile moments
-- Learning Room with curated video, article, course, and document-style resources inside the chat
-- crisis keyword prototype with safety-first interruption and Find a Helpline routing
-- child profiles and separate child workspace mode
-- child-safe companion roster with parent-controlled switching
-- parent homework transformer from image or text hint
-- parent playbook generator for hard child moments
-- Parent Copilot Timeline summarizing the last 7 days per child
-- Dual Mirror Response showing one moment in two useful lanes
-- PWA manifest, service worker, app icon, and install prompt UI
-- admin analytics, visitor telemetry, notification composer, and avatar rating summaries
-- Evidence Room showing PWA readiness, Vertex AI readiness, deployment version, business positioning, proof signals, and Trust Mode boundaries
-- downloadable Evidence Room JSON export for judges and Devpost evidence
+- Parent or an Alexa+ caller asks for "25 minutes of math before bedtime".
+- The routine engine builds three steps (settle / guided practice / parent review) in `awaiting_parent_approval`.
+- Constraints can change ("she is tired, make it 10 minutes") — steps rebuild, completed progress is kept, and the routine returns to awaiting approval because the child-facing plan changed.
+- An explicit parent approval records the authorizing event. Only then can practice begin.
+- The child workspace receives only approved output; the parent API returns `403 PARENT_WORKSPACE_REQUIRED` to child-mode sessions.
 
 ## How We Built It
 
-The app is built with Next.js App Router, React, TypeScript, Tailwind CSS, Prisma, NextAuth, Neon Postgres, a web app manifest, and a service worker. The Gemini integration lives behind a server-side `/api/reflect` route and now runs through Google Cloud Vertex AI using Vercel OIDC and Google Workload Identity Federation, so production can use Google Cloud credits without storing service-account JSON keys. If Gemini is not configured or fails during a demo, the app falls back to a local reflection engine so the core experience remains demonstrable.
-
-The product shell was designed around hackathon evidence from day one. Instead of only building a beautiful chat surface, FadFada includes a judge-ready demo path, parent and child workspace flows, admin analytics, public notices, avatar ratings, PWA readiness checks, and an internal Evidence Room that can export proof as JSON.
-
-## Gemini Usage
-
-Gemini is used as the reflection and routing layer. The production app is deployed at `https://fad-fada.vercel.app` and currently uses Vertex AI with `gemini-2.5-flash` in `us-central1`. The server prompt asks Gemini to:
-
-- respond in the user's language
-- avoid therapy, diagnosis, or emergency-care claims
-- reflect the user's emotion naturally
-- identify the right expert mode
-- produce a concise response and a small next-step plan
-- behave as a learning coach when the user asks for study help
-
-Authentication to Google Cloud is keyless: Vercel sends an OIDC token to the serverless function, Google Workload Identity Federation exchanges that token, and the app impersonates a least-purpose service account for Vertex AI access.
-
-The UI also records Gemini readiness as part of the Evidence Room so judges can see where the AI route fits into the product.
-
-## AI-Native Operations
-
-FadFada is not using AI as a decorative add-on. AI is actively part of the product's operating workflow:
-
-- the live reflection route uses Gemini in production for user-facing responses
-- the system routes moments into different worlds and companion behaviors
-- parents can transform homework into child-friendly activities through an AI-assisted workflow
-- parents can generate short playbooks for difficult family moments
-- Dual Mirror can render the same moment in two different useful interpretations
-- Story Mirror and related proof artifacts turn conversations into structured outputs judges can inspect
-
-This is the clearest way we satisfy the requirement that AI must be live inside the business workflow, not only mentioned in a prototype story.
-
-## Business Model
-
-FadFada is designed as a real business, not only a demo. The initial validation path is:
-
-- free beta for feedback
-- founding beta: $9 one-time early access for 3 months
-- later subscription for text, voice, video, memory, and plans
-- team wellbeing pilots for universities, communities, and remote teams
-
-The Evidence Room is built to support the business story by collecting signals such as sessions, feedback, safety events, beta interest, and exportable proof.
-
-For Devpost submission, revenue and expense evidence should be stated exactly as it is during the hackathon period, even if the value is currently zero. If revenue is still zero at submission time, that should be presented honestly together with user evidence, live deploy proof, and the business model path.
-
-## Safety
-
-FadFada is not therapy, not diagnosis, and not emergency care. The product uses safety-first language and includes a crisis keyword prototype. When high-risk language appears, the app interrupts the normal reflection flow and points users toward emergency services, a trusted person, or Find a Helpline.
-
-Production safety work would include stronger classifiers, localized crisis resources, human review workflows, and abuse/immediate-danger routing beyond keyword matching. The current build already includes visible Trust Mode proof, server-verified parent return for child workspace exit, safe session snapshot persistence, and fail-soft shell behavior when non-critical backend services are unavailable.
+- Next.js + React 19 + TypeScript + Prisma + Neon Postgres (existing FadFada stack).
+- New deterministic Family Flow engine (`src/lib/familyFlow.ts`) — pure, unit-tested (~3 tests).
+- New parent-only API (`/api/parent/family-flow`) with child-ownership checks; routine state lives as append-only `InteractionEvent` records.
+- New self-hosted Streamable HTTP MCP server (`/api/mcp/family-flow`) with the official `@modelcontextprotocol/sdk`, protocol `2025-11-25`, bearer auth, server-derived parent binding. Tools: `get_family_routine`, `create_family_routine`, `reschedule_family_routine`, `approve_family_routine`.
+- Parent demo surface in the profile workspace (`FamilyFlowPanel`).
+- Workspace-identity guards (`src/lib/workspaceIdentity.ts`) with unit tests.
 
 ## What Makes It Different
 
-- Arabic and English from day one
-- text, voice, and video expression in one PWA
-- parent + child workspace architecture in the same product
-- human-feeling personas instead of a generic chatbot
-- Learning Room embedded inside emotional support conversations
-- Dual Mirror for two useful readings of the same moment
-- Parent Copilot Timeline for real family follow-through
-- safety and non-therapy positioning built into the product
-- Evidence Room and export designed for real business validation
-- judge-ready demo scenarios that show support, learning, safety, and celebration flows quickly
+- Multi-turn, stateful agentic workflow, not a Q&A skill: approvals, revisions, and review signals all persist across sessions.
+- Safety is structural: a material change (time/task) always resets approval; no child answers or conversations are ever stored in routine records.
+- One approval-gated engine serves both the human parent UI and the MCP/Alexa+ surface.
 
-## Challenges
+## Challenges We Ran Into
 
-The hardest product challenge was making the app feel human without pretending to be a therapist. The conversation had to be warm, natural, and useful while staying clear about limitations. Another challenge was keeping video and learning content inside the app without relying on unstable embedded playback; the current version uses stable thumbnails and external playback links when needed.
-
-The technical challenge was balancing a strong demo with a real product direction: PWA install behavior, Gemini fallback, safety flows, responsive chat, Arabic RTL, Learning Room, personas, and evidence collection all had to work together without becoming noisy.
+- Streamable HTTP requires an `Accept: application/json, text/event-stream` header; a raw request returned 406 until we matched the spec.
+- Serverless + long-lived transport: we keep the MCP connection short-lived and stateless per request; routine state lives in the event store, not the server.
+- Designing approval semantics: rescheduling originally kept approval; we changed it so any child-facing material change requires a fresh parent decision (unit-tested).
 
 ## Accomplishments
 
-- deployed a polished bilingual PWA at `https://fad-fada.vercel.app`
-- implemented professional full-screen chat
-- added persona selection with stylized non-real portraits
-- added text, voice, and video reflection flows
-- implemented Gemini server route on Vertex AI with safe fallback
-- configured keyless Google Cloud auth through Vercel OIDC and Workload Identity Federation
-- added admin analytics, public notifications, profile moments, and avatar ratings
-- added crisis interruption prototype
-- added child workspace, child profiles, homework inbox, and parent-controlled switching
-- added Parent Playbook, Parent Copilot Timeline, and Trust Mode proof
-- added Dual Mirror judge-facing experience
-- built an in-chat Learning Room and maximized viewer
-- added judge demo scenarios
-- built Evidence Room with proof signals and JSON export
-- passed lint and production build validation
+- Live production MCP server with a verified `2025-11-25` handshake and a full create → reschedule → approve → read lifecycle recorded against real data.
+- Cross-surface consistency: a routine created via MCP appears in the parent UI API and vice versa.
+- Changelog and friction log at repo root for judge transparency.
 
 ## What We Learned
 
-A wellbeing product wins trust through restraint. The best response is not always the most advanced analysis; often it is the response that sounds calm, specific, and human. We also learned that business evidence should be visible inside the product early, because judges need to see how the idea becomes a real company.
+- Clean domain logic (a pure routine engine) made safety behavior testable and explainable.
+- Append-only events kept two surfaces consistent without a schema migration.
+- Honest submission packaging (friction log, dated changelog) is part of a credible entry.
 
 ## What's Next
 
-- expand localized crisis resources and human escalation workflows
-- add official cloud speech-to-text and cloud text-to-speech for stronger dialect quality
-- connect a Kuwait/GCC-friendly payment provider such as MyFatoorah, Tap, or Paddle
-- add secure media storage and longer-term memory controls
-- add production-grade safety classifier and localized crisis resources
-- record a 3-minute demo video using the live site, admin dashboard, and Evidence Room export
+- Record and attach the under-3-minute demo video.
+- Final visual pass in the child workspace for the recorded demo.
 
-## Submission Notes
+## AWS Builder Go/No-Go (decided: NO-GO)
 
-For the final Devpost entry, make sure the submission explicitly includes:
+- No AWS CLI, credentials, or Bedrock access were available in this environment, and the decision window closed without them.
+- Decision: submit the Alexa+ track only and make no AWS or Bedrock claim. Nothing in the repo claims an AWS integration.
 
-- category selection aligned to the strongest business case
-- repository URL and testing access instructions
-- public demo video under 3 minutes if possible, or as close as possible while keeping the strongest proof first
-- revenue by month, total revenue, total expenses, and marketing spend, even if the answer is zero
-- user evidence, user breakdown, and any testimonials or feedback you are allowed to share
-- production proof such as live URL, evidence export, screenshots, agent/API usage signals, and admin/event screenshots
-- a clear statement that Gemini is used for at least one live LLM call in the deployed application
+## Safety Notes
 
-## Suggested Demo Flow
-
-1. Open FadFada and show the calm bilingual landing page.
-2. Switch from English to Arabic to show RTL support.
-3. Run the judge scenario, then trigger Dual Mirror.
-4. Open the parent profile child section and show Parent Copilot Timeline.
-5. Show the homework transformer or Parent Playbook.
-6. Run the Learning Room scenario and maximize a resource viewer.
-7. Run the safety scenario and show crisis interruption behavior.
-8. Open Evidence Room, show Trust Mode, and export the JSON evidence file.
-9. Close with the live business model and next deployment step.
+Family Flow is not medical, therapeutic, emergency, legal, or financial advice. Routine records store identifiers, timings, status, and aggregate learning signals only — never child answer text. Demo uses fictional, nickname-only child data.
