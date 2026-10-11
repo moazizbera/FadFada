@@ -25,6 +25,14 @@ tsconfig.tsbuildinfo
 Fadfada_wrongPresentation.png
 docs/
 
+# Demo video + review artifacts (large / regenerated; not part of the app)
+/*.mp4
+contact-*.png
+fabric-preview.png
+
+# Agent tool state
+.belt/
+
 # Android signing secrets — never commit the keystore or its passwords
 android/keystore.properties
 android/app/fadfada-release.jks
