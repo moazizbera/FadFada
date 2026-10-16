@@ -38,3 +38,4 @@ android/keystore.properties
 android/app/fadfada-release.jks
 android/app/*.jks
 android/local.properties
+fadfada-submission.zip
