@@ -84,6 +84,9 @@ export async function POST(request: NextRequest) {
     } else if (action === "complete_step") {
       const stepId = readString(body.stepId);
       if (!stepId) return NextResponse.json({ error: "STEP_ID_REQUIRED" }, { status: 400 });
+      if (currentMetadata.routine.status !== "approved") {
+        return NextResponse.json({ error: "ROUTINE_NOT_APPROVED" }, { status: 409 });
+      }
       routine = completeFamilyFlowStep(currentMetadata.routine, stepId);
     } else {
       return NextResponse.json({ error: "UNSUPPORTED_ACTION" }, { status: 400 });

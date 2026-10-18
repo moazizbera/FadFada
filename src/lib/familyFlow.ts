@@ -73,6 +73,9 @@ export function rescheduleFamilyFlowRoutine(routine: FamilyFlowRoutine, totalMin
 }
 
 export function completeFamilyFlowStep(routine: FamilyFlowRoutine, stepId: string): FamilyFlowRoutine {
+  if (routine.status !== "approved") return routine;
+  if (!routine.steps.some((step) => step.id === stepId)) return routine;
+
   const steps = routine.steps.map((step) => step.id === stepId ? { ...step, completed: true } : step);
   return {
     ...routine,

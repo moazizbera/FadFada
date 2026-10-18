@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import type { FamilyFlowRoutine } from "../lib/familyFlow";
+import { FamilyFlowConsole } from "./FamilyFlowConsole";
 
 type ChildOption = { id: string; nickname: string };
 type FamilyFlowPanelProps = {
@@ -23,6 +24,7 @@ export function FamilyFlowPanel({ children, language }: FamilyFlowPanelProps) {
   const [routine, setRoutine] = useState<FamilyFlowRoutine | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "saving" | "error">("idle");
   const [message, setMessage] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     setChildProfileId((current) => current || children[0]?.id || "");
@@ -51,7 +53,7 @@ export function FamilyFlowPanel({ children, language }: FamilyFlowPanelProps) {
       });
 
     return () => { active = false; };
-  }, [childProfileId, isArabic]);
+  }, [childProfileId, isArabic, reloadKey]);
 
   async function sendAction(action: "create" | "approve" | "reschedule" | "complete_step", details: Record<string, unknown> = {}) {
     if (!childProfileId) return;
@@ -158,6 +160,14 @@ export function FamilyFlowPanel({ children, language }: FamilyFlowPanelProps) {
             ))}
           </ol>
         </div>
+      ) : null}
+
+      {children.length > 0 && childProfileId ? (
+        <FamilyFlowConsole
+          childProfileId={childProfileId}
+          language={language}
+          onRoutineChanged={() => setReloadKey((key) => key + 1)}
+        />
       ) : null}
 
       {status === "loading" ? <p className="mt-3 font-arsans text-xs text-bone/45">{isArabic ? "جار تحميل الروتين..." : "Loading routine..."}</p> : null}

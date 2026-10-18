@@ -839,6 +839,8 @@ Flow for a demo turn:
 3. If the parent changes the constraint, `reschedule_family_routine` rebuilds the steps, keeps completed steps, and returns the routine to `awaiting_parent_approval`.
 4. `approve_family_routine` records the explicit parent approval that authorizes a child-facing handoff.
 5. `get_family_routine` reads the latest routine for one child. Routines never contain child answers or child conversations.
+6. An in-app Alexa+ console (`src/components/FamilyFlowConsole.tsx`, backed by the parent-guarded `/api/alexa/family-flow` proxy) acts as a real web MCP client: it sends `initialize`, `tools/list`, and `tools/call` requests over Streamable HTTP to the same server and displays the raw JSON-RPC transcript. The bearer token stays server-side.
+7. Step completion (`complete_step`) is accepted only while a routine is `approved`, so a routine can never reach `completed` without an explicit parent approval.
 
 This is the module submitted for the Alexa+ track of the Amazon Developer Hackathon. Live endpoint, verified handshake, and full lifecycle evidence are recorded in the submission notes.
 

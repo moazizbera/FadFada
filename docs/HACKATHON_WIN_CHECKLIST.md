@@ -35,9 +35,9 @@ Status legend:
   - Acceptance: server-verified transition path for exiting child workspace.
   - Validation: attempt bypass from browser local storage only should fail.
 
-- [ ] Verify all parent-only routes enforce parent workspace.
+- [x] Verify all parent-only routes enforce parent workspace.
   - Acceptance: child workspace receives 403 on parent endpoints.
-  - Validation: quick API checks for /api/parent/* and /api/profile.
+  - Validation: `scripts/verify-parent-guards.ts` — in child mode, GET/POST on `/api/parent/child`, `/api/parent/family-flow`, `/api/parent/homework`, `/api/parent/homework/status`, `/api/parent/playbook`, `/api/parent/pulse`, `/api/parent/weekly-report`, and `/api/profile` all return `403 PARENT_WORKSPACE_REQUIRED`. `/api/parent/return-code` intentionally returns 200 (child exit path). Result: ALL GUARDS OK (2026-10-11).
 
 ### 1.3 Safety Signal Quality
 - [x] Improve child pulse safety classifier beyond keyword-only detection.
