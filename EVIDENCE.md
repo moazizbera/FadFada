@@ -137,22 +137,57 @@ npm run build       # next build    -> pass; /api/alexa/family-flow and /api/mcp
 npm run lint        # unavailable: no ESLint config (next lint prompts interactively)
 ```
 
-## 9. Deployment status (verified 2026-10-18)
+## 9. Deployment status (verified 2026-10-19)
 
-**In production** (`https://fad-fada.vercel.app`), confirmed live today:
+Checked remotely from a clean working tree; the local branch is `release/0.1.62-clean`,
+HEAD `2b84997`, fully pushed (0 ahead / 0 behind `origin`).
 
-- `POST /api/mcp/family-flow` `initialize` with bearer token → **HTTP 200**,
-  `protocolVersion 2025-11-25`, `serverInfo fadfada-family-flow/0.1.112`.
-- Same request with no `Authorization` → **HTTP 401** `{"error":"UNAUTHORIZED"}`.
-- `scripts/verify-parent-guards.ts` against production → **ALL GUARDS OK** (section 6).
+**Which revision is live.** `GET https://fad-fada.vercel.app/api/version` →
+HTTP **200**:
 
-**Not yet in production** (pending a Vercel deploy of the default branch):
+```json
+{ "version": "0.1.112-GehxmDh", "packageVersion": "0.1.112",
+  "commitSha": "b9b0351e919bdbc02cbb8b97bbdfc840dc8bb242",
+  "deploymentId": "dpl_GehxmDhec6djkcCnzS6ZkWMLvzj8",
+  "checkedAt": "2026-10-19T18:46:49.821Z" }
+```
 
-- `GET /api/alexa/family-flow` (the in-app web MCP console proxy) → **HTTP 404**, i.e. the
-  running deployment predates this route. Compiled and tested locally, not deployed.
-- The approval-guard fix (`complete_step` → `409 ROUTINE_NOT_APPROVED`) therefore also is
-  **not live yet**; it ships with the same deploy.
+The deployed commit `b9b0351` ("Add Family Flow routine engine, parent API, and MCP server",
+2026-10-07) **is an ancestor of HEAD**. HEAD is **6 commits ahead** of it — so the latest
+commits are **not deployed**.
 
-The default branch is `release/0.1.62-clean`, and GitHub reports the MIT license
-(`license.key: mit`) from that branch. Repository requirements are satisfied regardless of
-deployment; the two items above are feature/shipping items, not eligibility blockers.
+**Verified live in production** (2026-10-19T18:43–18:48Z):
+
+- Root `/` → HTTP 200 (static, cache HIT).
+- `POST /api/mcp/family-flow` `initialize` with bearer token → HTTP **200**,
+  `protocolVersion 2025-11-25`, `serverInfo { "fadfada-family-flow", "0.1.112" }`.
+- Same request with **no** `Authorization` → HTTP **401** `{"error":"UNAUTHORIZED"}`.
+- `GET /api/alexa/family-flow` → HTTP **404** (route not in the running deployment).
+- `scripts/verify-parent-guards.ts` (2026-10-19T18:48:13Z) → **ALL GUARDS OK** (section 6).
+
+**Verified locally on the HEAD build** (`next build` + `next start`, port 3100):
+
+- `GET /` → HTTP **200**.
+- `GET /api/alexa/family-flow` → HTTP **405** (route **exists**, POST-only) — vs the 404 in
+  the stale production deployment. This is the proof the deployed build predates the route.
+- `GET /api/mcp/family-flow` (no `FAMILY_FLOW_MCP_TOKEN` in local env) → HTTP **503**
+  `{"error":"MCP_NOT_CONFIGURED"}` — fails closed when unconfigured.
+
+**Not yet in production** (ships with the next Vercel deploy of the default branch):
+
+- `GET /api/alexa/family-flow` — the in-app web MCP console proxy (compiled; 405 locally).
+- The approval-guard fix (`complete_step` → `409 ROUTINE_NOT_APPROVED`) in
+  `src/lib/familyFlow.ts` + `/api/parent/family-flow`.
+- These are feature-deployment items, **not** eligibility blockers: the repository
+  requirements (public, detectable MIT license at `license.key: mit`, runtime-hooked MCP
+  code) are already satisfied on the default branch.
+
+## 10. Local build/test results (2026-10-19)
+
+```
+npm run typecheck   # tsc --noEmit  -> pass (exit 0)
+npm test            # vitest run    -> 15/15 pass (familyFlow 10 + workspaceIdentity 5)
+npm run build       # next build    -> pass (42 routes); /api/alexa/family-flow,
+                    #                            /api/mcp/family-flow, /api/parent/family-flow compiled
+npm run lint        # unavailable: no ESLint config (next lint would prompt interactively)
+```
